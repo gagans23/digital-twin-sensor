@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "digital-twin-sensor"
+version = "0.1.0"
+description = "Privacy-first local attention sensor and Digital Twin Signature prototype inspired by X-SYNTH."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Local prototype" }]
+dependencies = []
+
+[project.scripts]
+digital-twin-sensor = "digital_twin_sensor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["digital_twin_sensor*"]
+
+[tool.setuptools.package-data]
+digital_twin_sensor = ["ui_static/*"]
