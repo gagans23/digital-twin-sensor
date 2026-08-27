@@ -9,6 +9,7 @@ from pathlib import Path
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
 from .query import format_retrieval, retrieve
+from .redaction import redact_text
 from .store import EventStore
 from .twin import build_digital_twin_signature
 from .web import run_dashboard
@@ -108,6 +109,42 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_redact_existing(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = EventStore(args.db)
+    events = store.fetch_window(subject_id=subject_id, days=args.days)
+
+    changed = 0
+    findings_total: dict[str, int] = {}
+    for event in events:
+        title = redact_text(event["title"], config)
+        artifact = redact_text(event["artifact"], config)
+        metadata = dict(event.get("metadata", {}))
+        findings = dict(metadata.get("redaction_findings", {}))
+        for result in (title, artifact):
+            for key, value in result.findings.items():
+                findings[key] = int(findings.get(key, 0)) + int(value)
+                findings_total[key] = int(findings_total.get(key, 0)) + int(value)
+        metadata["redaction_findings"] = findings
+
+        if title.text != event["title"] or artifact.text != event["artifact"]:
+            changed += 1
+            if not args.dry_run:
+                store.update_event_text(
+                    int(event["id"]),
+                    title=title.text,
+                    artifact=artifact.text,
+                    metadata=metadata,
+                )
+
+    store.close()
+    mode = "would update" if args.dry_run else "updated"
+    print(f"{mode} {changed} events")
+    print(json.dumps({"redaction_findings": findings_total}, indent=2))
+    return 0
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     run_dashboard(
         db_path=args.db,
@@ -160,6 +197,12 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--subject-id", default=None)
     export.add_argument("--days", type=int, default=14)
     export.set_defaults(func=cmd_export)
+
+    redact = sub.add_parser("redact-existing", help="Apply current PII masking rules to stored events.")
+    redact.add_argument("--subject-id", default=None)
+    redact.add_argument("--days", type=int, default=3650)
+    redact.add_argument("--dry-run", action="store_true")
+    redact.set_defaults(func=cmd_redact_existing)
 
     ui = sub.add_parser("ui", help="Launch the local Digital Twin Console.")
     ui.add_argument("--host", default="127.0.0.1")

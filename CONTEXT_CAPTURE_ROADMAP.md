@@ -70,3 +70,5 @@ Before any team or workplace use:
 4. Add optional browser-history connector storing only domain and title.
 5. Add optional git-repo connector for branch, diff stats, and changed files.
 6. Add a local context-pack export command for Kiro/Codex prompts.
+
+See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.

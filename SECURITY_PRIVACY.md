@@ -21,6 +21,10 @@ It does not collect:
 
 Sensitive titles are redacted by keyword before storage when `redact_sensitive_titles` is enabled.
 
+PII masking is enabled by default before storage. The redactor masks emails, credit-card-like numbers that pass Luhn validation, US SSNs, phone numbers, IPv4 addresses, common secret/API token shapes, URL paths, and configured names.
+
+If you change `name_terms_to_mask` or other masking settings later, run `digital-twin-sensor redact-existing` to apply the new rules to previously stored rows.
+
 Use this only on devices and accounts you own or where every monitored user has given informed consent. For workplace deployment, add policy controls before use: retention limits, user-visible status, opt-out, admin audit logs, encryption at rest, and clear data subject access/deletion procedures.
 
 For a stronger privacy posture, set:

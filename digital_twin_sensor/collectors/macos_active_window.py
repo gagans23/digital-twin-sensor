@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import timedelta
 from typing import Any
 
+from ..redaction import redact_text
 from ..store import utc_now
 
 
@@ -119,10 +120,12 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
     if ignored and not config.get("record_ignored_apps_as_system_events", True):
         return None
 
-    title = f"[system state: {app}]" if ignored else scrub_title(raw_title, config)
+    raw_safe_title = f"[system state: {app}]" if ignored else scrub_title(raw_title, config)
     now = utc_now()
     start = now - timedelta(seconds=max(dwell_seconds, 0.1))
-    domain = "system" if ignored else classify_domain(app, title, config)
+    domain = "system" if ignored else classify_domain(app, raw_safe_title, config)
+    redacted_title = redact_text(raw_safe_title, config)
+    title = redacted_title.text
     artifact = title if title else app
 
     return {
@@ -139,6 +142,7 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
         "metadata": {
             "collector_version": "macos-active-window-v1",
             "ignored_app_recorded_as_system": ignored,
+            "redaction_findings": redacted_title.findings,
             "privacy": "no_keystrokes_no_screenshots_no_clipboard",
         },
     }

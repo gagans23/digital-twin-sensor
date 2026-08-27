@@ -4,6 +4,11 @@
   "capture_window_title": true,
   "redact_sensitive_titles": true,
   "record_ignored_apps_as_system_events": true,
+  "mask_pii": true,
+  "mask_configured_names": true,
+  "mask_ip_addresses": true,
+  "redact_url_paths": true,
+  "name_terms_to_mask": ["your-name", "your-machine-username"],
   "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
   "sensitive_title_keywords": [
     "password",

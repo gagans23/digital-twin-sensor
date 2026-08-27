@@ -136,6 +136,20 @@ def _transitions(events: list[dict[str, Any]], limit: int = 12) -> list[dict[str
     return [{"transition": name, "count": count} for name, count in counter.most_common(limit)]
 
 
+def _redaction_summary(events: list[dict[str, Any]]) -> dict[str, int]:
+    summary: Counter[str] = Counter()
+    for event in events:
+        findings = event.get("metadata", {}).get("redaction_findings", {})
+        if not isinstance(findings, dict):
+            continue
+        for key, value in findings.items():
+            try:
+                summary[str(key)] += int(value)
+            except (TypeError, ValueError):
+                continue
+    return dict(sorted(summary.items()))
+
+
 def _interpret(profile: dict[str, Any], events: list[dict[str, Any]]) -> list[dict[str, str]]:
     if not events:
         return [
@@ -297,7 +311,12 @@ def build_overview(
         "privacy": {
             "capture_window_title": bool(config.get("capture_window_title", True)),
             "redact_sensitive_titles": bool(config.get("redact_sensitive_titles", True)),
+            "mask_pii": bool(config.get("mask_pii", True)),
+            "mask_configured_names": bool(config.get("mask_configured_names", True)),
+            "mask_ip_addresses": bool(config.get("mask_ip_addresses", True)),
+            "redact_url_paths": bool(config.get("redact_url_paths", True)),
             "data_location": str(db_path.expanduser()),
+            "redaction_summary": _redaction_summary(events),
             "captured": [
                 "active app",
                 "window title or redacted title",

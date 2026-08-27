@@ -133,3 +133,21 @@ class EventStore:
         else:
             row = self.conn.execute("SELECT COUNT(*) AS count FROM events").fetchone()
         return int(row["count"])
+
+    def update_event_text(
+        self,
+        event_id: int,
+        *,
+        title: str,
+        artifact: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        self.conn.execute(
+            """
+            UPDATE events
+            SET title = ?, artifact = ?, metadata_json = ?
+            WHERE id = ?
+            """,
+            (title, artifact, json.dumps(metadata, sort_keys=True), event_id),
+        )
+        self.conn.commit()

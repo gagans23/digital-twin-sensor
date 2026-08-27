@@ -312,9 +312,16 @@ function renderPrivacy(privacy) {
   $("capturedList").innerHTML = privacy.captured.map((item) => `<div class="privacy-item">${escapeHtml(item)}</div>`).join("");
   $("notCapturedList").innerHTML = privacy.not_captured.map((item) => `<div class="privacy-item">${escapeHtml(item)}</div>`).join("");
   $("dataLocation").textContent = privacy.data_location;
+  const findings = Object.entries(privacy.redaction_summary || {});
+  const summary = findings.length
+    ? findings.map(([key, value]) => `${key}: ${value}`).join(" · ")
+    : "no sensitive text detected yet";
   $("privacyFlags").innerHTML = `
     <span class="flag ${privacy.capture_window_title ? "enabled" : ""}">window titles ${privacy.capture_window_title ? "on" : "off"}</span>
     <span class="flag ${privacy.redact_sensitive_titles ? "enabled" : ""}">sensitive redaction ${privacy.redact_sensitive_titles ? "on" : "off"}</span>
+    <span class="flag ${privacy.mask_pii ? "enabled" : ""}">PII masking ${privacy.mask_pii ? "on" : "off"}</span>
+    <span class="flag ${privacy.redact_url_paths ? "enabled" : ""}">URL paths ${privacy.redact_url_paths ? "masked" : "stored"}</span>
+    <span class="flag enabled">redacted: ${escapeHtml(summary)}</span>
   `;
 }
 

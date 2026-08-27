@@ -6,6 +6,8 @@ In this starter, the "sensor" is software. It samples your active macOS window, 
 
 If macOS only reports a locked or hidden user session such as `loginwindow`, the sensor records a low-detail `system` event. That keeps collection health visible without claiming it captured the foreground app.
 
+PII masking is enabled by default before data is written to SQLite. It masks emails, credit-card-like numbers validated with Luhn, SSNs, phone numbers, IP addresses, common secret/token shapes, URL paths, and configured names.
+
 ## What It Implements
 
 The paper describes a four-stage pipeline:
@@ -150,6 +152,19 @@ Export recent raw events:
 digital-twin-sensor export --days 7 > events.json
 ```
 
+Re-apply masking to already stored events after changing redaction rules:
+
+```bash
+digital-twin-sensor redact-existing --dry-run
+digital-twin-sensor redact-existing
+```
+
+Run the redaction tests:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
 ## How To Use This With Kiro
 
 Open this folder in a fresh terminal and run:
@@ -187,6 +202,8 @@ Next build steps:
 ## Product Design Notes
 
 See `UI_RESEARCH_AND_DIRECTION.md` for the public Workfabric/ContextFabric references that shaped the dashboard and the ways this prototype intentionally improves transparency for a personal digital twin.
+
+See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.
 
 ## Important Boundary
 
