@@ -115,13 +115,14 @@ def scrub_title(title: str, config: dict[str, Any]) -> str:
 
 def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] | None:
     app, raw_title = active_window()
-    if should_ignore(app, config):
+    ignored = should_ignore(app, config)
+    if ignored and not config.get("record_ignored_apps_as_system_events", True):
         return None
 
-    title = scrub_title(raw_title, config)
+    title = f"[system state: {app}]" if ignored else scrub_title(raw_title, config)
     now = utc_now()
     start = now - timedelta(seconds=max(dwell_seconds, 0.1))
-    domain = classify_domain(app, title, config)
+    domain = "system" if ignored else classify_domain(app, title, config)
     artifact = title if title else app
 
     return {
@@ -131,12 +132,13 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
         "title": title,
         "artifact": artifact,
         "domain": domain,
-        "action": "focus",
+        "action": "system" if ignored else "focus",
         "ts_start": start.isoformat(),
         "ts_end": now.isoformat(),
         "dwell_seconds": dwell_seconds,
         "metadata": {
             "collector_version": "macos-active-window-v1",
+            "ignored_app_recorded_as_system": ignored,
             "privacy": "no_keystrokes_no_screenshots_no_clipboard",
         },
     }

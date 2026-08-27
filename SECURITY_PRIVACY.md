@@ -8,6 +8,7 @@ It collects:
 - active window title, unless disabled
 - derived domain label
 - timestamp and estimated dwell time
+- low-detail system state events when ignored system apps are detected
 
 It does not collect:
 

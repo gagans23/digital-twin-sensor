@@ -3,6 +3,7 @@
   "sample_interval_seconds": 15,
   "capture_window_title": true,
   "redact_sensitive_titles": true,
+  "record_ignored_apps_as_system_events": true,
   "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
   "sensitive_title_keywords": [
     "password",

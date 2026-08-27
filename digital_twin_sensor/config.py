@@ -16,6 +16,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "sample_interval_seconds": 15,
     "capture_window_title": True,
     "redact_sensitive_titles": True,
+    "record_ignored_apps_as_system_events": True,
     "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
     "sensitive_title_keywords": [
         "password",

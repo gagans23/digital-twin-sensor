@@ -4,6 +4,8 @@ This is a privacy-first local prototype inspired by the X-SYNTH paper, which arg
 
 In this starter, the "sensor" is software. It samples your active macOS window, stores local attention events in SQLite, computes a rolling Digital Twin Signature, and ranks artifacts using attention filters plus simple content relevance.
 
+If macOS only reports a locked or hidden user session such as `loginwindow`, the sensor records a low-detail `system` event. That keeps collection health visible without claiming it captured the foreground app.
+
 ## What It Implements
 
 The paper describes a four-stage pipeline:
@@ -58,6 +60,13 @@ If you only want the URL and do not want the browser to open automatically:
 
 ```bash
 digital-twin-sensor ui --no-open
+```
+
+To keep the dashboard available at login:
+
+```bash
+chmod +x scripts/install_dashboard_agent.sh scripts/uninstall_dashboard_agent.sh
+scripts/install_dashboard_agent.sh
 ```
 
 For live collection:
