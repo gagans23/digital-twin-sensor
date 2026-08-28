@@ -452,6 +452,7 @@ input:focus {
 .activity-pipeline,
 .activity-explanation,
 .sphere-list,
+.surface-details,
 .activity-timeline,
 .sphere-transitions {
   display: grid;
@@ -564,6 +565,7 @@ input:focus {
 .activity-stage,
 .activity-note,
 .sphere-card,
+.surface-card,
 .timeline-item,
 .sphere-transition {
   background: var(--surface);
@@ -811,6 +813,96 @@ input:focus {
   color: var(--ink);
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.surface-card {
+  border-left: 4px solid var(--amber);
+  display: grid;
+  gap: 12px;
+}
+
+.surface-card.captured {
+  border-left-color: var(--green);
+}
+
+.surface-card.opaque {
+  border-left-color: var(--coral);
+}
+
+.surface-head {
+  align-items: start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.surface-head h3 {
+  overflow-wrap: anywhere;
+}
+
+.surface-head p,
+.surface-card p,
+.surface-card small {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.surface-status {
+  border-radius: 999px;
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 800;
+  min-height: 26px;
+  padding: 5px 9px;
+  text-transform: uppercase;
+}
+
+.surface-status.captured {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.surface-status.available {
+  background: var(--amber-soft);
+  color: #7a4a00;
+}
+
+.surface-status.opaque {
+  background: var(--coral-soft);
+  color: #9a341f;
+}
+
+.surface-section {
+  display: grid;
+  gap: 7px;
+}
+
+.surface-artifacts {
+  display: grid;
+  gap: 6px;
+}
+
+.surface-artifact {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.surface-artifact span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.surface-artifact b {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.domain-chip {
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .timeline-item {

@@ -194,6 +194,7 @@ function renderActivities(activities) {
   renderActivityPipeline(activities?.pipeline || []);
   renderActivityExplanation(activities?.explanations || []);
   renderSphereCards(activities?.spheres || []);
+  renderSurfaceDetails(state.overview?.surface_details || []);
   renderActivityTimeline(activities?.timeline || []);
   renderSphereTransitions(activities?.transitions || []);
 }
@@ -311,6 +312,64 @@ function renderSphereCards(items) {
         <p>${escapeHtml(resume.next_action_guess || "Review the latest artifact and decide the next action.")}</p>
         <small>${escapeHtml(resume.privacy_gate || "Depth 1 metadata only")}</small>
       </div>
+    `;
+    root.appendChild(card);
+  }
+}
+
+function renderSurfaceDetails(items) {
+  const root = $("surfaceDetails");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No app surface details yet.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const card = document.createElement("article");
+    const statusText = String(item.status || "");
+    const statusClass = statusText.includes("captured")
+      ? "captured"
+      : statusText.includes("opaque")
+        ? "opaque"
+        : "available";
+    const fields = (item.known_fields || [])
+      .map((field) => `<span class="chip">${escapeHtml(field)}</span>`)
+      .join("");
+    const domains = (item.browser_domains || [])
+      .map((domain) => `<span class="chip domain-chip">${escapeHtml(domain.domain)} · ${domain.events}</span>`)
+      .join("");
+    const artifacts = (item.top_artifacts || [])
+      .slice(0, 3)
+      .map((artifact) => `<div class="surface-artifact"><span>${escapeHtml(artifact.name)}</span><b>${artifact.events}</b></div>`)
+      .join("");
+    card.className = `surface-card ${statusClass}`;
+    card.innerHTML = `
+      <div class="surface-head">
+        <div>
+          <h3>${escapeHtml(item.app)}</h3>
+          <p>${escapeHtml(item.detail_level)} · ${fmtSeconds(item.dwell_seconds)} · ${item.events} events</p>
+        </div>
+        <span class="surface-status ${statusClass}">${escapeHtml(statusText || "unknown")}</span>
+      </div>
+      <div class="surface-section">
+        <h4>Known fields</h4>
+        <div class="sphere-chip-row">${fields}</div>
+      </div>
+      ${domains ? `<div class="surface-section"><h4>Browser domains</h4><div class="sphere-chip-row">${domains}</div></div>` : ""}
+      <div class="surface-section">
+        <h4>Observed artifacts</h4>
+        <div class="surface-artifacts">${artifacts || `<div class="muted-text">No artifact detail yet</div>`}</div>
+      </div>
+      <div class="surface-section">
+        <h4>What it knows</h4>
+        <p>${escapeHtml(item.what_we_know)}</p>
+      </div>
+      <div class="surface-section">
+        <h4>How to deepen</h4>
+        <p>${escapeHtml(item.how_to_deepen)}</p>
+      </div>
+      <small>${escapeHtml(item.privacy_boundary)}</small>
     `;
     root.appendChild(card);
   }

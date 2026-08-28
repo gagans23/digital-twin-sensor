@@ -21,6 +21,15 @@ def _path(value: str) -> Path:
     return Path(value).expanduser()
 
 
+def _toggle(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on", "enable", "enabled"}:
+        return True
+    if normalized in {"0", "false", "no", "off", "disable", "disabled"}:
+        return False
+    raise argparse.ArgumentTypeError("expected on/off, true/false, or yes/no")
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     config_path = ensure_config(args.config)
     store = EventStore(args.db)
@@ -134,6 +143,35 @@ def cmd_activities(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_configure(args: argparse.Namespace) -> int:
+    config_path = ensure_config(args.config)
+    config = load_config(config_path)
+
+    if args.depth is not None:
+        config["context_capture_depth"] = max(0, min(4, int(args.depth)))
+    if args.browser_tab_details is not None:
+        config["enable_browser_tab_details"] = args.browser_tab_details
+    if args.browser_url_path is not None:
+        config["browser_tab_store_url_path"] = args.browser_url_path
+    if args.browser_url_query is not None:
+        config["browser_tab_store_query"] = args.browser_url_query
+
+    with config_path.open("w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+        f.write("\n")
+
+    keys = [
+        "context_capture_depth",
+        "enable_browser_tab_details",
+        "browser_tab_detail_min_depth",
+        "browser_tab_detail_apps",
+        "browser_tab_store_url_path",
+        "browser_tab_store_query",
+    ]
+    print(json.dumps({key: config.get(key) for key in keys}, indent=2))
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
@@ -240,6 +278,13 @@ def build_parser() -> argparse.ArgumentParser:
     activities.add_argument("--days", type=int, default=14)
     activities.add_argument("--max-spheres", type=int, default=None)
     activities.set_defaults(func=cmd_activities)
+
+    configure = sub.add_parser("configure", help="Update capture depth and safe detail toggles.")
+    configure.add_argument("--depth", type=int, choices=range(0, 5), default=None)
+    configure.add_argument("--browser-tab-details", type=_toggle, default=None, metavar="on|off")
+    configure.add_argument("--browser-url-path", type=_toggle, default=None, metavar="on|off")
+    configure.add_argument("--browser-url-query", type=_toggle, default=None, metavar="on|off")
+    configure.set_defaults(func=cmd_configure)
 
     export = sub.add_parser("export", help="Export recent raw events as JSON.")
     export.add_argument("--subject-id", default=None)

@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import timedelta
 from typing import Any
 
+from .browser_tab import active_browser_tab_detail
 from ..redaction import redact_text
 from ..store import utc_now
 
@@ -120,13 +121,24 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
     if ignored and not config.get("record_ignored_apps_as_system_events", True):
         return None
 
+    surface_detail = None if ignored else active_browser_tab_detail(app, config)
+    if surface_detail and surface_detail.get("title"):
+        raw_title = str(surface_detail["title"])
+
     raw_safe_title = f"[system state: {app}]" if ignored else scrub_title(raw_title, config)
     now = utc_now()
     start = now - timedelta(seconds=max(dwell_seconds, 0.1))
-    domain = "system" if ignored else classify_domain(app, raw_safe_title, config)
+    domain_hint = ""
+    if surface_detail:
+        domain_hint = f"{surface_detail.get('url_domain', '')} {surface_detail.get('title', '')}"
+    domain = "system" if ignored else classify_domain(app, f"{raw_safe_title} {domain_hint}", config)
     redacted_title = redact_text(raw_safe_title, config)
     title = redacted_title.text
     artifact = title if title else app
+    redaction_findings = dict(redacted_title.findings)
+    if surface_detail:
+        for key, value in surface_detail.get("redaction_findings", {}).items():
+            redaction_findings[key] = int(redaction_findings.get(key, 0)) + int(value)
 
     return {
         "subject_id": config["subject_id"],
@@ -142,7 +154,8 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
         "metadata": {
             "collector_version": "macos-active-window-v1",
             "ignored_app_recorded_as_system": ignored,
-            "redaction_findings": redacted_title.findings,
+            "surface_detail": surface_detail,
+            "redaction_findings": redaction_findings,
             "privacy": "no_keystrokes_no_screenshots_no_clipboard",
         },
     }

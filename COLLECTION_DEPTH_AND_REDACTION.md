@@ -76,7 +76,7 @@ Purpose: understand what kind of work is happening without reading the work.
 
 Optional connectors:
 
-- browser: domain, page title, stripped URL path
+- browser: tab title, URL domain, sanitized URL, stripped URL path/query/fragment
 - IDE: repo name, branch, active file path, changed-file list
 - terminal: command name, working directory, exit code
 - calendar: meeting title, time block, attendee count
@@ -88,6 +88,31 @@ Default rule:
 - strip URL query strings and fragments
 - mask usernames in file paths
 - never store command arguments until explicitly enabled
+
+Current browser status:
+
+- Safari and Google Chrome active-tab metadata can be captured at Depth 2+
+- URL paths and query strings remain off by default
+- tab titles are passed through the same PII/name/card/secret redaction rules before storage
+
+Enable the safe browser detail layer:
+
+```bash
+digital-twin-sensor configure --depth 2 --browser-tab-details on --browser-url-path off --browser-url-query off
+```
+
+## Opaque App Detail
+
+Some apps, including players and embedded web views, may expose only the app name or generic window title. For those, the sensor cannot honestly know the in-app content from Depth 1 metadata.
+
+Recommended escalation order:
+
+1. manual labels: let the user rename the working sphere
+2. Accessibility metadata: read visible labels/control names from a per-app allowlist
+3. local OCR summary: capture a temporary window image, run local OCR, redact text, store only the summary, then discard the image
+4. full screenshots: avoid unless there is a narrow, explicit need, encryption is enabled, and retention is short
+
+Do not enable keystrokes, clipboard capture, microphone, raw screenshots, or cloud upload for opaque-app detail.
 
 ## Depth 3: Semantic Summaries
 

@@ -8,6 +8,8 @@ If macOS only reports a locked or hidden user session such as `loginwindow`, the
 
 PII masking is enabled by default before data is written to SQLite. It masks emails, credit-card-like numbers validated with Luhn, SSNs, phone numbers, IP addresses, common secret/token shapes, URL paths, and configured names.
 
+At Depth 2, configured browsers such as Safari and Google Chrome can also record active-tab metadata: redacted tab title, URL domain, sanitized URL, and URL path/query policy. Raw browser paths, queries, fragments, usernames, and passwords are not stored by default.
+
 ## What It Implements
 
 The paper describes a four-stage pipeline:
@@ -23,6 +25,7 @@ This starter implements a single-user version:
 - Digital Twin Signature: `v_dom`, `v_rhythm`, `v_base`, `v_resp`, `v_div`
 - context graph: subject, domain, app, artifact, task, time, and masked private-signal nodes
 - working spheres: inferred activities, session returns, transition paths, and resume packs
+- browser surface details: active-tab metadata for Safari/Chrome at Depth 2+
 - privacy gates: capture depth, pre-storage redaction, graph minimization, and sensitive-source boundaries
 - filters: proportional, inverse, differential, recurrent, comparative, sequential, collective
 - retrieval: `weight = attention_score * content_score`
@@ -55,6 +58,7 @@ It opens a local-only browser console with:
 - collection health
 - attention by domain
 - working spheres and resume packs
+- surface detail cards explaining what each app exposes and how to deepen capture
 - active-hour rhythm
 - top apps and artifacts
 - privacy-gated context graph
@@ -137,6 +141,12 @@ Run continuously:
 digital-twin-sensor run --interval 15
 ```
 
+Enable Depth 2 browser-tab metadata:
+
+```bash
+digital-twin-sensor configure --depth 2 --browser-tab-details on --browser-url-path off --browser-url-query off
+```
+
 Print your Digital Twin Signature:
 
 ```bash
@@ -210,13 +220,15 @@ Next build steps:
 
 1. add explicit retention and deletion commands
 2. encrypt the SQLite database
-3. add browser/IDE/calendar connectors with opt-in toggles
-4. grow working spheres into task models with objectives, steps, and blockers
-5. add graph-backed project/task clustering
-6. add local embeddings for semantic content scoring
-7. add a small local API for querying the twin
-8. add feedback buttons so good/bad answers can tune filter selection
-9. add a visible menubar indicator so collection is never hidden
+3. add IDE/calendar connectors with opt-in toggles
+4. add per-app Accessibility detail for opaque apps such as media players
+5. add local OCR summaries for explicitly allowlisted apps without storing screenshots
+6. grow working spheres into task models with objectives, steps, and blockers
+7. add graph-backed project/task clustering
+8. add local embeddings for semantic content scoring
+9. add a small local API for querying the twin
+10. add feedback buttons so good/bad answers can tune filter selection
+11. add a visible menubar indicator so collection is never hidden
 
 ## Product Design Notes
 

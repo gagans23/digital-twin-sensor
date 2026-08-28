@@ -127,6 +127,109 @@ def _top_items(events: list[dict[str, Any]], key: str, limit: int = 10) -> list[
     ]
 
 
+def _surface_details(events: list[dict[str, Any]], config: dict[str, Any], limit: int = 8) -> list[dict[str, Any]]:
+    by_app: dict[str, dict[str, Any]] = {}
+    browser_apps = {str(item).lower() for item in config.get("browser_tab_detail_apps", [])}
+    depth = int(config.get("context_capture_depth", 1))
+    browser_min_depth = int(config.get("browser_tab_detail_min_depth", 2))
+
+    for event in events:
+        if event.get("domain") == "system" or event.get("action") == "system":
+            continue
+        app = event["app"]
+        item = by_app.setdefault(
+            app,
+            {
+                "app": app,
+                "events": 0,
+                "dwell_seconds": 0.0,
+                "domains": Counter(),
+                "artifacts": Counter(),
+                "browser_domains": Counter(),
+                "surface_detail_events": 0,
+                "latest_detail": None,
+                "last_seen": None,
+            },
+        )
+        item["events"] += 1
+        item["dwell_seconds"] += float(event["dwell_seconds"])
+        item["domains"][event["domain"]] += 1
+        item["artifacts"][event["artifact"]] += 1
+        item["last_seen"] = event["ts_end"]
+        surface_detail = event.get("metadata", {}).get("surface_detail")
+        if isinstance(surface_detail, dict) and surface_detail.get("status") == "captured":
+            item["surface_detail_events"] += 1
+            item["latest_detail"] = surface_detail
+            if surface_detail.get("url_domain"):
+                item["browser_domains"][surface_detail["url_domain"]] += 1
+
+    cards = []
+    for item in sorted(by_app.values(), key=lambda value: value["dwell_seconds"], reverse=True)[:limit]:
+        app = item["app"]
+        app_key = app.lower()
+        latest_detail = item["latest_detail"] or {}
+        top_artifacts = [
+            {"name": name, "events": int(count)}
+            for name, count in item["artifacts"].most_common(4)
+        ]
+        known_fields = ["app", "window title", "dwell time", "domain", "switch sequence"]
+        status = "window metadata"
+        detail_level = "Depth 1"
+        what_we_know = "The sensor can see the app, redacted window title, dwell time, domain, and switching pattern."
+        how_to_deepen = "Add an app-specific connector only if it can expose useful metadata without reading private content."
+        privacy_boundary = "No screenshots, keystrokes, clipboard, microphone, or document bodies."
+
+        if item["surface_detail_events"]:
+            status = "browser detail captured"
+            detail_level = "Depth 2 metadata"
+            known_fields = ["tab title", "URL domain", "sanitized URL", "dwell time", "switch sequence"]
+            domain = latest_detail.get("url_domain") or "unknown domain"
+            what_we_know = f"The active tab metadata is captured for {domain}; URL paths and queries are redacted by default."
+            how_to_deepen = "Optional next step: store URL paths for selected domains only, still stripping query strings and fragments."
+            privacy_boundary = latest_detail.get("privacy", privacy_boundary)
+        elif app_key in browser_apps:
+            status = "browser detail available"
+            detail_level = f"Depth {browser_min_depth} ready" if depth < browser_min_depth else "waiting for tab sample"
+            known_fields = ["app", "window title", "dwell time", "domain"]
+            if depth < browser_min_depth:
+                what_we_know = f"Browser tab detail is configured for {app}, but capture depth is {depth}; it activates at Depth {browser_min_depth}."
+                how_to_deepen = f"Set context_capture_depth to {browser_min_depth} to capture redacted tab title and sanitized URL domain."
+            else:
+                what_we_know = f"{app} is eligible for tab detail. The next frontmost sample should include tab title and sanitized URL metadata."
+                how_to_deepen = "Keep Safari/Chrome frontmost for a sample interval, then refresh this dashboard."
+            privacy_boundary = "URL path, query, fragment, usernames, passwords, and PII are redacted before storage."
+        elif "ibo pro player" in app_key:
+            status = "opaque app"
+            detail_level = "Depth 1 only"
+            what_we_know = "macOS is exposing the app/window surface, but not the in-app playback/channel/content details."
+            how_to_deepen = "Use a per-app allowlist for Accessibility text first. If that is empty, use local OCR summaries of the window without storing screenshots."
+            privacy_boundary = "Do not enable keystrokes, clipboard, raw screenshots, microphone, or automatic cloud upload for this app."
+
+        cards.append(
+            {
+                "app": app,
+                "status": status,
+                "detail_level": detail_level,
+                "events": int(item["events"]),
+                "dwell_seconds": round(item["dwell_seconds"], 2),
+                "hours": _seconds_to_hours(item["dwell_seconds"]),
+                "domain": item["domains"].most_common(1)[0][0] if item["domains"] else "other",
+                "last_seen": item["last_seen"],
+                "known_fields": known_fields,
+                "top_artifacts": top_artifacts,
+                "browser_domains": [
+                    {"domain": name, "events": int(count)}
+                    for name, count in item["browser_domains"].most_common(4)
+                ],
+                "what_we_know": what_we_know,
+                "how_to_deepen": how_to_deepen,
+                "privacy_boundary": privacy_boundary,
+            }
+        )
+
+    return cards
+
+
 def _transitions(events: list[dict[str, Any]], limit: int = 12) -> list[dict[str, Any]]:
     counter: Counter[str] = Counter()
     previous = None
@@ -224,6 +327,48 @@ def _interpret(profile: dict[str, Any], events: list[dict[str, Any]]) -> list[di
         )
 
     return insights
+
+
+def _privacy_payload(config: dict[str, Any], events: list[dict[str, Any]], db_path: Path) -> dict[str, Any]:
+    depth = int(config.get("context_capture_depth", 1))
+    browser_depth = int(config.get("browser_tab_detail_min_depth", 2))
+    captured = [
+        "active app",
+        "window title or redacted title",
+        "timestamp",
+        "dwell time",
+        "derived work domain",
+        "derived context graph nodes and privacy-gated edges",
+        "derived working spheres and resume packs",
+    ]
+    not_captured = [
+        "keystrokes",
+        "screenshots",
+        "clipboard",
+        "microphone",
+        "camera",
+        "passwords",
+        "tokens",
+        "raw browser URL paths, queries, or fragments by default",
+        "in-app player content unless a per-app Accessibility/OCR connector is explicitly enabled",
+    ]
+    if config.get("enable_browser_tab_details", True) and depth >= browser_depth:
+        apps = ", ".join(config.get("browser_tab_detail_apps", []))
+        captured.append(f"browser tab title and sanitized URL domain for: {apps}")
+
+    return {
+        "capture_window_title": bool(config.get("capture_window_title", True)),
+        "redact_sensitive_titles": bool(config.get("redact_sensitive_titles", True)),
+        "mask_pii": bool(config.get("mask_pii", True)),
+        "mask_configured_names": bool(config.get("mask_configured_names", True)),
+        "mask_ip_addresses": bool(config.get("mask_ip_addresses", True)),
+        "redact_url_paths": bool(config.get("redact_url_paths", True)),
+        "browser_tab_details": bool(config.get("enable_browser_tab_details", True) and depth >= browser_depth),
+        "data_location": str(db_path.expanduser()),
+        "redaction_summary": _redaction_summary(events),
+        "captured": captured,
+        "not_captured": not_captured,
+    }
 
 
 def _collector_status() -> dict[str, Any]:
@@ -336,38 +481,12 @@ def build_overview(
         "domains": _domain_summary(events),
         "top_apps": _top_items(events, "app"),
         "top_artifacts": _top_items(events, "artifact"),
+        "surface_details": _surface_details(events, config),
         "daily_activity": _daily_activity(events),
         "hourly_heatmap": _hourly_heatmap(events),
         "transitions": _transitions(events),
         "recent_events": [_serialize_event(event) for event in recent_events],
-        "privacy": {
-            "capture_window_title": bool(config.get("capture_window_title", True)),
-            "redact_sensitive_titles": bool(config.get("redact_sensitive_titles", True)),
-            "mask_pii": bool(config.get("mask_pii", True)),
-            "mask_configured_names": bool(config.get("mask_configured_names", True)),
-            "mask_ip_addresses": bool(config.get("mask_ip_addresses", True)),
-            "redact_url_paths": bool(config.get("redact_url_paths", True)),
-            "data_location": str(db_path.expanduser()),
-            "redaction_summary": _redaction_summary(events),
-            "captured": [
-                "active app",
-                "window title or redacted title",
-                "timestamp",
-                "dwell time",
-                "derived work domain",
-                "derived context graph nodes and privacy-gated edges",
-                "derived working spheres and resume packs",
-            ],
-            "not_captured": [
-                "keystrokes",
-                "screenshots",
-                "clipboard",
-                "microphone",
-                "camera",
-                "passwords",
-                "tokens",
-            ],
-        },
+        "privacy": _privacy_payload(config, events, db_path),
     }
 
 

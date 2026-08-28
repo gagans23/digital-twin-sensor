@@ -24,12 +24,15 @@ Working sphere status: implemented for Depth 1. The detector clusters redacted e
 ## Layer 2: App-Specific Context
 
 - browser history: URL domain, page title, visit timestamp
+- active browser tab: redacted tab title, URL domain, sanitized URL, path/query policy
 - IDE context: repo name, branch, changed files, active file path
 - terminal context: command names, exit status, working directory
 - calendar context: meeting title, participants, start/end time
 - document context: file name, path, modified time
 
 Privacy rule: store metadata first, not full contents. Full contents should require a separate per-connector toggle.
+
+Status: Safari and Google Chrome active-tab metadata are implemented at Depth 2+. Opaque app detail is not enabled yet; use manual labels first, then per-app Accessibility metadata, then local OCR summaries only with explicit opt-in.
 
 ## Layer 3: Semantic Context
 

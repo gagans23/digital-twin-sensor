@@ -52,6 +52,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "working_spheres_include_system_events": False,
     "working_spheres_session_gap_minutes": 45,
     "working_spheres_match_threshold": 0.42,
+    "enable_browser_tab_details": True,
+    "browser_tab_detail_min_depth": 2,
+    "browser_tab_detail_apps": ["Safari", "Google Chrome"],
+    "browser_tab_store_url_path": False,
+    "browser_tab_store_query": False,
     "name_terms_to_mask": _default_name_terms(),
     "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
     "sensitive_title_keywords": [
