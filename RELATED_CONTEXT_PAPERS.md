@@ -297,9 +297,9 @@ Export should include:
 
 ## Recommended Build Order
 
-1. Working sphere detector and Activities tab.
+1. Working sphere detector and Activities tab. Status: implemented at Depth 1.
 2. Seen index table and metadata-only search.
-3. Resume pack generation from activity switches.
+3. Stronger resume packs from activity switches.
 4. Memory admission gate for queries and exports.
 5. Context pack export command for Kiro/Codex/GitLab.
 6. Nightly evolving context cards.

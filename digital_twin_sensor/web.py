@@ -21,6 +21,7 @@ from .context_graph import build_context_graph
 from .query import retrieve
 from .store import EventStore, parse_dt, utc_now
 from .twin import build_digital_twin_signature
+from .working_spheres import build_working_spheres
 
 
 def _safe_int(value: str | None, default: int, minimum: int = 1, maximum: int = 365) -> int:
@@ -292,6 +293,20 @@ def build_overview(
             "top_relationships": [],
         }
     )
+    working_spheres = (
+        build_working_spheres(events, config, days=days)
+        if config.get("enable_working_spheres", True)
+        else {
+            "status": "disabled",
+            "days": days,
+            "spheres": [],
+            "timeline": [],
+            "transitions": [],
+            "stats": {"sphere_count": 0, "events": len(events)},
+            "pipeline": [],
+            "explanations": [],
+        }
+    )
     recent_events = sorted(events, key=lambda item: item["ts_start"], reverse=True)[:limit]
 
     first_event = events[0]["ts_start"] if events else None
@@ -316,6 +331,7 @@ def build_overview(
         "collector": _collector_status(),
         "profile": profile,
         "context_graph": context_graph,
+        "working_spheres": working_spheres,
         "insights": _interpret(profile, events),
         "domains": _domain_summary(events),
         "top_apps": _top_items(events, "app"),
@@ -340,6 +356,7 @@ def build_overview(
                 "dwell time",
                 "derived work domain",
                 "derived context graph nodes and privacy-gated edges",
+                "derived working spheres and resume packs",
             ],
             "not_captured": [
                 "keystrokes",
@@ -456,6 +473,28 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                         days=days,
                         max_nodes=max_nodes,
                         max_edges=max_edges,
+                    )
+                )
+                return
+
+            if route == "/api/activities":
+                config = load_config(self.server.config_path)
+                days = _safe_int(query.get("days", [None])[0], 14)
+                max_spheres = _safe_int(
+                    query.get("max_spheres", [None])[0],
+                    int(config.get("working_spheres_max_spheres", 12)),
+                    1,
+                    100,
+                )
+                store = EventStore(self.server.db_path)
+                events = store.fetch_window(subject_id=config["subject_id"], days=days)
+                store.close()
+                self._send_json(
+                    build_working_spheres(
+                        events,
+                        config,
+                        days=days,
+                        max_spheres=max_spheres,
                     )
                 )
                 return

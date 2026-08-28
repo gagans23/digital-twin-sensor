@@ -114,6 +114,7 @@ button {
 h1,
 h2,
 h3,
+h4,
 p {
   margin: 0;
 }
@@ -134,6 +135,14 @@ h3 {
   font-size: 1rem;
   line-height: 1.2;
   font-weight: 720;
+}
+
+h4 {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: uppercase;
 }
 
 .toolbar,
@@ -279,7 +288,8 @@ input:focus {
 .status-grid,
 .dashboard-grid,
 .privacy-grid,
-.graph-grid {
+.graph-grid,
+.activity-grid {
   display: grid;
   gap: 16px;
 }
@@ -295,6 +305,10 @@ input:focus {
 
 .graph-grid {
   grid-template-columns: minmax(0, 2fr) minmax(320px, 0.8fr);
+}
+
+.activity-grid {
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
 }
 
 .privacy-grid {
@@ -388,7 +402,7 @@ input:focus {
 .signal-flow {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .signal-flow div {
@@ -433,7 +447,13 @@ input:focus {
 .gate-list,
 .relationship-list,
 .graph-stats,
-.graph-legend {
+.graph-legend,
+.activity-stats,
+.activity-pipeline,
+.activity-explanation,
+.sphere-list,
+.activity-timeline,
+.sphere-transitions {
   display: grid;
   gap: 10px;
 }
@@ -539,11 +559,300 @@ input:focus {
 .gate-item,
 .relationship-item,
 .graph-stat,
-.legend-item {
+.legend-item,
+.activity-stat,
+.activity-stage,
+.activity-note,
+.sphere-card,
+.timeline-item,
+.sphere-transition {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
+}
+
+.activity-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.activity-stat {
+  min-height: 76px;
+}
+
+.activity-stat strong {
+  display: block;
+  font-size: 1.48rem;
+  line-height: 1.05;
+}
+
+.activity-stat span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 6px;
+}
+
+.activity-pipeline {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.activity-stage {
+  border-left: 4px solid var(--teal);
+  display: grid;
+  gap: 5px;
+  min-height: 104px;
+}
+
+.activity-stage:nth-child(2) {
+  border-left-color: var(--coral);
+}
+
+.activity-stage:nth-child(3) {
+  border-left-color: var(--violet);
+}
+
+.activity-stage:nth-child(4) {
+  border-left-color: var(--green);
+}
+
+.activity-stage b,
+.activity-stage span {
+  display: block;
+}
+
+.activity-stage span,
+.activity-stage p,
+.activity-note p,
+.sphere-transition p {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.activity-note {
+  display: grid;
+  gap: 6px;
+}
+
+.sphere-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sphere-card {
+  border-top: 4px solid var(--violet);
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.sphere-card.active {
+  border-top-color: var(--green);
+}
+
+.sphere-card.suspended {
+  border-top-color: var(--amber);
+}
+
+.sphere-card.dormant {
+  border-top-color: var(--faint);
+}
+
+.sphere-card.masked {
+  box-shadow: inset 0 0 0 1px rgba(255, 122, 89, 0.32);
+}
+
+.sphere-head {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.sphere-head h3 {
+  overflow-wrap: anywhere;
+}
+
+.sphere-meta,
+.sphere-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.task-chip {
+  background: var(--violet-soft);
+  color: #3f3394;
+}
+
+.confidence-chip {
+  background: var(--amber-soft);
+  color: #7a4a00;
+}
+
+.sphere-state {
+  border-radius: 999px;
+  flex: none;
+  font-size: 0.74rem;
+  font-weight: 800;
+  min-height: 28px;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
+.sphere-state.active {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.sphere-state.suspended {
+  background: var(--amber-soft);
+  color: #7a4a00;
+}
+
+.sphere-state.dormant,
+.sphere-state.unknown {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.sphere-measures {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-height: 62px;
+}
+
+.sphere-measures div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 8px;
+}
+
+.sphere-measures div + div {
+  border-left: 1px solid var(--line);
+}
+
+.sphere-measures b {
+  font-size: 1.02rem;
+}
+
+.sphere-measures span,
+.muted-text {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.sphere-section {
+  display: grid;
+  gap: 8px;
+}
+
+.sphere-artifacts {
+  display: grid;
+  gap: 7px;
+}
+
+.sphere-artifact {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.sphere-artifact span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sphere-artifact b {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.sphere-explanation {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.84rem;
+  gap: 5px;
+  line-height: 1.42;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.resume-strip {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 7px;
+  padding-top: 12px;
+}
+
+.resume-strip span,
+.resume-strip small {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+}
+
+.resume-strip b {
+  display: block;
+  font-size: 0.88rem;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.resume-strip p {
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.timeline-item {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 12px minmax(0, 1fr);
+}
+
+.timeline-dot {
+  background: var(--teal);
+  border-radius: 50%;
+  height: 10px;
+  margin-top: 5px;
+  width: 10px;
+}
+
+.timeline-item:nth-child(2n) .timeline-dot {
+  background: var(--coral);
+}
+
+.timeline-item:nth-child(3n) .timeline-dot {
+  background: var(--violet);
+}
+
+.timeline-item b,
+.timeline-item span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.timeline-item span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.sphere-transition {
+  display: grid;
+  gap: 7px;
 }
 
 .rank-item {
@@ -907,8 +1216,17 @@ tbody tr:last-child td {
   .dashboard-grid,
   .privacy-grid,
   .graph-grid,
+  .activity-grid,
   .signature-layout {
     grid-template-columns: 1fr;
+  }
+
+  .sphere-list {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-pipeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .wide {
@@ -948,7 +1266,9 @@ tbody tr:last-child td {
   }
 
   .metric-row,
-  .signal-flow {
+  .signal-flow,
+  .activity-stats,
+  .activity-pipeline {
     grid-template-columns: 1fr;
   }
 

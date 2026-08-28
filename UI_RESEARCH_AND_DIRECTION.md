@@ -33,6 +33,8 @@ The UI avoids a pure enterprise landing-page feel. It uses:
 ## Information Architecture
 
 - Overview: fast answer to current collection state and attention distribution
+- Activities: inferred working spheres, session returns, resume packs, and grouping explanations
+- Context Graph: privacy-gated relationships among domains, apps, artifacts, tasks, time, and masked private signals
 - Twin Signature: five-vector behavioral profile from the paper
 - Evidence: query interface that exposes selected filters and ranked artifacts
 - Events: raw ledger for auditability

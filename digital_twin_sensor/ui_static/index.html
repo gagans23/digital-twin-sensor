@@ -38,6 +38,7 @@
 
       <nav class="tabs" aria-label="Dashboard views">
         <button class="tab active" type="button" data-view="overview">Overview</button>
+        <button class="tab" type="button" data-view="activities">Activities</button>
         <button class="tab" type="button" data-view="graph">Context Graph</button>
         <button class="tab" type="button" data-view="signature">Twin Signature</button>
         <button class="tab" type="button" data-view="evidence">Evidence</button>
@@ -69,11 +70,16 @@
                   <span class="metric-value" id="domainCount">0</span>
                   <span class="metric-label">domains</span>
                 </div>
+                <div class="metric">
+                  <span class="metric-value" id="activityCount">0</span>
+                  <span class="metric-label">activities</span>
+                </div>
               </div>
               <div class="signal-flow" aria-label="Sensor pipeline">
                 <div><b>Sense</b><span>app focus</span></div>
                 <div><b>Gate</b><span>privacy</span></div>
                 <div><b>Graph</b><span>context</span></div>
+                <div><b>Spheres</b><span>activities</span></div>
                 <div><b>Model</b><span>DTS</span></div>
                 <div><b>Explain</b><span>evidence</span></div>
               </div>
@@ -134,6 +140,54 @@
                 </div>
               </div>
               <div id="transitions" class="transition-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="activities" class="view" aria-labelledby="activitiesTitle">
+          <div class="activity-grid">
+            <article class="panel wide">
+              <div class="panel-head">
+                <div>
+                  <p class="kicker">Working Spheres</p>
+                  <h2 id="activitiesTitle">Real activities inferred from focus</h2>
+                </div>
+                <span id="activityDepth" class="chip">Depth 1</span>
+              </div>
+              <div id="activityStats" class="activity-stats"></div>
+              <div id="activityPipeline" class="activity-pipeline"></div>
+            </article>
+
+            <aside class="panel">
+              <p class="kicker">Inference Ledger</p>
+              <h2>How it decides</h2>
+              <div id="activityExplanation" class="activity-explanation"></div>
+            </aside>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Activity Cards</p>
+                  <h2>Active and suspended work</h2>
+                </div>
+              </div>
+              <div id="sphereList" class="sphere-list"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Recent Sessions</p>
+              <h2>Timeline</h2>
+              <div id="activityTimeline" class="activity-timeline"></div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Context Switching</p>
+                  <h2>Sphere transitions</h2>
+                </div>
+              </div>
+              <div id="sphereTransitions" class="sphere-transitions"></div>
             </article>
           </div>
         </section>

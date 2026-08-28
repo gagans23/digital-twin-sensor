@@ -47,6 +47,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "context_graph_max_nodes": 70,
     "context_graph_max_edges": 140,
     "context_graph_include_system_events": False,
+    "enable_working_spheres": True,
+    "working_spheres_max_spheres": 12,
+    "working_spheres_include_system_events": False,
+    "working_spheres_session_gap_minutes": 45,
+    "working_spheres_match_threshold": 0.42,
     "name_terms_to_mask": _default_name_terms(),
     "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
     "sensitive_title_keywords": [

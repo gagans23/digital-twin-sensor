@@ -13,6 +13,11 @@
   "context_graph_max_nodes": 70,
   "context_graph_max_edges": 140,
   "context_graph_include_system_events": false,
+  "enable_working_spheres": true,
+  "working_spheres_max_spheres": 12,
+  "working_spheres_include_system_events": false,
+  "working_spheres_session_gap_minutes": 45,
+  "working_spheres_match_threshold": 0.42,
   "name_terms_to_mask": ["your-name", "your-machine-username"],
   "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
   "sensitive_title_keywords": [

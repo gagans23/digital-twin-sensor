@@ -14,6 +14,7 @@ from .redaction import redact_text
 from .store import EventStore
 from .twin import build_digital_twin_signature
 from .web import run_dashboard
+from .working_spheres import build_working_spheres
 
 
 def _path(value: str) -> Path:
@@ -117,6 +118,22 @@ def cmd_graph(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_activities(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = EventStore(args.db)
+    events = store.fetch_window(subject_id=subject_id, days=args.days)
+    store.close()
+    activities = build_working_spheres(
+        events,
+        config,
+        days=args.days,
+        max_spheres=args.max_spheres,
+    )
+    print(json.dumps(activities, indent=2))
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
@@ -217,6 +234,12 @@ def build_parser() -> argparse.ArgumentParser:
     graph.add_argument("--max-nodes", type=int, default=None)
     graph.add_argument("--max-edges", type=int, default=None)
     graph.set_defaults(func=cmd_graph)
+
+    activities = sub.add_parser("activities", help="Infer working spheres and resume packs as JSON.")
+    activities.add_argument("--subject-id", default=None)
+    activities.add_argument("--days", type=int, default=14)
+    activities.add_argument("--max-spheres", type=int, default=None)
+    activities.set_defaults(func=cmd_activities)
 
     export = sub.add_parser("export", help="Export recent raw events as JSON.")
     export.add_argument("--subject-id", default=None)

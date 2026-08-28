@@ -2,7 +2,7 @@
 
 The current sensor intentionally captures a narrow signal: active app, active window title, timestamp, dwell time, and inferred domain. That is enough to build an early Digital Twin Signature without crossing into surveillance.
 
-The current dashboard also derives a living context graph from that redacted event ledger. The graph connects subject, domain, app, artifact, task, and time nodes, then adds masked private-signal nodes when redaction fires. Locked-screen and system-state samples stay available for collection health, but are excluded from the work-context graph by default.
+The current dashboard also derives a living context graph from that redacted event ledger. The graph connects subject, domain, app, artifact, task, and time nodes, then adds masked private-signal nodes when redaction fires. It now also infers working spheres: real activities reconstructed from shared artifacts, terms, apps, domains, dwell, and return patterns. Locked-screen and system-state samples stay available for collection health, but are excluded from the work-context graph and working-sphere detector by default.
 
 To capture richer system context, add signals in layers. Each layer should be opt-in, visible in the UI, locally stored by default, and deletable.
 
@@ -18,6 +18,8 @@ To capture richer system context, add signals in layers. Each layer should be op
 Status: active app/window collection exists. Idle detection and annotations are next.
 
 Graph status: implemented for Depth 1. The graph is rebuilt from the current dashboard time window and does not persist a second copy of the event stream.
+
+Working sphere status: implemented for Depth 1. The detector clusters redacted events into active, suspended, and dormant activities; builds recent-session timelines; records sphere-to-sphere transitions; and emits resume packs with last artifact, recent path, next-action guess, and privacy-gate status.
 
 ## Layer 2: App-Specific Context
 
@@ -73,7 +75,8 @@ Before any team or workplace use:
 2. Add retention/delete commands.
 3. Add optional browser-history connector storing only domain and title.
 4. Add optional git-repo connector for branch, diff stats, and changed files.
-5. Add graph-backed project/task clustering.
-6. Add a local context-pack export command for Kiro/Codex prompts.
+5. Add task-model induction on top of working spheres.
+6. Add graph-backed project/task community summaries.
+7. Add a local context-pack export command for Kiro/Codex prompts.
 
 See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.

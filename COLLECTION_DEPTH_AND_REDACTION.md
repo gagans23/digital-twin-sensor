@@ -56,10 +56,18 @@ Graph behavior:
 - exclude system-state events from the work-context graph by default
 - expose gate counts for allowed, masked, generalized, and withheld graph elements
 
+Working sphere behavior:
+
+- cluster redacted focus events into inferred real activities
+- reconnect interrupted work when artifacts, terms, apps, domains, or task labels repeat
+- split continuous sessions when the same sphere returns after a long gap
+- create resume packs with last artifact, recent path, next-action guess, and privacy-gate status
+- exclude system-state events from activity inference by default
+
 Pipeline:
 
 ```text
-Sense -> Privacy Gate -> Context Graph -> Digital Twin Signature -> Evidence
+Sense -> Privacy Gate -> Context Graph -> Working Spheres -> Digital Twin Signature -> Evidence
 ```
 
 ## Depth 2: Work Surface Context
@@ -157,6 +165,7 @@ The dashboard must always show:
 - what is not captured
 - what redaction categories have fired
 - the privacy-gated context graph
+- inferred working spheres, session returns, and resume packs
 - graph minimization behavior such as excluded system-state samples
 - where the local database lives
 

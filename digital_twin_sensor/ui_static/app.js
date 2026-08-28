@@ -87,6 +87,7 @@ function renderMetrics(overview) {
   $("eventCount").textContent = overview.totals.events_in_window;
   $("hoursCount").textContent = fmtHours(overview.totals.hours);
   $("domainCount").textContent = overview.domains.length;
+  $("activityCount").textContent = overview.working_spheres?.stats?.sphere_count || 0;
   setStatus(overview);
 }
 
@@ -175,6 +176,186 @@ function renderTransitions(items) {
     node.innerHTML = `
       <span>${escapeHtml(item.transition)}</span>
       <span class="chip transition-count">${item.count}</span>
+    `;
+    root.appendChild(node);
+  }
+}
+
+function activityStateLabel(stateName) {
+  if (stateName === "active") return "active";
+  if (stateName === "suspended") return "suspended";
+  if (stateName === "dormant") return "dormant";
+  return "unknown";
+}
+
+function renderActivities(activities) {
+  $("activityDepth").textContent = `Depth ${activities?.capture_depth ?? 1}`;
+  renderActivityStats(activities);
+  renderActivityPipeline(activities?.pipeline || []);
+  renderActivityExplanation(activities?.explanations || []);
+  renderSphereCards(activities?.spheres || []);
+  renderActivityTimeline(activities?.timeline || []);
+  renderSphereTransitions(activities?.transitions || []);
+}
+
+function renderActivityStats(activities) {
+  const root = $("activityStats");
+  if (!root) return;
+  const stats = activities?.stats || {};
+  root.innerHTML = `
+    <div class="activity-stat"><strong>${fmtCompact(stats.sphere_count || 0)}</strong><span>shown spheres</span></div>
+    <div class="activity-stat"><strong>${fmtCompact(stats.active_count || 0)}</strong><span>active</span></div>
+    <div class="activity-stat"><strong>${fmtCompact(stats.suspended_count || 0)}</strong><span>suspended</span></div>
+    <div class="activity-stat"><strong>${fmtCompact(stats.gated_spheres || 0)}</strong><span>privacy gated</span></div>
+  `;
+}
+
+function renderActivityPipeline(items) {
+  const root = $("activityPipeline");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No activity pipeline yet.</div>`;
+    return;
+  }
+  root.innerHTML = items
+    .map((item) => `
+      <div class="activity-stage">
+        <b>${escapeHtml(item.stage)}</b>
+        <span>${escapeHtml(item.state)}</span>
+        <p>${escapeHtml(item.output)}</p>
+      </div>
+    `)
+    .join("");
+}
+
+function renderActivityExplanation(items) {
+  const root = $("activityExplanation");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No inference ledger yet.</div>`;
+    return;
+  }
+  root.innerHTML = items
+    .map((item) => `
+      <article class="activity-note">
+        <h3>${escapeHtml(item.title)}</h3>
+        <p>${escapeHtml(item.body)}</p>
+      </article>
+    `)
+    .join("");
+}
+
+function renderSphereCards(items) {
+  const root = $("sphereList");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No working spheres yet. The detector needs non-system focus events in this time window.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const card = document.createElement("article");
+    const sphereState = ["active", "suspended", "dormant"].includes(item.state) ? item.state : "unknown";
+    card.className = `sphere-card ${sphereState} ${item.gate_mode === "masked" ? "masked" : ""}`;
+    const artifacts = (item.artifacts || [])
+      .slice(0, 4)
+      .map((artifact) => `
+        <div class="sphere-artifact">
+          <span>${escapeHtml(artifact.name)}</span>
+          <b>${fmtSeconds(artifact.dwell_seconds)}</b>
+        </div>
+      `)
+      .join("");
+    const apps = (item.apps || [])
+      .map((app) => `<span class="chip">${escapeHtml(app.name)} · ${app.events}</span>`)
+      .join("");
+    const explanation = (item.explanation || [])
+      .map((line) => `<li>${escapeHtml(line)}</li>`)
+      .join("");
+    const resume = item.resume_pack || {};
+    card.innerHTML = `
+      <div class="sphere-head">
+        <div>
+          <h3>${escapeHtml(item.label)}</h3>
+          <div class="sphere-meta">
+            <span class="chip">${escapeHtml(item.domain)}</span>
+            <span class="chip task-chip">${escapeHtml(item.task)}</span>
+            <span class="chip confidence-chip">${Math.round((item.confidence || 0) * 100)}% confidence</span>
+          </div>
+        </div>
+        <span class="sphere-state ${sphereState}">${activityStateLabel(item.state)}</span>
+      </div>
+      <div class="sphere-measures">
+        <div><b>${fmtHours(item.hours)}h</b><span>dwell</span></div>
+        <div><b>${item.events || 0}</b><span>events</span></div>
+        <div><b>${item.session_count || 0}</b><span>sessions</span></div>
+        <div><b>${item.return_count || 0}</b><span>returns</span></div>
+      </div>
+      <div class="sphere-section">
+        <h4>Surfaces</h4>
+        <div class="sphere-chip-row">${apps || `<span class="muted-text">No app signal</span>`}</div>
+      </div>
+      <div class="sphere-section">
+        <h4>Artifacts</h4>
+        <div class="sphere-artifacts">${artifacts || `<div class="muted-text">No artifact signal</div>`}</div>
+      </div>
+      <div class="sphere-section">
+        <h4>Why grouped</h4>
+        <ul class="sphere-explanation">${explanation}</ul>
+      </div>
+      <div class="resume-strip">
+        <div>
+          <span>Last seen ${fmtTime(resume.last_seen)}</span>
+          <b>${escapeHtml(resume.last_app || "unknown app")} · ${escapeHtml(resume.last_artifact || "unknown artifact")}</b>
+        </div>
+        <p>${escapeHtml(resume.next_action_guess || "Review the latest artifact and decide the next action.")}</p>
+        <small>${escapeHtml(resume.privacy_gate || "Depth 1 metadata only")}</small>
+      </div>
+    `;
+    root.appendChild(card);
+  }
+}
+
+function renderActivityTimeline(items) {
+  const root = $("activityTimeline");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No sessions yet.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items.slice(0, 12)) {
+    const node = document.createElement("div");
+    node.className = "timeline-item";
+    node.innerHTML = `
+      <div class="timeline-dot" aria-hidden="true"></div>
+      <div>
+        <b>${escapeHtml(item.label)}</b>
+        <span>${fmtTime(item.start)} · ${fmtSeconds(item.dwell_seconds)} · ${item.events} events · ${escapeHtml(item.top_app)}</span>
+      </div>
+    `;
+    root.appendChild(node);
+  }
+}
+
+function renderSphereTransitions(items) {
+  const root = $("sphereTransitions");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No repeated sphere-to-sphere transitions yet.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const node = document.createElement("article");
+    node.className = "sphere-transition";
+    node.innerHTML = `
+      <div class="relationship-flow">
+        <span><b>${escapeHtml(item.source)}</b></span>
+        <span class="relationship-arrow">→</span>
+        <span><b>${escapeHtml(item.target)}</b></span>
+      </div>
+      <p>${item.count} switches · last ${fmtTime(item.last_seen)}</p>
     `;
     root.appendChild(node);
   }
@@ -718,6 +899,7 @@ async function refresh() {
   renderRankList("topArtifacts", overview.top_artifacts);
   renderRankList("topApps", overview.top_apps);
   renderTransitions(overview.transitions);
+  renderActivities(overview.working_spheres);
   renderContextGraph(overview.context_graph);
   renderSignature(overview.profile);
   renderEvents(state.events);
