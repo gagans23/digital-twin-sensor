@@ -36,6 +36,7 @@ The UI avoids a pure enterprise landing-page feel. It uses:
 - Fleet: endpoint health, policy, connectors, sync-readiness, and portability
 - Activities: inferred working spheres, session returns, resume packs, and grouping explanations
 - Surface Detail: per-app cards showing what is known, what is missing, and how to deepen capture safely
+- Context Packs: selected working sphere, admitted evidence, gate decisions, withheld fields, and Markdown export
 - Context Graph: privacy-gated relationships among domains, apps, artifacts, tasks, time, and masked private signals
 - Twin Signature: five-vector behavioral profile from the paper
 - Evidence: query interface that exposes selected filters and ranked artifacts

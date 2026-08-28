@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
+from .context_pack import PURPOSES, TARGETS, build_context_pack
 from .context_graph import build_context_graph
 from .fleet import build_fleet_status
 from .query import format_retrieval, retrieve
@@ -217,6 +218,36 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_context_pack(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = EventStore(args.db)
+    events = store.fetch_window(subject_id=subject_id, days=args.days)
+    store.close()
+    pack = build_context_pack(
+        events,
+        config,
+        days=args.days,
+        purpose=args.purpose,
+        target=args.target,
+        sphere_id=args.sphere_id,
+        max_events=args.max_events,
+    )
+    payload = (
+        pack.get("export", {}).get("markdown", "")
+        if args.format == "markdown"
+        else json.dumps(pack, indent=2)
+    )
+    if args.output:
+        output_path = args.output.expanduser()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(payload, encoding="utf-8")
+        print(f"Wrote {args.format} context pack: {output_path}")
+    else:
+        print(payload, end="" if payload.endswith("\n") else "\n")
+    return 0 if pack.get("status") != "blocked" else 1
+
+
 def cmd_redact_existing(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
@@ -334,6 +365,20 @@ def build_parser() -> argparse.ArgumentParser:
     fleet.add_argument("--subject-id", default=None)
     fleet.add_argument("--days", type=int, default=14)
     fleet.set_defaults(func=cmd_fleet)
+
+    context_pack = sub.add_parser(
+        "context-pack",
+        help="Export a gated working-sphere context pack for Kiro, Codex, GitLab, or a local file.",
+    )
+    context_pack.add_argument("--subject-id", default=None)
+    context_pack.add_argument("--days", type=int, default=14)
+    context_pack.add_argument("--purpose", choices=sorted(PURPOSES), default="coding")
+    context_pack.add_argument("--target", choices=sorted(TARGETS), default="kiro")
+    context_pack.add_argument("--sphere-id", default=None)
+    context_pack.add_argument("--max-events", type=int, default=8)
+    context_pack.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    context_pack.add_argument("--output", type=_path, default=None)
+    context_pack.set_defaults(func=cmd_context_pack)
 
     export = sub.add_parser("export", help="Export recent raw events as JSON.")
     export.add_argument("--subject-id", default=None)

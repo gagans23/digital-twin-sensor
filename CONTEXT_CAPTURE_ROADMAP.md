@@ -4,6 +4,8 @@ The current sensor intentionally captures a narrow signal: active app, active wi
 
 The current dashboard also derives a living context graph from that redacted event ledger. The graph connects subject, domain, app, artifact, task, and time nodes, then adds masked private-signal nodes when redaction fires. It now also infers working spheres: real activities reconstructed from shared artifacts, terms, apps, domains, dwell, and return patterns. Locked-screen and system-state samples stay available for collection health, but are excluded from the work-context graph and working-sphere detector by default.
 
+Context packs are implemented as a summary-only export layer. A selected working sphere passes through a Memory Admission Gate, which emits allowed, summarized, masked, and denied fields before producing Kiro/Codex/GitLab-ready Markdown or JSON.
+
 To capture richer system context, add signals in layers. Each layer should be opt-in, visible in the UI, locally stored by default, and deletable.
 
 ## Layer 1: Safe Local Activity
@@ -58,6 +60,8 @@ Inspired by Workfabric's ContextFabric framing, convert personal attention trace
 
 These packs should be exportable to tools like Kiro, Codex, or GitLab issues without exporting the raw event database.
 
+Status: implemented locally. The Context Packs dashboard tab, `/api/context-pack`, and `digital-twin-sensor context-pack` expose purpose, target, selected sphere, admitted evidence, recent path, gate decisions, withheld fields, and copyable Markdown.
+
 ## Layer 5: Governed Deployment
 
 Before any team or workplace use:
@@ -82,7 +86,7 @@ Fleet status: Fleet Manager Lite is implemented locally. It exposes one local en
 4. Add optional git-repo connector for branch, diff stats, and changed files.
 5. Add task-model induction on top of working spheres.
 6. Add graph-backed project/task community summaries.
-7. Add a local context-pack export command for Kiro/Codex prompts.
+7. Add remote context-pack registry with explicit approval and audit trail.
 8. Add remote enrollment and summary-only fleet sync after encryption and signed installers.
 
 See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.

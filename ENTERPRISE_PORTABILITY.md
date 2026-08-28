@@ -12,9 +12,12 @@ Implemented locally:
 - capture-surface connector inventory
 - sync-readiness gates
 - portability checklist
+- context-pack export through the Memory Admission Gate
 - Fleet dashboard tab
 - `/api/fleet`
+- `/api/context-pack`
 - `digital-twin-sensor fleet`
+- `digital-twin-sensor context-pack`
 
 No raw event data is uploaded. There is no remote control plane yet.
 
@@ -89,12 +92,22 @@ Recommended targets:
 - Linux: `.deb`/`.rpm`, systemd user service
 - Docker: control plane and development demo
 
-## Next Build
+## Implemented Export Layer
 
-The next useful implementation step is Context Pack Export:
+Context Pack Export now follows this local pipeline:
 
 ```text
 Working Sphere -> Memory Admission Gate -> Redacted Markdown/JSON Pack -> Kiro/Codex/GitLab
 ```
 
 This creates enterprise value before remote sync exists, because it lets the local twin hand off useful, governed context without exposing the raw database.
+
+## Next Build
+
+The next useful implementation step is a remote context-pack registry with explicit approval:
+
+```text
+Local Pack -> Approval -> Signed Summary Sync -> Context-Pack Registry -> Audit Log
+```
+
+Keep raw events local until encryption, signed installers, retention controls, and endpoint enrollment are implemented.

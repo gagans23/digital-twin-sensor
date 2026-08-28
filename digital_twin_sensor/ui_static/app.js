@@ -1,6 +1,7 @@
 const state = {
   overview: null,
   events: [],
+  contextPack: null,
   days: 14,
 };
 
@@ -347,6 +348,272 @@ function renderStatusList(id, items, className) {
   }
 }
 
+function populatePackSphereOptions(spheres) {
+  const select = $("packSphere");
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = `<option value="">Auto select</option>`;
+  for (const sphere of spheres || []) {
+    const option = document.createElement("option");
+    option.value = sphere.id;
+    option.textContent = `${sphere.state || "unknown"} · ${sphere.label || "Working sphere"}`;
+    select.appendChild(option);
+  }
+  if ([...select.options].some((option) => option.value === current)) {
+    select.value = current;
+  }
+}
+
+function packDecisionTone(decision) {
+  if (decision === "allow") return "ready";
+  if (decision === "deny" || decision === "mask") return "blocked";
+  if (decision === "summarize" || decision === "generalize") return "attention";
+  return "neutral";
+}
+
+function renderContextPack(pack) {
+  state.contextPack = pack || null;
+  const status = $("packStatus");
+  if (!pack) {
+    status.textContent = "No pack";
+    status.classList.remove("ready", "blocked");
+    renderPackPipeline([]);
+    renderAdmissionCounts({});
+    renderPackPrivacy({});
+    renderPackSummary(null);
+    renderPackEvidence(null);
+    renderPackRecentPath([]);
+    renderAdmissionDecisions([]);
+    renderWithheld([]);
+    $("markdownPreview").textContent = "";
+    return;
+  }
+
+  const ready = pack.status === "ready";
+  status.textContent = ready ? "Ready" : pack.status === "blocked" ? "Blocked" : "Empty";
+  status.classList.toggle("ready", ready);
+  status.classList.toggle("blocked", pack.status === "blocked");
+  renderPackPipeline(pack.pipeline || []);
+  renderAdmissionCounts(pack.admission?.counts || {});
+  renderPackPrivacy(pack.privacy || {});
+  renderPackSummary(pack);
+  renderPackEvidence(pack);
+  renderPackRecentPath(pack.context?.recent_path || []);
+  renderAdmissionDecisions(pack.admission?.decisions || []);
+  renderWithheld(pack.admission?.withheld || []);
+  $("markdownPreview").textContent = pack.export?.markdown || "";
+}
+
+function renderPackPipeline(items) {
+  const root = $("packPipeline");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No pack pipeline yet.</div>`;
+    return;
+  }
+  root.innerHTML = items
+    .map((item) => `
+      <div class="pack-stage">
+        <b>${escapeHtml(item.stage)}</b>
+        <span>${escapeHtml(item.state)}</span>
+        <p>${escapeHtml(item.output)}</p>
+      </div>
+    `)
+    .join("");
+}
+
+function renderAdmissionCounts(counts) {
+  const root = $("admissionCounts");
+  if (!root) return;
+  const order = ["allow", "summarize", "generalize", "mask", "deny"];
+  root.innerHTML = order
+    .map((name) => `
+      <div class="admission-count ${packDecisionTone(name)}">
+        <strong>${fmtCompact(counts?.[name] || 0)}</strong>
+        <span>${escapeHtml(name)}</span>
+      </div>
+    `)
+    .join("");
+}
+
+function renderPackPrivacy(privacy) {
+  const root = $("packPrivacy");
+  if (!root) return;
+  const rows = [
+    ["raw events", privacy.raw_events_included ? "included" : "excluded"],
+    ["subject id", privacy.subject_id_included ? "included" : "excluded"],
+    ["PII mask", privacy.pii_masking ? "on" : "off"],
+    ["URL paths", privacy.url_paths || "redacted"],
+    ["URL queries", privacy.url_queries || "redacted"],
+  ];
+  root.innerHTML = rows
+    .map(([label, value]) => `<div class="pack-privacy-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`)
+    .join("");
+}
+
+function renderPackSummary(pack) {
+  const root = $("packSummary");
+  if (!root) return;
+  if (!pack || pack.status !== "ready") {
+    const reason = pack?.admission?.target_reason || pack?.selection_reason || "No exportable sphere in this window.";
+    root.innerHTML = `<div class="empty">${escapeHtml(reason)}</div>`;
+    return;
+  }
+  const summary = pack.summary || {};
+  const sphere = pack.context?.working_sphere || {};
+  root.innerHTML = `
+    <article class="pack-summary-card ${sphere.gate_mode === "masked" ? "masked" : ""}">
+      <div class="pack-summary-head">
+        <div>
+          <h3>${escapeHtml(summary.title || "Working sphere")}</h3>
+          <div class="sphere-meta">
+            <span class="chip">${escapeHtml(pack.target?.label || "Target")}</span>
+            <span class="chip task-chip">${escapeHtml(summary.task || "task")}</span>
+            <span class="chip confidence-chip">${Math.round((summary.confidence || 0) * 100)}% confidence</span>
+          </div>
+        </div>
+        <span class="sphere-state ${escapeHtml(summary.state || "unknown")}">${escapeHtml(summary.state || "unknown")}</span>
+      </div>
+      <div class="pack-measures">
+        <div><b>${fmtHours(summary.hours)}</b><span>hours</span></div>
+        <div><b>${fmtCompact(summary.events)}</b><span>events</span></div>
+        <div><b>${fmtCompact(summary.session_count)}</b><span>sessions</span></div>
+        <div><b>${fmtCompact(summary.return_count)}</b><span>returns</span></div>
+      </div>
+      <p class="pack-objective">${escapeHtml(summary.objective || "Review and continue the selected work.")}</p>
+      <div class="pack-footer">
+        <span>Domain ${escapeHtml(summary.domain || "other")}</span>
+        <span>Last seen ${fmtTime(summary.last_seen)}</span>
+        <span>${escapeHtml(sphere.gate_mode || "allowed")} gate</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderPackEvidence(pack) {
+  const root = $("packEvidence");
+  if (!root) return;
+  if (!pack || pack.status !== "ready") {
+    root.innerHTML = `<div class="empty">No admitted evidence.</div>`;
+    return;
+  }
+  const apps = pack.context?.apps || [];
+  const artifacts = pack.context?.top_artifacts || [];
+  const keywords = pack.context?.keywords || [];
+  const appRows = apps
+    .map((item) => `<span class="chip">${escapeHtml(item.name)} · ${item.events}</span>`)
+    .join("");
+  const artifactRows = artifacts
+    .map((item) => `<div class="pack-artifact"><span>${escapeHtml(item.name)}</span><b>${fmtSeconds(item.dwell_seconds)}</b></div>`)
+    .join("");
+  root.innerHTML = `
+    <div class="pack-evidence-section">
+      <h4>Apps</h4>
+      <div class="sphere-chip-row">${appRows || `<span class="muted-text">No app signal</span>`}</div>
+    </div>
+    <div class="pack-evidence-section">
+      <h4>Artifacts</h4>
+      <div class="pack-artifacts">${artifactRows || `<div class="muted-text">No artifact signal</div>`}</div>
+    </div>
+    <div class="pack-evidence-section">
+      <h4>Keywords</h4>
+      <p>${escapeHtml(keywords.length ? keywords.join(", ") : "none")}</p>
+    </div>
+  `;
+}
+
+function renderPackRecentPath(items) {
+  const root = $("packRecentPath");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No recent path in this pack.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const node = document.createElement("article");
+    node.className = `pack-path-item ${item.gate_mode === "masked" ? "masked" : ""}`;
+    node.innerHTML = `
+      <div>
+        <b>${escapeHtml(item.app || "unknown app")}</b>
+        <span>${fmtTime(item.time)} · ${escapeHtml(item.domain || "other")} · ${fmtSeconds(item.dwell_seconds)}</span>
+      </div>
+      <p>${escapeHtml(item.artifact || "unknown artifact")}</p>
+      <span class="status-badge ${packDecisionTone(item.gate_mode === "masked" ? "mask" : "allow")}">${escapeHtml(item.gate_mode || "allowed")}</span>
+    `;
+    root.appendChild(node);
+  }
+}
+
+function renderAdmissionDecisions(items) {
+  const root = $("admissionDecisions");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No gate decisions yet.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const tone = packDecisionTone(item.decision);
+    const node = document.createElement("article");
+    node.className = `admission-decision ${tone}`;
+    node.innerHTML = `
+      <div class="status-card-head">
+        <h3>${escapeHtml(item.field)}</h3>
+        <span class="status-badge ${tone}">${escapeHtml(item.decision)}</span>
+      </div>
+      <p>${escapeHtml(item.reason)}</p>
+    `;
+    root.appendChild(node);
+  }
+}
+
+function renderWithheld(items) {
+  const root = $("withheldList");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">Nothing withheld.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const node = document.createElement("article");
+    node.className = "withheld-item";
+    node.innerHTML = `<h3>${escapeHtml(item.field)}</h3><p>${escapeHtml(item.reason)}</p>`;
+    root.appendChild(node);
+  }
+}
+
+async function buildContextPack(showReadyToast = true) {
+  const params = new URLSearchParams({
+    days: String(state.days),
+    purpose: $("packPurpose").value,
+    target: $("packTarget").value,
+    max_events: "8",
+  });
+  const sphereId = $("packSphere").value;
+  if (sphereId) params.set("sphere_id", sphereId);
+  const pack = await getJson(`/api/context-pack?${params.toString()}`);
+  renderContextPack(pack);
+  if (showReadyToast) {
+    showToast(pack.status === "ready" ? "Context pack ready" : `Context pack ${pack.status}`);
+  }
+}
+
+async function copyContextPack() {
+  const markdown = state.contextPack?.export?.markdown || "";
+  if (!markdown) {
+    showToast("No context pack to copy");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(markdown);
+    showToast("Context pack markdown copied");
+  } catch (error) {
+    showToast("Clipboard write was blocked by the browser");
+  }
+}
+
 function activityStateLabel(stateName) {
   if (stateName === "active") return "active";
   if (stateName === "suspended") return "suspended";
@@ -356,6 +623,7 @@ function activityStateLabel(stateName) {
 
 function renderActivities(activities) {
   $("activityDepth").textContent = `Depth ${activities?.capture_depth ?? 1}`;
+  populatePackSphereOptions(activities?.spheres || []);
   renderActivityStats(activities);
   renderActivityPipeline(activities?.pipeline || []);
   renderActivityExplanation(activities?.explanations || []);
@@ -1126,6 +1394,7 @@ async function refresh() {
   renderTransitions(overview.transitions);
   renderFleet(overview.fleet);
   renderActivities(overview.working_spheres);
+  renderContextPack(overview.context_pack);
   renderContextGraph(overview.context_graph);
   renderSignature(overview.profile);
   renderEvents(state.events);
@@ -1165,6 +1434,16 @@ function bindUi() {
     state.days = Number(event.target.value);
     await refresh();
   });
+
+  $("buildPackBtn").addEventListener("click", async () => {
+    try {
+      await buildContextPack();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
+  $("copyPackBtn").addEventListener("click", copyContextPack);
 
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {

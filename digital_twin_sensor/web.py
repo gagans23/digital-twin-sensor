@@ -15,6 +15,7 @@ from typing import Any
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
 from .context_graph import build_context_graph
+from .context_pack import build_context_pack
 from .fleet import DASHBOARD_SERVICE, SENSOR_SERVICE, build_fleet_status, service_status
 from .query import retrieve
 from .store import EventStore, parse_dt, utc_now
@@ -417,6 +418,15 @@ def build_overview(
             "explanations": [],
         }
     )
+    context_pack = build_context_pack(
+        events,
+        config,
+        days=days,
+        purpose="coding",
+        target="kiro",
+        max_events=8,
+        activities=working_spheres,
+    )
     recent_events = sorted(events, key=lambda item: item["ts_start"], reverse=True)[:limit]
 
     first_event = events[0]["ts_start"] if events else None
@@ -456,6 +466,7 @@ def build_overview(
         "profile": profile,
         "context_graph": context_graph,
         "working_spheres": working_spheres,
+        "context_pack": context_pack,
         "insights": _interpret(profile, events),
         "domains": _domain_summary(events),
         "top_apps": _top_items(events, "app"),
@@ -593,6 +604,31 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                         config,
                         days=days,
                         max_spheres=max_spheres,
+                    )
+                )
+                return
+
+            if route == "/api/context-pack":
+                config = load_config(self.server.config_path)
+                days = _safe_int(query.get("days", [None])[0], 14)
+                max_events = _safe_int(query.get("max_events", [None])[0], 8, 1, 12)
+                purpose = query.get("purpose", ["coding"])[0].strip() or "coding"
+                target = query.get("target", ["kiro"])[0].strip() or "kiro"
+                sphere_id = query.get("sphere_id", [None])[0]
+                if sphere_id is not None:
+                    sphere_id = sphere_id.strip() or None
+                store = EventStore(self.server.db_path)
+                events = store.fetch_window(subject_id=config["subject_id"], days=days)
+                store.close()
+                self._send_json(
+                    build_context_pack(
+                        events,
+                        config,
+                        days=days,
+                        purpose=purpose,
+                        target=target,
+                        sphere_id=sphere_id,
+                        max_events=max_events,
                     )
                 )
                 return

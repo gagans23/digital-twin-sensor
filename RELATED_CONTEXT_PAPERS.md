@@ -279,6 +279,8 @@ Good questions it should answer:
 
 What it does: packages the safe subset of context for another tool.
 
+Status: implemented locally as a Memory Admission Gate plus context-pack builder, API route, CLI command, and dashboard tab.
+
 Targets:
 
 - Kiro steering/spec prompts
@@ -300,8 +302,8 @@ Export should include:
 1. Working sphere detector and Activities tab. Status: implemented at Depth 1.
 2. Seen index table and metadata-only search.
 3. Stronger resume packs from activity switches.
-4. Memory admission gate for queries and exports.
-5. Context pack export command for Kiro/Codex/GitLab.
+4. Memory admission gate for queries and exports. Status: implemented for exports.
+5. Context pack export command for Kiro/Codex/GitLab. Status: implemented locally.
 6. Nightly evolving context cards.
 7. Graph community summaries and graph-proximity retrieval.
 8. Optional browser, Git, IDE, terminal, and calendar connectors.

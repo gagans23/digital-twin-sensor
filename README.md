@@ -2,7 +2,7 @@
 
 This is a privacy-first local prototype inspired by the X-SYNTH paper, which argues that context synthesis should use observed digital human attention as a relevance signal rather than relying on query-only retrieval.
 
-In this starter, the "sensor" is software. It samples your active macOS window, stores local attention events in SQLite, computes a rolling Digital Twin Signature, builds a living context graph with privacy gates, infers working spheres from redacted focus patterns, and ranks artifacts using attention filters plus simple content relevance.
+In this starter, the "sensor" is software. It samples your active macOS window, stores local attention events in SQLite, computes a rolling Digital Twin Signature, builds a living context graph with privacy gates, infers working spheres from redacted focus patterns, exports summary-only context packs through a Memory Admission Gate, and ranks artifacts using attention filters plus simple content relevance.
 
 If macOS only reports a locked or hidden user session such as `loginwindow`, the sensor records a low-detail `system` event. That keeps collection health visible without claiming it captured the foreground app.
 
@@ -25,6 +25,7 @@ This starter implements a single-user version:
 - Digital Twin Signature: `v_dom`, `v_rhythm`, `v_base`, `v_resp`, `v_div`
 - context graph: subject, domain, app, artifact, task, time, and masked private-signal nodes
 - working spheres: inferred activities, session returns, transition paths, and resume packs
+- context packs: gated Kiro/Codex/GitLab-ready Markdown or JSON from selected working spheres
 - browser surface details: active-tab metadata for Safari/Chrome at Depth 2+
 - privacy gates: capture depth, pre-storage redaction, graph minimization, and sensitive-source boundaries
 - filters: proportional, inverse, differential, recurrent, comparative, sequential, collective
@@ -58,6 +59,7 @@ It opens a local-only browser console with:
 - collection health
 - attention by domain
 - working spheres and resume packs
+- context-pack export with admission counts, denied fields, and copyable Markdown
 - surface detail cards explaining what each app exposes and how to deepen capture
 - fleet manager for local device health, policy, connectors, and sync-readiness
 - active-hour rhythm
@@ -170,6 +172,13 @@ Show local fleet/device management status:
 
 ```bash
 digital-twin-sensor fleet --days 14
+```
+
+Export a summary-only context pack:
+
+```bash
+digital-twin-sensor context-pack --days 14 --target kiro --format markdown
+digital-twin-sensor context-pack --days 14 --target gitlab --purpose gitlab --output work/context-pack.md
 ```
 
 Ask a query:

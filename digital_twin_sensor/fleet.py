@@ -143,6 +143,13 @@ def _connectors(config: dict[str, Any]) -> list[dict[str, Any]]:
             "sync_policy": "safe summary candidate",
         },
         {
+            "name": "Context Pack Export",
+            "status": "enabled",
+            "depth": "Derived",
+            "scope": "working sphere, resume cue, admitted evidence, gate ledger",
+            "sync_policy": "summary-only packs for allowed targets",
+        },
+        {
             "name": "Opaque App Deep Detail",
             "status": "planned",
             "depth": "Depth 2/3 opt-in",
@@ -262,7 +269,7 @@ def _admin_actions(config: dict[str, Any]) -> list[dict[str, str]]:
         },
         {
             "name": "Export context pack",
-            "status": "next",
+            "status": "implemented",
             "detail": "create safe Kiro/Codex/GitLab handoff packages from working spheres",
         },
         {

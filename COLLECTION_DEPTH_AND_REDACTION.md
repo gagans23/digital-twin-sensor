@@ -64,6 +64,13 @@ Working sphere behavior:
 - create resume packs with last artifact, recent path, next-action guess, and privacy-gate status
 - exclude system-state events from activity inference by default
 
+Context-pack behavior:
+
+- select one working sphere automatically or by id
+- pass fields through a Memory Admission Gate before export
+- emit allowed, summarized, masked, and denied counts
+- export Markdown or JSON without raw event rows, subject identity, event ids, full URLs, screenshots, keystrokes, clipboard, document bodies, or credentials
+
 Pipeline:
 
 ```text
@@ -193,6 +200,7 @@ The dashboard must always show:
 - what redaction categories have fired
 - the privacy-gated context graph
 - inferred working spheres, session returns, and resume packs
+- context-pack admission counts, denied fields, admitted evidence, and copyable Markdown
 - graph minimization behavior such as excluded system-state samples
 - where the local database lives
 

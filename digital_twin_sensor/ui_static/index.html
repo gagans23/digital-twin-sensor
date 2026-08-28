@@ -40,6 +40,7 @@
         <button class="tab active" type="button" data-view="overview">Overview</button>
         <button class="tab" type="button" data-view="fleet">Fleet</button>
         <button class="tab" type="button" data-view="activities">Activities</button>
+        <button class="tab" type="button" data-view="packs">Context Packs</button>
         <button class="tab" type="button" data-view="graph">Context Graph</button>
         <button class="tab" type="button" data-view="signature">Twin Signature</button>
         <button class="tab" type="button" data-view="evidence">Evidence</button>
@@ -254,6 +255,113 @@
                 </div>
               </div>
               <div id="sphereTransitions" class="sphere-transitions"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="packs" class="view" aria-labelledby="packsTitle">
+          <div class="pack-grid">
+            <article class="panel wide">
+              <div class="panel-head">
+                <div>
+                  <p class="kicker">Memory Admission Gate</p>
+                  <h2 id="packsTitle">Context-pack export</h2>
+                </div>
+                <span id="packStatus" class="status-pill">Loading</span>
+              </div>
+              <div class="pack-controls">
+                <label>
+                  <span>Purpose</span>
+                  <select id="packPurpose" aria-label="Context pack purpose">
+                    <option value="coding" selected>Continue code</option>
+                    <option value="gitlab">GitLab update</option>
+                    <option value="research">Research brief</option>
+                    <option value="self_review">Self review</option>
+                    <option value="agent_prompt">Agent prompt</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Target</span>
+                  <select id="packTarget" aria-label="Context pack target">
+                    <option value="kiro" selected>Kiro</option>
+                    <option value="codex">Codex</option>
+                    <option value="gitlab">GitLab</option>
+                    <option value="local_file">Local file</option>
+                    <option value="markdown">Markdown</option>
+                    <option value="json">JSON</option>
+                  </select>
+                </label>
+                <label class="pack-sphere-field">
+                  <span>Sphere</span>
+                  <select id="packSphere" aria-label="Working sphere for context pack">
+                    <option value="">Auto select</option>
+                  </select>
+                </label>
+                <button id="buildPackBtn" class="tool-button primary" type="button" title="Build context pack">
+                  <span class="button-icon pack-icon" aria-hidden="true"></span>
+                  <span>Build</span>
+                </button>
+                <button id="copyPackBtn" class="tool-button" type="button" title="Copy context-pack markdown">
+                  <span class="button-icon copy-icon" aria-hidden="true"></span>
+                  <span>Copy</span>
+                </button>
+              </div>
+              <div id="packPipeline" class="pack-pipeline"></div>
+            </article>
+
+            <aside class="panel">
+              <p class="kicker">Export Ledger</p>
+              <h2>Admission counts</h2>
+              <div id="admissionCounts" class="admission-counts"></div>
+              <div id="packPrivacy" class="pack-privacy"></div>
+            </aside>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Selected Context</p>
+                  <h2>Sphere summary</h2>
+                </div>
+              </div>
+              <div id="packSummary" class="pack-summary"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Admitted Evidence</p>
+              <h2>Apps and artifacts</h2>
+              <div id="packEvidence" class="pack-evidence"></div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Recent Path</p>
+                  <h2>Summary-only sequence</h2>
+                </div>
+              </div>
+              <div id="packRecentPath" class="pack-recent-path"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Gate Decisions</p>
+              <h2>Field ledger</h2>
+              <div id="admissionDecisions" class="admission-decisions"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Withheld</p>
+              <h2>Denied fields</h2>
+              <div id="withheldList" class="withheld-list"></div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Markdown Export</p>
+                  <h2>Kiro / Codex / GitLab-ready pack</h2>
+                </div>
+              </div>
+              <pre id="markdownPreview" class="markdown-preview"></pre>
             </article>
           </div>
         </section>
