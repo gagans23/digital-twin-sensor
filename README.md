@@ -215,6 +215,8 @@ See `UI_RESEARCH_AND_DIRECTION.md` for the public Workfabric/ContextFabric refer
 
 See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.
 
+See `RELATED_CONTEXT_PAPERS.md` for adjacent research papers and concrete product concepts such as working spheres, task-model induction, resume packs, seen indexes, evolving context cards, and query-time memory admission gates.
+
 ## Important Boundary
 
 Do not use this to monitor other people without informed consent. The X-SYNTH idea becomes powerful exactly because attention traces are sensitive. Treat them like private behavioral data.
