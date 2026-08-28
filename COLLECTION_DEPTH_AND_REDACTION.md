@@ -49,6 +49,19 @@ Store:
 
 This is the current default.
 
+Graph behavior:
+
+- derive subject, domain, app, artifact, task, and time nodes from redacted events
+- represent detected sensitive text as masked private-signal nodes, not raw entities
+- exclude system-state events from the work-context graph by default
+- expose gate counts for allowed, masked, generalized, and withheld graph elements
+
+Pipeline:
+
+```text
+Sense -> Privacy Gate -> Context Graph -> Digital Twin Signature -> Evidence
+```
+
 ## Depth 2: Work Surface Context
 
 Purpose: understand what kind of work is happening without reading the work.
@@ -143,6 +156,8 @@ The dashboard must always show:
 - what is captured
 - what is not captured
 - what redaction categories have fired
+- the privacy-gated context graph
+- graph minimization behavior such as excluded system-state samples
 - where the local database lives
 
 ## Product Principle

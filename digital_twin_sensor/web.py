@@ -17,6 +17,7 @@ from typing import Any
 
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
+from .context_graph import build_context_graph
 from .query import retrieve
 from .store import EventStore, parse_dt, utc_now
 from .twin import build_digital_twin_signature
@@ -277,6 +278,20 @@ def build_overview(
 
     total_dwell = sum(float(event["dwell_seconds"]) for event in events)
     profile = build_digital_twin_signature(events, short_days=min(5, days), long_days=days)
+    context_graph = (
+        build_context_graph(events, config, days=days)
+        if config.get("enable_context_graph", True)
+        else {
+            "status": "disabled",
+            "days": days,
+            "nodes": [],
+            "edges": [],
+            "stats": {"node_count": 0, "edge_count": 0, "events": len(events)},
+            "pipeline": [],
+            "privacy_gates": [],
+            "top_relationships": [],
+        }
+    )
     recent_events = sorted(events, key=lambda item: item["ts_start"], reverse=True)[:limit]
 
     first_event = events[0]["ts_start"] if events else None
@@ -300,6 +315,7 @@ def build_overview(
         },
         "collector": _collector_status(),
         "profile": profile,
+        "context_graph": context_graph,
         "insights": _interpret(profile, events),
         "domains": _domain_summary(events),
         "top_apps": _top_items(events, "app"),
@@ -323,6 +339,7 @@ def build_overview(
                 "timestamp",
                 "dwell time",
                 "derived work domain",
+                "derived context graph nodes and privacy-gated edges",
             ],
             "not_captured": [
                 "keystrokes",
@@ -412,6 +429,35 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 events = store.fetch_window(subject_id=config["subject_id"], days=long_days)
                 store.close()
                 self._send_json(build_digital_twin_signature(events, short_days=short_days, long_days=long_days))
+                return
+
+            if route == "/api/context-graph":
+                config = load_config(self.server.config_path)
+                days = _safe_int(query.get("days", [None])[0], 14)
+                max_nodes = _safe_int(
+                    query.get("max_nodes", [None])[0],
+                    int(config.get("context_graph_max_nodes", 70)),
+                    10,
+                    250,
+                )
+                max_edges = _safe_int(
+                    query.get("max_edges", [None])[0],
+                    int(config.get("context_graph_max_edges", 140)),
+                    10,
+                    500,
+                )
+                store = EventStore(self.server.db_path)
+                events = store.fetch_window(subject_id=config["subject_id"], days=days)
+                store.close()
+                self._send_json(
+                    build_context_graph(
+                        events,
+                        config,
+                        days=days,
+                        max_nodes=max_nodes,
+                        max_edges=max_edges,
+                    )
+                )
                 return
 
             if route == "/api/query":

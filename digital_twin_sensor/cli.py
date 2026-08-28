@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
+from .context_graph import build_context_graph
 from .query import format_retrieval, retrieve
 from .redaction import redact_text
 from .store import EventStore
@@ -96,6 +97,23 @@ def cmd_query(args: argparse.Namespace) -> int:
         print(json.dumps(result, indent=2))
     else:
         print(format_retrieval(result))
+    return 0
+
+
+def cmd_graph(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = EventStore(args.db)
+    events = store.fetch_window(subject_id=subject_id, days=args.days)
+    store.close()
+    graph = build_context_graph(
+        events,
+        config,
+        days=args.days,
+        max_nodes=args.max_nodes,
+        max_edges=args.max_edges,
+    )
+    print(json.dumps(graph, indent=2))
     return 0
 
 
@@ -192,6 +210,13 @@ def build_parser() -> argparse.ArgumentParser:
     query.add_argument("--top-k", type=int, default=8)
     query.add_argument("--json", action="store_true")
     query.set_defaults(func=cmd_query)
+
+    graph = sub.add_parser("graph", help="Build the privacy-gated living context graph as JSON.")
+    graph.add_argument("--subject-id", default=None)
+    graph.add_argument("--days", type=int, default=14)
+    graph.add_argument("--max-nodes", type=int, default=None)
+    graph.add_argument("--max-edges", type=int, default=None)
+    graph.set_defaults(func=cmd_graph)
 
     export = sub.add_parser("export", help="Export recent raw events as JSON.")
     export.add_argument("--subject-id", default=None)

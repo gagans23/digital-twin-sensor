@@ -8,6 +8,11 @@
   "mask_configured_names": true,
   "mask_ip_addresses": true,
   "redact_url_paths": true,
+  "context_capture_depth": 1,
+  "enable_context_graph": true,
+  "context_graph_max_nodes": 70,
+  "context_graph_max_edges": 140,
+  "context_graph_include_system_events": false,
   "name_terms_to_mask": ["your-name", "your-machine-username"],
   "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
   "sensitive_title_keywords": [

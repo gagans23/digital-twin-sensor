@@ -2,7 +2,7 @@
 
 This is a privacy-first local prototype inspired by the X-SYNTH paper, which argues that context synthesis should use observed digital human attention as a relevance signal rather than relying on query-only retrieval.
 
-In this starter, the "sensor" is software. It samples your active macOS window, stores local attention events in SQLite, computes a rolling Digital Twin Signature, and ranks artifacts using attention filters plus simple content relevance.
+In this starter, the "sensor" is software. It samples your active macOS window, stores local attention events in SQLite, computes a rolling Digital Twin Signature, builds a living context graph with privacy gates, and ranks artifacts using attention filters plus simple content relevance.
 
 If macOS only reports a locked or hidden user session such as `loginwindow`, the sensor records a low-detail `system` event. That keeps collection health visible without claiming it captured the foreground app.
 
@@ -21,6 +21,8 @@ This starter implements a single-user version:
 
 - subject scoping: one local subject from `config.json`
 - Digital Twin Signature: `v_dom`, `v_rhythm`, `v_base`, `v_resp`, `v_div`
+- context graph: subject, domain, app, artifact, task, time, and masked private-signal nodes
+- privacy gates: capture depth, pre-storage redaction, graph minimization, and sensitive-source boundaries
 - filters: proportional, inverse, differential, recurrent, comparative, sequential, collective
 - retrieval: `weight = attention_score * content_score`
 - synthesis: text output explaining why each artifact was surfaced
@@ -53,6 +55,7 @@ It opens a local-only browser console with:
 - attention by domain
 - active-hour rhythm
 - top apps and artifacts
+- privacy-gated context graph
 - Digital Twin Signature radar view
 - X-SYNTH-lite evidence search
 - raw event ledger
@@ -138,6 +141,12 @@ Print your Digital Twin Signature:
 digital-twin-sensor profile --short-days 5 --long-days 14
 ```
 
+Build the living context graph:
+
+```bash
+digital-twin-sensor graph --days 14
+```
+
 Ask a query:
 
 ```bash
@@ -194,10 +203,11 @@ Next build steps:
 1. add explicit retention and deletion commands
 2. encrypt the SQLite database
 3. add browser/IDE/calendar connectors with opt-in toggles
-4. add local embeddings for semantic content scoring
-5. add a small local API for querying the twin
-6. add feedback buttons so good/bad answers can tune filter selection
-7. add a visible menubar indicator so collection is never hidden
+4. add graph-backed project/task clustering
+5. add local embeddings for semantic content scoring
+6. add a small local API for querying the twin
+7. add feedback buttons so good/bad answers can tune filter selection
+8. add a visible menubar indicator so collection is never hidden
 
 ## Product Design Notes
 

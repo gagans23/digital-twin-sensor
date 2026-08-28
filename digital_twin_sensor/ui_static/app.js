@@ -6,6 +6,18 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
+const graphColors = {
+  subject: "#151922",
+  domain: "#00a6a6",
+  task: "#ff7a59",
+  artifact: "#6d5dfc",
+  app: "#14845d",
+  time: "#d99000",
+  "private-signal": "#b42318",
+};
+
+const graphTypeOrder = ["subject", "domain", "task", "artifact", "app", "time", "private-signal"];
+
 function fmtHours(value) {
   return Number(value || 0).toFixed(2).replace(/\.00$/, "");
 }
@@ -26,6 +38,12 @@ function fmtTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function fmtCompact(value) {
+  const number = Number(value || 0);
+  if (number >= 1000) return `${(number / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(Math.round(number));
 }
 
 function showToast(message) {
@@ -160,6 +178,332 @@ function renderTransitions(items) {
     `;
     root.appendChild(node);
   }
+}
+
+function hashNumber(value) {
+  let hash = 2166136261;
+  const text = String(value);
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function setupCanvas(canvas, fallbackWidth = 960, fallbackHeight = 520) {
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(320, Math.round(rect.width || fallbackWidth));
+  const height = Math.max(360, Math.round(rect.height || fallbackHeight));
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  return { ctx, width, height };
+}
+
+function nodeRadius(node) {
+  const dwell = Math.sqrt(Number(node.dwell_seconds || 0)) / 7;
+  const visits = Math.log1p(Number(node.events || 0)) * 2.2;
+  return clamp(8 + dwell + visits, 9, node.type === "subject" ? 26 : 22);
+}
+
+function layoutContextGraph(graph, width, height) {
+  const nodes = (graph.nodes || []).map((node) => ({ ...node }));
+  const edges = graph.edges || [];
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const groups = {};
+  for (const type of graphTypeOrder) groups[type] = [];
+  for (const node of nodes) {
+    if (!groups[node.type]) groups[node.type] = [];
+    groups[node.type].push(node);
+  }
+
+  const cx = width / 2;
+  const cy = height / 2;
+  const ring = Math.min(width, height) / 2 - 54;
+  const ringByType = {
+    subject: 0,
+    domain: 0.32,
+    task: 0.5,
+    app: 0.66,
+    artifact: 0.82,
+    time: 0.92,
+    "private-signal": 0.58,
+  };
+
+  for (const type of Object.keys(groups)) {
+    const items = groups[type];
+    const offset = (hashNumber(type) % 360) * (Math.PI / 180);
+    items.forEach((node, index) => {
+      if (type === "subject") {
+        node.x = cx;
+        node.y = cy;
+        return;
+      }
+      const angle = offset + (index / Math.max(items.length, 1)) * Math.PI * 2;
+      const jitter = ((hashNumber(node.id) % 100) / 100 - 0.5) * 22;
+      const radius = ring * (ringByType[type] || 0.72) + jitter;
+      node.x = cx + Math.cos(angle) * radius;
+      node.y = cy + Math.sin(angle) * radius;
+    });
+  }
+
+  for (let tick = 0; tick < 90; tick += 1) {
+    for (let i = 0; i < nodes.length; i += 1) {
+      const a = nodes[i];
+      if (a.type === "subject") continue;
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const b = nodes[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const distSq = Math.max(dx * dx + dy * dy, 25);
+        const force = 54 / distSq;
+        const fx = dx * force;
+        const fy = dy * force;
+        if (a.type !== "subject") {
+          a.x += fx;
+          a.y += fy;
+        }
+        if (b.type !== "subject") {
+          b.x -= fx;
+          b.y -= fy;
+        }
+      }
+    }
+
+    for (const edge of edges) {
+      const source = byId.get(edge.source);
+      const target = byId.get(edge.target);
+      if (!source || !target) continue;
+      const dx = target.x - source.x;
+      const dy = target.y - source.y;
+      const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+      const desired = edge.relation === "focused_in" ? 110 : 135;
+      const strength = edge.relation === "next_context" ? 0.012 : 0.025;
+      const pull = (dist - desired) * strength;
+      const fx = (dx / dist) * pull;
+      const fy = (dy / dist) * pull;
+      if (source.type !== "subject") {
+        source.x += fx;
+        source.y += fy;
+      }
+      if (target.type !== "subject") {
+        target.x -= fx;
+        target.y -= fy;
+      }
+    }
+
+    for (const node of nodes) {
+      if (node.type === "subject") {
+        node.x = cx;
+        node.y = cy;
+        continue;
+      }
+      node.x += (cx - node.x) * 0.004;
+      node.y += (cy - node.y) * 0.004;
+      const radius = nodeRadius(node) + 8;
+      node.x = clamp(node.x, radius, width - radius);
+      node.y = clamp(node.y, radius, height - radius);
+    }
+  }
+
+  return new Map(nodes.map((node) => [node.id, node]));
+}
+
+function roundedRectPath(ctx, x, y, width, height, radius) {
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, width, height, radius);
+    return;
+  }
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+}
+
+function drawGraphLabel(ctx, text, x, y, align = "center") {
+  const label = String(text || "");
+  const maxChars = 28;
+  const short = label.length > maxChars ? `${label.slice(0, maxChars - 1)}...` : label;
+  ctx.font = "700 11px Inter, system-ui, sans-serif";
+  const metrics = ctx.measureText(short);
+  const padding = 5;
+  const width = metrics.width + padding * 2;
+  const height = 20;
+  const left = align === "left" ? x : align === "right" ? x - width : x - width / 2;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+  ctx.strokeStyle = "rgba(217, 224, 234, 0.9)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  roundedRectPath(ctx, left, y - height / 2, width, height, 5);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#2c3440";
+  ctx.textAlign = align;
+  ctx.textBaseline = "middle";
+  ctx.fillText(short, x, y);
+}
+
+function renderContextGraph(graph) {
+  const canvas = $("contextGraphCanvas");
+  if (!canvas) return;
+  const { ctx, width, height } = setupCanvas(canvas);
+  ctx.fillStyle = "#eef2f7";
+  ctx.fillRect(0, 0, width, height);
+
+  $("graphDepth").textContent = `Depth ${graph?.capture_depth ?? 1}`;
+  renderGraphStats(graph);
+  renderPrivacyGates(graph?.privacy_gates || []);
+  renderRelationships(graph?.top_relationships || []);
+  renderGraphLegend(graph);
+
+  if (!graph || graph.status !== "ready" || !(graph.nodes || []).length) {
+    ctx.fillStyle = "#5f6b7a";
+    ctx.font = "700 16px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("No graph signal yet", width / 2, height / 2);
+    return;
+  }
+
+  const positions = layoutContextGraph(graph, width, height);
+  const edges = [...(graph.edges || [])].sort((a, b) => Number(a.weight || 0) - Number(b.weight || 0));
+
+  for (const edge of edges) {
+    const source = positions.get(edge.source);
+    const target = positions.get(edge.target);
+    if (!source || !target) continue;
+    const widthScale = clamp(Math.log1p(Number(edge.events || 1)) * 0.8, 0.8, 4);
+    ctx.beginPath();
+    ctx.moveTo(source.x, source.y);
+    ctx.lineTo(target.x, target.y);
+    ctx.strokeStyle = edge.gate_mode === "masked" ? "rgba(180, 35, 24, 0.28)" : "rgba(95, 107, 122, 0.24)";
+    ctx.lineWidth = widthScale;
+    ctx.setLineDash(edge.relation === "next_context" ? [4, 5] : []);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  const sortedNodes = [...positions.values()].sort((a, b) => Number(a.weight || 0) - Number(b.weight || 0));
+  for (const node of sortedNodes) {
+    const radius = nodeRadius(node);
+    const color = graphColors[node.type] || "#5f6b7a";
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = node.gate_mode === "masked" ? 0.82 : 0.95;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = node.gate_mode === "masked" ? 3 : 1.5;
+    ctx.strokeStyle = node.gate_mode === "masked" ? "#b42318" : "#ffffff";
+    ctx.stroke();
+
+    if (node.type === "private-signal") {
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, Math.max(3, radius * 0.34), 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+    }
+  }
+
+  const labeled = [...positions.values()]
+    .sort((a, b) => Number(b.weight || 0) - Number(a.weight || 0))
+    .slice(0, width < 680 ? 12 : 22);
+  for (const node of labeled) {
+    const align = node.x < width * 0.22 ? "left" : node.x > width * 0.78 ? "right" : "center";
+    const offset = node.y < height * 0.18 ? nodeRadius(node) + 14 : -(nodeRadius(node) + 14);
+    drawGraphLabel(ctx, node.label, node.x, node.y + offset, align);
+  }
+}
+
+function renderGraphStats(graph) {
+  const root = $("graphStats");
+  if (!root) return;
+  const stats = graph?.stats || {};
+  const gates = stats.gates || {};
+  root.innerHTML = `
+    <div class="graph-stat"><strong>${fmtCompact(stats.node_count || 0)}</strong><span>nodes</span></div>
+    <div class="graph-stat"><strong>${fmtCompact(stats.edge_count || 0)}</strong><span>edges</span></div>
+    <div class="graph-stat"><strong>${fmtCompact(stats.events || 0)}</strong><span>events</span></div>
+    <div class="graph-stat"><strong>${fmtCompact((gates.masked || 0) + (gates.generalized || 0) + (gates.withheld || 0))}</strong><span>gated</span></div>
+  `;
+}
+
+function renderPrivacyGates(gates) {
+  const root = $("gateList");
+  if (!root) return;
+  if (!gates.length) {
+    root.innerHTML = `<div class="empty">No gate data yet.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const gate of gates) {
+    const node = document.createElement("article");
+    const detail = typeof gate.detail === "object"
+      ? Object.entries(gate.detail).map(([key, value]) => `${key}: ${value}`).join(" · ")
+      : gate.detail;
+    const mode = /redaction|sensitive/i.test(gate.name) ? "masked" : /minimization|depth/i.test(gate.name) ? "generalized" : "";
+    node.className = `gate-item ${mode}`;
+    node.innerHTML = `
+      <h3>${escapeHtml(gate.name)} · ${escapeHtml(gate.status)}</h3>
+      <p>${escapeHtml(gate.decision)}</p>
+      <p>${escapeHtml(detail || "")}</p>
+    `;
+    root.appendChild(node);
+  }
+}
+
+function renderRelationships(items) {
+  const root = $("relationshipList");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No relationships yet.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const node = document.createElement("article");
+    node.className = "relationship-item";
+    node.innerHTML = `
+      <div class="relationship-flow">
+        <span><b>${escapeHtml(item.source)}</b><br><small>${escapeHtml(item.source_type)}</small></span>
+        <span class="relationship-arrow">→</span>
+        <span><b>${escapeHtml(item.target)}</b><br><small>${escapeHtml(item.target_type)}</small></span>
+      </div>
+      <p>${escapeHtml(item.relation)} · ${item.events} events · ${fmtSeconds(item.dwell_seconds)} · ${escapeHtml(item.gate_mode)}</p>
+    `;
+    root.appendChild(node);
+  }
+}
+
+function renderGraphLegend(graph) {
+  const root = $("graphLegend");
+  if (!root) return;
+  const presentTypes = new Set((graph?.nodes || []).map((node) => node.type));
+  const types = graphTypeOrder.filter((type) => presentTypes.has(type));
+  const displayTypes = types.length ? types : graphTypeOrder.slice(0, 6);
+  root.innerHTML = displayTypes
+    .map((type) => `
+      <div class="legend-item">
+        <span class="legend-dot" style="background: ${graphColors[type] || "#5f6b7a"}"></span>
+        <div><h3>${escapeHtml(type.replace("-", " "))}</h3><p>${escapeHtml(type === "private-signal" ? "masked or blocked sensitive text" : "derived from redacted event metadata")}</p></div>
+      </div>
+    `)
+    .join("");
 }
 
 function profileScores(profile) {
@@ -374,6 +718,7 @@ async function refresh() {
   renderRankList("topArtifacts", overview.top_artifacts);
   renderRankList("topApps", overview.top_apps);
   renderTransitions(overview.transitions);
+  renderContextGraph(overview.context_graph);
   renderSignature(overview.profile);
   renderEvents(state.events);
   renderPrivacy(overview.privacy);
@@ -419,6 +764,9 @@ function bindUi() {
       document.querySelectorAll(".view").forEach((view) => view.classList.remove("active-view"));
       button.classList.add("active");
       $(button.dataset.view).classList.add("active-view");
+      if (button.dataset.view === "graph" && state.overview) {
+        window.requestAnimationFrame(() => renderContextGraph(state.overview.context_graph));
+      }
       if (button.dataset.view === "signature" && state.overview) {
         window.requestAnimationFrame(() => renderSignature(state.overview.profile));
       }
@@ -443,6 +791,18 @@ function bindUi() {
       $("queryInput").value = button.textContent;
       await runEvidenceQuery(button.textContent);
     });
+  });
+
+  window.addEventListener("resize", () => {
+    window.clearTimeout(bindUi.resizeTimer);
+    bindUi.resizeTimer = window.setTimeout(() => {
+      if (document.querySelector("#graph.active-view") && state.overview) {
+        renderContextGraph(state.overview.context_graph);
+      }
+      if (document.querySelector("#signature.active-view") && state.overview) {
+        renderSignature(state.overview.profile);
+      }
+    }, 120);
   });
 }
 

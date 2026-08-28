@@ -278,7 +278,8 @@ input:focus {
 
 .status-grid,
 .dashboard-grid,
-.privacy-grid {
+.privacy-grid,
+.graph-grid {
   display: grid;
   gap: 16px;
 }
@@ -290,6 +291,10 @@ input:focus {
 
 .dashboard-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.graph-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 0.8fr);
 }
 
 .privacy-grid {
@@ -383,7 +388,7 @@ input:focus {
 .signal-flow {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .signal-flow div {
@@ -424,7 +429,11 @@ input:focus {
 .rank-list,
 .transition-list,
 .signature-cards,
-.privacy-list {
+.privacy-list,
+.gate-list,
+.relationship-list,
+.graph-stats,
+.graph-legend {
   display: grid;
   gap: 10px;
 }
@@ -526,7 +535,11 @@ input:focus {
 .transition-item,
 .privacy-item,
 .signature-card,
-.evidence-card {
+.evidence-card,
+.gate-item,
+.relationship-item,
+.graph-stat,
+.legend-item {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -581,6 +594,109 @@ canvas {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   max-width: 100%;
+}
+
+.graph-panel {
+  min-height: 620px;
+}
+
+.context-graph-canvas {
+  display: block;
+  height: 520px;
+  width: 100%;
+}
+
+.graph-side {
+  align-self: start;
+}
+
+.graph-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 14px 0;
+}
+
+.graph-stat {
+  min-height: 76px;
+}
+
+.graph-stat strong {
+  display: block;
+  font-size: 1.45rem;
+  line-height: 1.05;
+}
+
+.graph-stat span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 6px;
+}
+
+.gate-item {
+  border-left: 4px solid var(--teal);
+  display: grid;
+  gap: 6px;
+}
+
+.gate-item.masked {
+  border-left-color: var(--coral);
+}
+
+.gate-item.generalized {
+  border-left-color: var(--violet);
+}
+
+.gate-item h3,
+.relationship-item h3,
+.legend-item h3 {
+  font-size: 0.92rem;
+}
+
+.gate-item p,
+.relationship-item p,
+.legend-item p {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.relationship-item {
+  display: grid;
+  gap: 7px;
+}
+
+.relationship-flow {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.relationship-flow span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.relationship-arrow {
+  color: var(--faint);
+  font-weight: 800;
+}
+
+.graph-legend {
+  margin-top: 14px;
+}
+
+.legend-item {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 14px minmax(0, 1fr);
+}
+
+.legend-dot {
+  border-radius: 50%;
+  height: 12px;
+  width: 12px;
 }
 
 .signature-card {
@@ -790,6 +906,7 @@ tbody tr:last-child td {
   .status-grid,
   .dashboard-grid,
   .privacy-grid,
+  .graph-grid,
   .signature-layout {
     grid-template-columns: 1fr;
   }
@@ -847,5 +964,9 @@ tbody tr:last-child td {
 
   .heatmap {
     grid-template-columns: repeat(4, minmax(38px, 1fr));
+  }
+
+  .context-graph-canvas {
+    height: 430px;
   }
 }

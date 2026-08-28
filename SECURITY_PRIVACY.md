@@ -9,6 +9,7 @@ It collects:
 - derived domain label
 - timestamp and estimated dwell time
 - low-detail system state events when ignored system apps are detected
+- derived context graph nodes and edges from already-redacted event fields
 
 It does not collect:
 
@@ -22,6 +23,8 @@ It does not collect:
 Sensitive titles are redacted by keyword before storage when `redact_sensitive_titles` is enabled.
 
 PII masking is enabled by default before storage. The redactor masks emails, credit-card-like numbers that pass Luhn validation, US SSNs, phone numbers, IPv4 addresses, common secret/API token shapes, URL paths, and configured names.
+
+The context graph is derived at read time from the redacted SQLite ledger. It does not store a second graph database. Sensitive findings become aggregate masked nodes such as `blocked card data` or `masked identity/contact`, and system-state samples are excluded from the work-context graph unless `context_graph_include_system_events` is enabled.
 
 If you change `name_terms_to_mask` or other masking settings later, run `digital-twin-sensor redact-existing` to apply the new rules to previously stored rows.
 

@@ -42,6 +42,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "mask_configured_names": True,
     "mask_ip_addresses": True,
     "redact_url_paths": True,
+    "context_capture_depth": 1,
+    "enable_context_graph": True,
+    "context_graph_max_nodes": 70,
+    "context_graph_max_edges": 140,
+    "context_graph_include_system_events": False,
     "name_terms_to_mask": _default_name_terms(),
     "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
     "sensitive_title_keywords": [

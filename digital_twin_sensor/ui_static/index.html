@@ -38,6 +38,7 @@
 
       <nav class="tabs" aria-label="Dashboard views">
         <button class="tab active" type="button" data-view="overview">Overview</button>
+        <button class="tab" type="button" data-view="graph">Context Graph</button>
         <button class="tab" type="button" data-view="signature">Twin Signature</button>
         <button class="tab" type="button" data-view="evidence">Evidence</button>
         <button class="tab" type="button" data-view="events">Events</button>
@@ -71,7 +72,8 @@
               </div>
               <div class="signal-flow" aria-label="Sensor pipeline">
                 <div><b>Sense</b><span>app focus</span></div>
-                <div><b>Structure</b><span>events</span></div>
+                <div><b>Gate</b><span>privacy</span></div>
+                <div><b>Graph</b><span>context</span></div>
                 <div><b>Model</b><span>DTS</span></div>
                 <div><b>Explain</b><span>evidence</span></div>
               </div>
@@ -132,6 +134,44 @@
                 </div>
               </div>
               <div id="transitions" class="transition-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="graph" class="view" aria-labelledby="graphTitle">
+          <div class="graph-grid">
+            <article class="panel graph-panel wide">
+              <div class="panel-head">
+                <div>
+                  <p class="kicker">Living Context Graph</p>
+                  <h2 id="graphTitle">Observed work, privacy-gated</h2>
+                </div>
+                <span id="graphDepth" class="chip">Depth 1</span>
+              </div>
+              <canvas id="contextGraphCanvas" class="context-graph-canvas" width="960" height="520" aria-label="Privacy-gated context graph"></canvas>
+            </article>
+
+            <aside class="panel graph-side">
+              <p class="kicker">Privacy Gates</p>
+              <h2>Gate state</h2>
+              <div id="graphStats" class="graph-stats"></div>
+              <div id="gateList" class="gate-list"></div>
+            </aside>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Relationship Trace</p>
+                  <h2>Strongest edges</h2>
+                </div>
+              </div>
+              <div id="relationshipList" class="relationship-list"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Graph Legend</p>
+              <h2>Node types</h2>
+              <div id="graphLegend" class="graph-legend"></div>
             </article>
           </div>
         </section>

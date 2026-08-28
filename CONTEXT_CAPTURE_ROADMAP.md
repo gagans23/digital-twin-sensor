@@ -2,6 +2,8 @@
 
 The current sensor intentionally captures a narrow signal: active app, active window title, timestamp, dwell time, and inferred domain. That is enough to build an early Digital Twin Signature without crossing into surveillance.
 
+The current dashboard also derives a living context graph from that redacted event ledger. The graph connects subject, domain, app, artifact, task, and time nodes, then adds masked private-signal nodes when redaction fires. Locked-screen and system-state samples stay available for collection health, but are excluded from the work-context graph by default.
+
 To capture richer system context, add signals in layers. Each layer should be opt-in, visible in the UI, locally stored by default, and deletable.
 
 ## Layer 1: Safe Local Activity
@@ -14,6 +16,8 @@ To capture richer system context, add signals in layers. Each layer should be op
 - manual annotations such as "this was client work" or "ignore this"
 
 Status: active app/window collection exists. Idle detection and annotations are next.
+
+Graph status: implemented for Depth 1. The graph is rebuilt from the current dashboard time window and does not persist a second copy of the event stream.
 
 ## Layer 2: App-Specific Context
 
@@ -29,6 +33,7 @@ Privacy rule: store metadata first, not full contents. Full contents should requ
 
 - local embeddings for titles/artifacts
 - per-project topic clusters
+- graph-backed task and project clusters
 - "why did this matter?" summaries
 - recurring responsibilities inferred from repeated attention
 - anomaly detection when attention shifts from baseline
@@ -64,11 +69,11 @@ Before any team or workplace use:
 
 ## Recommended Next Build
 
-1. Add collector status to the UI.
-2. Add pause/resume controls.
-3. Add retention/delete commands.
-4. Add optional browser-history connector storing only domain and title.
-5. Add optional git-repo connector for branch, diff stats, and changed files.
+1. Add pause/resume controls.
+2. Add retention/delete commands.
+3. Add optional browser-history connector storing only domain and title.
+4. Add optional git-repo connector for branch, diff stats, and changed files.
+5. Add graph-backed project/task clustering.
 6. Add a local context-pack export command for Kiro/Codex prompts.
 
 See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.
