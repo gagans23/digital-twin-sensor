@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import json
 import mimetypes
-import os
 import socket
-import subprocess
 import urllib.parse
 import webbrowser
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -18,6 +15,7 @@ from typing import Any
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
 from .context_graph import build_context_graph
+from .fleet import DASHBOARD_SERVICE, SENSOR_SERVICE, build_fleet_status, service_status
 from .query import retrieve
 from .store import EventStore, parse_dt, utc_now
 from .twin import build_digital_twin_signature
@@ -372,40 +370,7 @@ def _privacy_payload(config: dict[str, Any], events: list[dict[str, Any]], db_pa
 
 
 def _collector_status() -> dict[str, Any]:
-    label = "com.local.digital-twin-sensor"
-    try:
-        result = subprocess.run(
-            ["launchctl", "print", f"gui/{os.getuid()}/{label}"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-    except Exception as exc:
-        return {"installed": False, "state": "unknown", "detail": str(exc)}
-
-    if result.returncode != 0:
-        return {"installed": False, "state": "not installed", "detail": result.stderr.strip()}
-
-    text = result.stdout
-    state = "unknown"
-    pid = None
-    last_exit = None
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("state = "):
-            state = stripped.split("=", 1)[1].strip()
-        elif stripped.startswith("pid = "):
-            pid = stripped.split("=", 1)[1].strip()
-        elif stripped.startswith("last exit code = "):
-            last_exit = stripped.split("=", 1)[1].strip()
-
-    return {
-        "installed": True,
-        "state": state,
-        "pid": pid,
-        "last_exit_code": last_exit,
-    }
+    return service_status(SENSOR_SERVICE)
 
 
 def build_overview(
@@ -460,6 +425,18 @@ def build_overview(
     if last_event:
         last_age_seconds = max(0, round((utc_now() - parse_dt(last_event)).total_seconds()))
 
+    collector = _collector_status()
+    dashboard = service_status(DASHBOARD_SERVICE)
+    fleet = build_fleet_status(
+        events,
+        config,
+        db_path=db_path,
+        days=days,
+        total_count=total_count,
+        collector_status=collector,
+        dashboard_status=dashboard,
+    )
+
     return {
         "subject_id": subject_id,
         "days": days,
@@ -473,7 +450,9 @@ def build_overview(
             "last_event": last_event,
             "last_age_seconds": last_age_seconds,
         },
-        "collector": _collector_status(),
+        "collector": collector,
+        "dashboard": dashboard,
+        "fleet": fleet,
         "profile": profile,
         "context_graph": context_graph,
         "working_spheres": working_spheres,
@@ -614,6 +593,24 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                         config,
                         days=days,
                         max_spheres=max_spheres,
+                    )
+                )
+                return
+
+            if route == "/api/fleet":
+                config = load_config(self.server.config_path)
+                days = _safe_int(query.get("days", [None])[0], 14)
+                store = EventStore(self.server.db_path)
+                events = store.fetch_window(subject_id=config["subject_id"], days=days)
+                total_count = store.count_events(subject_id=config["subject_id"])
+                store.close()
+                self._send_json(
+                    build_fleet_status(
+                        events,
+                        config,
+                        db_path=self.server.db_path,
+                        days=days,
+                        total_count=total_count,
                     )
                 )
                 return

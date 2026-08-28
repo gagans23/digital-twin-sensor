@@ -289,6 +289,7 @@ input:focus {
 .dashboard-grid,
 .privacy-grid,
 .graph-grid,
+.fleet-grid,
 .activity-grid {
   display: grid;
   gap: 16px;
@@ -308,6 +309,10 @@ input:focus {
 }
 
 .activity-grid {
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+}
+
+.fleet-grid {
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
 }
 
@@ -448,6 +453,13 @@ input:focus {
 .relationship-list,
 .graph-stats,
 .graph-legend,
+.fleet-stats,
+.policy-summary,
+.device-list,
+.connector-list,
+.readiness-list,
+.portability-list,
+.admin-actions,
 .activity-stats,
 .activity-pipeline,
 .activity-explanation,
@@ -561,6 +573,9 @@ input:focus {
 .relationship-item,
 .graph-stat,
 .legend-item,
+.fleet-stat,
+.device-card,
+.status-card,
 .activity-stat,
 .activity-stage,
 .activity-note,
@@ -572,6 +587,191 @@ input:focus {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
+}
+
+.fleet-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fleet-stat {
+  min-height: 76px;
+}
+
+.fleet-stat strong {
+  display: block;
+  font-size: 1.45rem;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.fleet-stat span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 6px;
+}
+
+.wide-stat {
+  grid-column: span 2;
+}
+
+.policy-title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.policy-row {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 38px;
+}
+
+.policy-row span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.policy-row b {
+  font-size: 0.88rem;
+}
+
+.device-card {
+  border-top: 4px solid var(--green);
+  display: grid;
+  gap: 12px;
+}
+
+.device-card.attention {
+  border-top-color: var(--amber);
+}
+
+.device-card.blocked {
+  border-top-color: var(--coral);
+}
+
+.device-head {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.device-head h3,
+.device-head p {
+  overflow-wrap: anywhere;
+}
+
+.device-head p,
+.device-path,
+.status-card p,
+.status-card small {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.device-health,
+.status-badge {
+  border-radius: 999px;
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 800;
+  min-height: 26px;
+  padding: 5px 9px;
+  text-transform: uppercase;
+}
+
+.device-health.ready,
+.status-badge.ready {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.device-health.attention,
+.status-badge.attention {
+  background: var(--amber-soft);
+  color: #7a4a00;
+}
+
+.device-health.blocked,
+.status-badge.blocked {
+  background: var(--coral-soft);
+  color: #9a341f;
+}
+
+.device-health.neutral,
+.status-badge.neutral {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.device-measures {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.device-measures div {
+  display: grid;
+  gap: 4px;
+  min-height: 60px;
+  padding: 10px 8px;
+}
+
+.device-measures div + div {
+  border-left: 1px solid var(--line);
+}
+
+.device-measures b {
+  font-size: 1rem;
+}
+
+.device-measures span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.service-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.status-card {
+  border-left: 4px solid var(--line-strong);
+  display: grid;
+  gap: 8px;
+}
+
+.status-card.ready {
+  border-left-color: var(--green);
+}
+
+.status-card.attention {
+  border-left-color: var(--amber);
+}
+
+.status-card.blocked {
+  border-left-color: var(--coral);
+}
+
+.status-card-head {
+  align-items: start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.status-card-head h3 {
+  overflow-wrap: anywhere;
 }
 
 .activity-stats {
@@ -1308,6 +1508,7 @@ tbody tr:last-child td {
   .dashboard-grid,
   .privacy-grid,
   .graph-grid,
+  .fleet-grid,
   .activity-grid,
   .signature-layout {
     grid-template-columns: 1fr;
@@ -1318,6 +1519,10 @@ tbody tr:last-child td {
   }
 
   .activity-pipeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fleet-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1359,9 +1564,20 @@ tbody tr:last-child td {
 
   .metric-row,
   .signal-flow,
+  .fleet-stats,
+  .device-measures,
   .activity-stats,
   .activity-pipeline {
     grid-template-columns: 1fr;
+  }
+
+  .wide-stat {
+    grid-column: span 1;
+  }
+
+  .device-measures div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
   }
 
   .metric-row,

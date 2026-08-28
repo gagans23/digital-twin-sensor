@@ -184,6 +184,8 @@ Name masking is configurable because blind name detection can create false posit
 The dashboard must always show:
 
 - whether collection is active
+- which local endpoint is being managed
+- active policy and sync-readiness gates
 - last sample age
 - active collection depth
 - what is captured
@@ -193,6 +195,13 @@ The dashboard must always show:
 - inferred working spheres, session returns, and resume packs
 - graph minimization behavior such as excluded system-state samples
 - where the local database lives
+
+Fleet behavior:
+
+- one local device is registered by default
+- the Fleet tab shows collector/dashboard health, active policy, connectors, and portability status
+- enterprise sync is local-only until a control plane is configured
+- raw event upload is blocked by default
 
 ## Product Principle
 

@@ -72,6 +72,8 @@ Before any team or workplace use:
 - role-based access
 - connector-specific scopes
 
+Fleet status: Fleet Manager Lite is implemented locally. It exposes one local endpoint, collector/dashboard health, active policy, connector inventory, sync-readiness gates, and a portability checklist. Remote enrollment, SSO, signed installers, encrypted sync, and central audit logs are still future work.
+
 ## Recommended Next Build
 
 1. Add pause/resume controls.
@@ -81,5 +83,6 @@ Before any team or workplace use:
 5. Add task-model induction on top of working spheres.
 6. Add graph-backed project/task community summaries.
 7. Add a local context-pack export command for Kiro/Codex prompts.
+8. Add remote enrollment and summary-only fleet sync after encryption and signed installers.
 
 See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.

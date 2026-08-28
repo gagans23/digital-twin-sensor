@@ -46,6 +46,14 @@ function fmtCompact(value) {
   return String(Math.round(number));
 }
 
+function fmtBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1).replace(/\.0$/, "")} KB`;
+  return `${(kb / 1024).toFixed(1).replace(/\.0$/, "")} MB`;
+}
+
 function showToast(message) {
   const toast = $("toast");
   toast.textContent = message;
@@ -176,6 +184,164 @@ function renderTransitions(items) {
     node.innerHTML = `
       <span>${escapeHtml(item.transition)}</span>
       <span class="chip transition-count">${item.count}</span>
+    `;
+    root.appendChild(node);
+  }
+}
+
+function fleetTone(status) {
+  const value = String(status || "").toLowerCase();
+  if (["ready", "online", "implemented", "enabled", "local", "enrolled"].includes(value)) return "ready";
+  if (["blocked", "offline"].includes(value)) return "blocked";
+  if (["planned", "next", "not enrolled", "waiting", "stale", "attention", "collector-only"].includes(value)) return "attention";
+  return "neutral";
+}
+
+function renderFleet(fleet) {
+  const status = $("fleetStatus");
+  if (!fleet || !fleet.summary) {
+    status.textContent = "No fleet data";
+    status.classList.remove("ready");
+    renderFleetStats(null);
+    renderDevices([]);
+    renderPolicy(null);
+    renderConnectors([]);
+    renderReadiness([]);
+    renderPortability([]);
+    renderAdminActions([]);
+    return;
+  }
+
+  status.textContent = fleet.status === "enrolled" ? "Enrolled" : "Local only";
+  status.classList.toggle("ready", fleet.summary.online_count > 0);
+  renderFleetStats(fleet);
+  renderDevices(fleet.devices || []);
+  renderPolicy(fleet.active_policy || {});
+  renderConnectors(fleet.connectors || []);
+  renderReadiness(fleet.sync_readiness || []);
+  renderPortability(fleet.portability || []);
+  renderAdminActions(fleet.admin_actions || []);
+}
+
+function renderFleetStats(fleet) {
+  const root = $("fleetStats");
+  if (!root) return;
+  const summary = fleet?.summary || {};
+  root.innerHTML = `
+    <div class="fleet-stat"><strong>${fmtCompact(summary.device_count || 0)}</strong><span>devices</span></div>
+    <div class="fleet-stat"><strong>${fmtCompact(summary.online_count || 0)}</strong><span>online</span></div>
+    <div class="fleet-stat"><strong>${fmtCompact(summary.enrolled_count || 0)}</strong><span>enrolled</span></div>
+    <div class="fleet-stat"><strong>${fmtCompact(summary.blocking_count || 0)}</strong><span>blocking gates</span></div>
+    <div class="fleet-stat wide-stat"><strong>${escapeHtml(summary.sync_mode || "local_only")}</strong><span>sync mode</span></div>
+  `;
+}
+
+function renderDevices(items) {
+  const root = $("deviceList");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No enrolled devices yet.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const card = document.createElement("article");
+    const health = String(item.health || "unknown");
+    const lastSample = item.last_age_seconds === null || item.last_age_seconds === undefined
+      ? "none"
+      : fmtSeconds(item.last_age_seconds);
+    card.className = `device-card ${fleetTone(health)}`;
+    card.innerHTML = `
+      <div class="device-head">
+        <div>
+          <h3>${escapeHtml(item.name)}</h3>
+          <p>${escapeHtml(item.os)} ${escapeHtml(item.os_version)} · ${escapeHtml(item.architecture)} · agent ${escapeHtml(item.agent_version)}</p>
+        </div>
+        <span class="device-health ${fleetTone(health)}">${escapeHtml(health)}</span>
+      </div>
+      <div class="device-measures">
+        <div><b>${fmtCompact(item.events_in_window)}</b><span>window events</span></div>
+        <div><b>${fmtCompact(item.events_all_time)}</b><span>all events</span></div>
+        <div><b>${lastSample}</b><span>last sample</span></div>
+        <div><b>${fmtBytes(item.db_bytes)}</b><span>local DB</span></div>
+      </div>
+      <div class="device-path">${escapeHtml(item.id)} · ${escapeHtml(item.db_path)}</div>
+      <div class="service-row">
+        <span class="chip">collector ${escapeHtml(item.collector?.state || "unknown")}</span>
+        <span class="chip">dashboard ${escapeHtml(item.dashboard?.state || "unknown")}</span>
+        <span class="chip">policy ${escapeHtml(item.policy_version || "local-dev")}</span>
+        <span class="chip">depth ${escapeHtml(item.capture_depth)}</span>
+      </div>
+    `;
+    root.appendChild(card);
+  }
+}
+
+function renderPolicy(policy) {
+  const root = $("policySummary");
+  if (!root) return;
+  if (!policy) {
+    root.innerHTML = `<div class="empty">No active policy.</div>`;
+    return;
+  }
+  const rows = [
+    ["Capture depth", `Depth ${policy.capture_depth ?? 1}`],
+    ["PII masking", policy.mask_pii ? "on" : "off"],
+    ["Browser tab detail", policy.browser_tab_details ? "on" : "off"],
+    ["URL paths", policy.browser_url_path ? "stored" : "redacted"],
+    ["URL queries", policy.browser_url_query ? "stored" : "redacted"],
+    ["Raw upload", policy.raw_event_upload ? "on" : "off"],
+    ["Retention", `${policy.retention_days || 30} days`],
+  ];
+  root.innerHTML = `
+    <div class="policy-title">
+      <h3>${escapeHtml(policy.name || "Policy")}</h3>
+      <span class="chip">${escapeHtml(policy.version || "local-dev")}</span>
+    </div>
+    ${rows.map(([key, value]) => `<div class="policy-row"><span>${escapeHtml(key)}</span><b>${escapeHtml(value)}</b></div>`).join("")}
+  `;
+}
+
+function renderConnectors(items) {
+  renderStatusList("connectorList", items, "connector-item");
+}
+
+function renderReadiness(items) {
+  renderStatusList("syncReadiness", items, "readiness-item");
+}
+
+function renderPortability(items) {
+  renderStatusList("portabilityList", items, "portability-item");
+}
+
+function renderAdminActions(items) {
+  renderStatusList("adminActions", items, "admin-action");
+}
+
+function renderStatusList(id, items, className) {
+  const root = $(id);
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No items yet.</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  for (const item of items) {
+    const node = document.createElement("article");
+    const tone = fleetTone(item.status);
+    node.className = `${className} status-card ${tone}`;
+    const depth = item.depth ? `<span class="chip">${escapeHtml(item.depth)}</span>` : "";
+    const scope = item.scope ? `<p>${escapeHtml(item.scope)}</p>` : "";
+    const sync = item.sync_policy ? `<small>${escapeHtml(item.sync_policy)}</small>` : "";
+    node.innerHTML = `
+      <div class="status-card-head">
+        <h3>${escapeHtml(item.name)}</h3>
+        <span class="status-badge ${tone}">${escapeHtml(item.status || "unknown")}</span>
+      </div>
+      ${depth}
+      ${scope}
+      <p>${escapeHtml(item.detail || "")}</p>
+      ${sync}
     `;
     root.appendChild(node);
   }
@@ -958,6 +1124,7 @@ async function refresh() {
   renderRankList("topArtifacts", overview.top_artifacts);
   renderRankList("topApps", overview.top_apps);
   renderTransitions(overview.transitions);
+  renderFleet(overview.fleet);
   renderActivities(overview.working_spheres);
   renderContextGraph(overview.context_graph);
   renderSignature(overview.profile);

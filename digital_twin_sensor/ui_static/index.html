@@ -38,6 +38,7 @@
 
       <nav class="tabs" aria-label="Dashboard views">
         <button class="tab active" type="button" data-view="overview">Overview</button>
+        <button class="tab" type="button" data-view="fleet">Fleet</button>
         <button class="tab" type="button" data-view="activities">Activities</button>
         <button class="tab" type="button" data-view="graph">Context Graph</button>
         <button class="tab" type="button" data-view="signature">Twin Signature</button>
@@ -140,6 +141,65 @@
                 </div>
               </div>
               <div id="transitions" class="transition-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="fleet" class="view" aria-labelledby="fleetTitle">
+          <div class="fleet-grid">
+            <article class="panel wide">
+              <div class="panel-head">
+                <div>
+                  <p class="kicker">Fleet Manager Lite</p>
+                  <h2 id="fleetTitle">Portable endpoint control</h2>
+                </div>
+                <span id="fleetStatus" class="status-pill">Loading</span>
+              </div>
+              <div id="fleetStats" class="fleet-stats"></div>
+            </article>
+
+            <aside class="panel">
+              <p class="kicker">Active Policy</p>
+              <h2>Local baseline</h2>
+              <div id="policySummary" class="policy-summary"></div>
+            </aside>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Devices</p>
+                  <h2>Registered endpoints</h2>
+                </div>
+              </div>
+              <div id="deviceList" class="device-list"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Connectors</p>
+              <h2>Capture surfaces</h2>
+              <div id="connectorList" class="connector-list"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Sync Readiness</p>
+              <h2>Enterprise gates</h2>
+              <div id="syncReadiness" class="readiness-list"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Portability</p>
+              <h2>Install targets</h2>
+              <div id="portabilityList" class="portability-list"></div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Admin Actions</p>
+                  <h2>What this console can manage next</h2>
+                </div>
+              </div>
+              <div id="adminActions" class="admin-actions"></div>
             </article>
           </div>
         </section>

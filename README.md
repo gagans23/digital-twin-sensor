@@ -59,6 +59,7 @@ It opens a local-only browser console with:
 - attention by domain
 - working spheres and resume packs
 - surface detail cards explaining what each app exposes and how to deepen capture
+- fleet manager for local device health, policy, connectors, and sync-readiness
 - active-hour rhythm
 - top apps and artifacts
 - privacy-gated context graph
@@ -165,6 +166,12 @@ Infer working spheres and resume packs:
 digital-twin-sensor activities --days 14
 ```
 
+Show local fleet/device management status:
+
+```bash
+digital-twin-sensor fleet --days 14
+```
+
 Ask a query:
 
 ```bash
@@ -237,6 +244,8 @@ See `UI_RESEARCH_AND_DIRECTION.md` for the public Workfabric/ContextFabric refer
 See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.
 
 See `RELATED_CONTEXT_PAPERS.md` for adjacent research papers and concrete product concepts such as working spheres, task-model induction, resume packs, seen indexes, evolving context cards, and query-time memory admission gates.
+
+See `ENTERPRISE_PORTABILITY.md` for the fleet-management architecture, endpoint packaging path, and summary-only sync model.
 
 ## Important Boundary
 

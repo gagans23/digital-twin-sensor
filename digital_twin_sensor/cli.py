@@ -9,6 +9,7 @@ from pathlib import Path
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
 from .context_graph import build_context_graph
+from .fleet import build_fleet_status
 from .query import format_retrieval, retrieve
 from .redaction import redact_text
 from .store import EventStore
@@ -155,6 +156,16 @@ def cmd_configure(args: argparse.Namespace) -> int:
         config["browser_tab_store_url_path"] = args.browser_url_path
     if args.browser_url_query is not None:
         config["browser_tab_store_query"] = args.browser_url_query
+    if args.fleet_device_name is not None:
+        config["fleet_device_name"] = args.fleet_device_name.strip() or config.get("fleet_device_name")
+    if args.fleet_control_plane_url is not None:
+        config["fleet_control_plane_url"] = args.fleet_control_plane_url.strip()
+    if args.fleet_sync is not None:
+        config["fleet_sync_enabled"] = args.fleet_sync
+    if args.fleet_upload_mode is not None:
+        config["fleet_upload_mode"] = args.fleet_upload_mode
+    if args.raw_event_upload is not None:
+        config["fleet_raw_event_upload"] = args.raw_event_upload
 
     with config_path.open("w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
@@ -167,8 +178,32 @@ def cmd_configure(args: argparse.Namespace) -> int:
         "browser_tab_detail_apps",
         "browser_tab_store_url_path",
         "browser_tab_store_query",
+        "fleet_device_id",
+        "fleet_device_name",
+        "fleet_control_plane_url",
+        "fleet_sync_enabled",
+        "fleet_upload_mode",
+        "fleet_raw_event_upload",
     ]
     print(json.dumps({key: config.get(key) for key in keys}, indent=2))
+    return 0
+
+
+def cmd_fleet(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = EventStore(args.db)
+    events = store.fetch_window(subject_id=subject_id, days=args.days)
+    total_count = store.count_events(subject_id=subject_id)
+    store.close()
+    status = build_fleet_status(
+        events,
+        config,
+        db_path=args.db,
+        days=args.days,
+        total_count=total_count,
+    )
+    print(json.dumps(status, indent=2))
     return 0
 
 
@@ -284,7 +319,21 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--browser-tab-details", type=_toggle, default=None, metavar="on|off")
     configure.add_argument("--browser-url-path", type=_toggle, default=None, metavar="on|off")
     configure.add_argument("--browser-url-query", type=_toggle, default=None, metavar="on|off")
+    configure.add_argument("--fleet-device-name", default=None)
+    configure.add_argument("--fleet-control-plane-url", default=None)
+    configure.add_argument("--fleet-sync", type=_toggle, default=None, metavar="on|off")
+    configure.add_argument(
+        "--fleet-upload-mode",
+        choices=["local_only", "summaries_only", "context_packs_only"],
+        default=None,
+    )
+    configure.add_argument("--raw-event-upload", type=_toggle, default=None, metavar="on|off")
     configure.set_defaults(func=cmd_configure)
+
+    fleet = sub.add_parser("fleet", help="Show local fleet/device management status as JSON.")
+    fleet.add_argument("--subject-id", default=None)
+    fleet.add_argument("--days", type=int, default=14)
+    fleet.set_defaults(func=cmd_fleet)
 
     export = sub.add_parser("export", help="Export recent raw events as JSON.")
     export.add_argument("--subject-id", default=None)

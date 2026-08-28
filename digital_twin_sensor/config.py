@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import pwd
+import socket
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +35,24 @@ def _default_name_terms() -> list[str]:
     return sorted(terms, key=str.lower)
 
 
+def _default_device_id() -> str:
+    seed = "|".join(
+        [
+            socket.gethostname(),
+            platform.system(),
+            platform.machine(),
+            str(os.getuid()) if hasattr(os, "getuid") else "user",
+        ]
+    )
+    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
+    return f"device_{digest}"
+
+
+def _default_device_name() -> str:
+    hostname = socket.gethostname().split(".", 1)[0].strip()
+    return hostname or f"{platform.system()} endpoint"
+
+
 DEFAULT_CONFIG: dict[str, Any] = {
     "subject_id": os.environ.get("USER", "local-user"),
     "sample_interval_seconds": 15,
@@ -57,6 +78,17 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "browser_tab_detail_apps": ["Safari", "Google Chrome"],
     "browser_tab_store_url_path": False,
     "browser_tab_store_query": False,
+    "retention_days": 30,
+    "fleet_enabled": True,
+    "fleet_device_id": _default_device_id(),
+    "fleet_device_name": _default_device_name(),
+    "fleet_policy_name": "Local Enterprise Baseline",
+    "fleet_policy_version": "local-dev",
+    "fleet_control_plane_url": "",
+    "fleet_sync_enabled": False,
+    "fleet_upload_mode": "summaries_only",
+    "fleet_raw_event_upload": False,
+    "fleet_allowed_export_targets": ["local_file", "kiro", "codex", "gitlab"],
     "name_terms_to_mask": _default_name_terms(),
     "ignored_apps": ["loginwindow", "ScreenSaverEngine"],
     "sensitive_title_keywords": [
