@@ -135,6 +135,26 @@ The dashboard is a local web console with:
 - Events: local redacted event ledger
 - Privacy: captured/not-captured ledger, pause/resume, and retention purge
 
+## Showcase Motion Page
+
+A portfolio-ready motion page is included at:
+
+```text
+showcase/motion-page/index.html
+```
+
+Run a static server from the repository root:
+
+```bash
+python3 -m http.server 8770
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8770/showcase/motion-page/
+```
+
 ## Common Commands
 
 Collect and analyze:
@@ -219,6 +239,7 @@ Read the API reference: [docs/API.md](docs/API.md)
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Local and enterprise deployment path |
 | [docs/GITLAB_PUBLISHING.md](docs/GITLAB_PUBLISHING.md) | GitLab push, project metadata, and release commands |
 | [docs/RESEARCH_AND_EVALUATION.md](docs/RESEARCH_AND_EVALUATION.md) | Study design and metrics |
+| [showcase/motion-page](showcase/motion-page) | Portfolio-ready motion case-study page |
 | [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.md) | Capture-depth and masking policy |
 | [CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md](CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md) | Last-three-year research synthesis |
 | [PRODUCT_BUILD_LOG.md](PRODUCT_BUILD_LOG.md) | Product build and validation log |

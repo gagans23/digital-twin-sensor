@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A motion case-study page for Digital Twin Sensor, a privacy-gated context fabric inspired by X-SYNTH and agent-memory research.">
+    <title>Digital Twin Sensor | Context Fabric Case Study</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#story">Skip to story</a>
+
+    <header class="site-header" aria-label="Showcase navigation">
+      <a class="brand" href="#top" aria-label="Digital Twin Sensor">
+        <span class="brand-glyph" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>Digital Twin Sensor</span>
+      </a>
+      <nav aria-label="Page sections">
+        <a href="#system" data-short="Sys">System</a>
+        <a href="#motion" data-short="Mot">Motion</a>
+        <a href="#paper" data-short="Paper">Paper</a>
+        <a href="#deploy" data-short="Use">Deploy</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <canvas id="contextCanvas" aria-hidden="true"></canvas>
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-copy">
+          <p class="eyebrow">Privacy-gated context engineering</p>
+          <h1 id="hero-title">Digital Twin Sensor</h1>
+          <p class="hero-lede">
+            A local attention fabric that turns computer-use traces into living context,
+            working spheres, and agent-ready handoff packs without becoming a surveillance log.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#system">Explore the system</a>
+            <a class="button" href="#paper">Read the research spark</a>
+          </div>
+        </div>
+        <div class="hero-metrics" aria-label="Product highlights">
+          <div><strong>Local-first</strong><span>raw traces stay on device</span></div>
+          <div><strong>Depth 3</strong><span>safe app metadata ladder</span></div>
+          <div><strong>Ops-ready</strong><span>doctor, watchdog, pause</span></div>
+        </div>
+      </section>
+
+      <section id="story" class="intro reveal">
+        <p class="kicker">The thesis</p>
+        <h2>Context is not a bigger prompt. It is a living system of evidence, boundaries, and memory.</h2>
+        <p>
+          This piece explores a product direction for personal digital twins: collect the least invasive
+          signals that help a human or agent resume work, then make every inference visible, audited, and reversible.
+          A Safari research session, an editor burst, and a GitLab handoff become a privacy-scored working sphere
+          instead of a raw activity log.
+        </p>
+      </section>
+
+      <section id="system" class="system-section">
+        <div class="section-head reveal">
+          <p class="kicker">System view</p>
+          <h2>From attention traces to governed context packs.</h2>
+        </div>
+        <div class="pipeline" aria-label="Digital Twin Sensor pipeline">
+          <article class="pipe-card reveal" style="--delay: 0ms">
+            <span>01</span>
+            <h3>Sense</h3>
+            <p>Foreground app, redacted title, dwell time, and switching sequence.</p>
+          </article>
+          <article class="pipe-card gate reveal" style="--delay: 70ms">
+            <span>02</span>
+            <h3>Gate</h3>
+            <p>PII, card numbers, tokens, names, and URL paths are masked before storage.</p>
+          </article>
+          <article class="pipe-card reveal" style="--delay: 140ms">
+            <span>03</span>
+            <h3>Model</h3>
+            <p>A Digital Twin Signature captures domains, rhythm, baseline, response, and diversity.</p>
+          </article>
+          <article class="pipe-card reveal" style="--delay: 210ms">
+            <span>04</span>
+            <h3>Cluster</h3>
+            <p>Working spheres reconnect interrupted tasks across apps, artifacts, and returns.</p>
+          </article>
+          <article class="pipe-card gate reveal" style="--delay: 280ms">
+            <span>05</span>
+            <h3>Admit</h3>
+            <p>Context pack fields are allowed, summarized, generalized, masked, or denied.</p>
+          </article>
+          <article class="pipe-card reveal" style="--delay: 350ms">
+            <span>06</span>
+            <h3>Handoff</h3>
+            <p>Kiro, Codex, and GitLab receive summary-only context rather than raw event rows.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="motion" class="motion-panel">
+        <div class="motion-copy reveal">
+          <p class="kicker">Motion concept</p>
+          <h2>The twin is shown as a breathing graph, not a profile card.</h2>
+          <p>
+            The motion language is quiet and instrument-like: signals orbit, privacy gates pulse,
+            and context packs leave the graph only after passing through an admission boundary.
+          </p>
+        </div>
+        <div class="twin-stage reveal" aria-label="Animated digital twin model">
+          <div class="orbit orbit-a" aria-hidden="true"></div>
+          <div class="orbit orbit-b" aria-hidden="true"></div>
+          <div class="orbit orbit-c" aria-hidden="true"></div>
+          <div class="stage-label apps">Apps</div>
+          <div class="stage-label tasks">Tasks</div>
+          <div class="stage-label artifacts">Artifacts</div>
+          <div class="twin-core">
+            <strong>YOU</strong>
+            <em>privacy gated</em>
+          </div>
+          <div class="signal-pill one">focus</div>
+          <div class="signal-pill two">resume</div>
+          <div class="signal-pill three">mask</div>
+        </div>
+      </section>
+
+      <section class="product-grid">
+        <article class="feature-card reveal">
+          <p class="kicker">Product Ops</p>
+          <h3>Always-on, but never invisible.</h3>
+          <p>Doctor checks, watchdog state, sample freshness, permission posture, privacy gates, and research gaps are exposed in the UI.</p>
+        </article>
+        <article class="feature-card reveal">
+          <p class="kicker">Human Control</p>
+          <h3>Pause, resume, and purge.</h3>
+          <p>The sensor can stay installed while collection is paused. Expired rows can be deleted under the retention policy.</p>
+        </article>
+        <article class="feature-card reveal">
+          <p class="kicker">Agent Handoff</p>
+          <h3>Summary-only context packs.</h3>
+          <p>Instead of exporting the raw ledger, the system emits purpose-gated packs for coding agents, issue handoff, or local review.</p>
+        </article>
+      </section>
+
+      <section id="paper" class="research-section">
+        <div class="paper-card reveal">
+          <p class="kicker">Research spark</p>
+          <h2>Inspired by X-SYNTH and the context-engineering shift.</h2>
+          <p>
+            X-SYNTH argues that enterprise context synthesis is not only a retrieval problem.
+            It is a relevance problem grounded in observed human attention, behavioral baselines,
+            and task-specific filters. This product prototype asks what that looks like as a
+            local-first, user-controlled personal context system.
+          </p>
+          <div class="paper-links">
+            <a href="https://arxiv.org/abs/2605.15505" target="_blank" rel="noreferrer">X-SYNTH</a>
+            <a href="https://arxiv.org/abs/2507.13334" target="_blank" rel="noreferrer">Context Engineering Survey</a>
+            <a href="https://arxiv.org/html/2606.24775v1" target="_blank" rel="noreferrer">Agent-Native Memory</a>
+          </div>
+        </div>
+        <div class="quote-strip reveal" aria-label="Research position">
+          <span>Digital attention</span>
+          <span>Context graph</span>
+          <span>Memory gate</span>
+          <span>Trust calibration</span>
+        </div>
+      </section>
+
+      <section id="deploy" class="deploy-section reveal">
+        <p class="kicker">Website-ready</p>
+        <h2>Drop this page into a portfolio, product microsite, or research project page.</h2>
+        <p>
+          The page is static and self-contained. Add the folder to your website and link to
+          <code>showcase/motion-page/index.html</code>, or copy the section structure into your existing site.
+        </p>
+        <div class="deploy-actions">
+          <a class="button primary" href="#system">Review the system</a>
+          <a class="button" href="https://arxiv.org/abs/2605.15505" target="_blank" rel="noreferrer">Open X-SYNTH paper</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Digital Twin Sensor</span>
+      <span>Built from local signals, privacy gates, and publishable context research.</span>
+    </footer>
+
+    <script src="motion.js"></script>
+  </body>
+</html>
