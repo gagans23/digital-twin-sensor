@@ -72,6 +72,418 @@ async function getJson(url, options = {}) {
   return data;
 }
 
+function pct(value, digits = 0) {
+  return `${(Number(value || 0) * 100).toFixed(digits).replace(/\.0$/, "")}%`;
+}
+
+function primarySphere(overview) {
+  const spheres = overview?.working_spheres?.spheres || [];
+  return spheres.find((sphere) => sphere.state === "active") || spheres[0] || null;
+}
+
+function topWorkDomain(overview) {
+  const domains = overview?.domains || [];
+  return domains.find((item) => item.domain !== "system") || domains[0] || null;
+}
+
+function collectorHealth(overview) {
+  const collector = overview?.collector || {};
+  const age = overview?.totals?.last_age_seconds;
+  const running = collector.installed && ["active", "running"].includes(collector.state);
+  if (running && age !== null && age !== undefined && age < 120) {
+    return { label: "Live", tone: "ready", detail: `last sample ${fmtSeconds(age)} ago` };
+  }
+  if (running) {
+    return { label: "Running", tone: "attention", detail: age ? `last sample ${fmtSeconds(age)} ago` : "waiting for signal" };
+  }
+  return { label: "Paused", tone: "blocked", detail: "collector is not active" };
+}
+
+function twinFidelityScore(overview) {
+  const totals = overview?.totals || {};
+  const graph = overview?.context_graph?.stats || {};
+  const spheres = overview?.working_spheres?.stats || {};
+  const pack = overview?.context_pack || {};
+  const eventScore = clamp(Number(totals.events_in_window || 0) / 600, 0, 1);
+  const graphScore = clamp(Number(graph.node_count || 0) / 42, 0, 1);
+  const sphereScore = clamp(Number(spheres.sphere_count || 0) / 8, 0, 1);
+  const depthScore = clamp(Number(overview?.context_graph?.capture_depth || 1) / 3, 0.25, 1);
+  const age = Number(totals.last_age_seconds ?? 999999);
+  const recencyScore = age < 120 ? 1 : age < 900 ? 0.72 : age < 3600 ? 0.48 : 0.22;
+  const privacyScore = pack?.privacy?.raw_events_included === false && pack?.privacy?.subject_id_included === false ? 1 : 0.45;
+  const score = eventScore * 0.24 + graphScore * 0.18 + sphereScore * 0.2 + depthScore * 0.12 + recencyScore * 0.16 + privacyScore * 0.1;
+  return Math.round(clamp(score, 0, 1) * 100);
+}
+
+function renderTwinExperience(overview) {
+  if (!$("twinMapCanvas")) return;
+  const health = collectorHealth(overview);
+  const sphere = primarySphere(overview);
+  const domain = topWorkDomain(overview);
+  const pack = overview.context_pack || {};
+  const fidelity = twinFidelityScore(overview);
+  const graphStats = overview.context_graph?.stats || {};
+  const sphereStats = overview.working_spheres?.stats || {};
+  const privateSignals = graphStats.gates
+    ? Number(graphStats.gates.masked || 0) + Number(graphStats.gates.generalized || 0) + Number(graphStats.gates.withheld || 0)
+    : 0;
+
+  $("twinHeroStatus").textContent = health.label;
+  $("twinHeroStatus").className = `live-pill ${health.tone}`;
+  $("twinName").textContent = "Local User Twin";
+  $("twinNarrative").textContent = sphere
+    ? `${sphere.label} is the strongest live sphere, grounded by ${fmtCompact(overview.totals.events_in_window)} recent samples and ${fmtCompact(graphStats.node_count || 0)} context nodes.`
+    : `The twin is waiting for enough non-system focus signal in the selected ${overview.days}-day window.`;
+  $("twinFidelityBadge").textContent = `${fidelity}%`;
+  $("twinActiveSphereBadge").textContent = sphere ? sphere.state : "none";
+  $("twinPrivacyBadge").textContent = pack.status === "ready" ? `${pack.admission?.counts?.deny || 0} denied` : pack.status || "empty";
+  $("focusGate").textContent = pack.status === "ready" ? "summary-only" : pack.status || "gate";
+
+  renderFocusNow(overview, sphere, health);
+  renderAttentionCompass(overview.domains || []);
+  renderFabricLanes(overview, fidelity);
+  renderTwinVitals(overview, { fidelity, privateSignals });
+  renderSimulationCards(overview, sphere, domain);
+  renderGovernanceStack(overview);
+  drawTwinMap(overview);
+}
+
+function renderFocusNow(overview, sphere, health) {
+  const root = $("focusNow");
+  if (!root) return;
+  if (!sphere) {
+    root.innerHTML = `<div class="empty">No active working sphere in this window.</div>`;
+    return;
+  }
+  const resume = sphere.resume_pack || {};
+  const apps = (sphere.apps || [])
+    .slice(0, 3)
+    .map((item) => `<span class="chip">${escapeHtml(item.name)} · ${item.events}</span>`)
+    .join("");
+  root.innerHTML = `
+    <article class="focus-card ${sphere.gate_mode === "masked" ? "masked" : ""}">
+      <div class="focus-title-row">
+        <div>
+          <h3>${escapeHtml(sphere.label)}</h3>
+          <p>${escapeHtml(sphere.domain)} / ${escapeHtml(sphere.task)} / ${health.detail}</p>
+        </div>
+        <span class="confidence-ring" style="--score:${Math.round((sphere.confidence || 0) * 100)}">${Math.round((sphere.confidence || 0) * 100)}%</span>
+      </div>
+      <div class="focus-measures">
+        <div><b>${fmtHours(sphere.hours)}</b><span>hours</span></div>
+        <div><b>${fmtCompact(sphere.events)}</b><span>events</span></div>
+        <div><b>${fmtCompact(sphere.return_count)}</b><span>returns</span></div>
+      </div>
+      <p class="focus-resume">${escapeHtml(resume.next_action_guess || "Review the latest artifact and continue.")}</p>
+      <div class="sphere-chip-row">${apps || `<span class="muted-text">No app signal</span>`}</div>
+    </article>
+  `;
+}
+
+function renderAttentionCompass(domains) {
+  const root = $("attentionCompass");
+  if (!root) return;
+  const items = domains.filter((item) => item.domain !== "system").slice(0, 4);
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No work-domain signal yet.</div>`;
+    return;
+  }
+  root.innerHTML = `
+    <h3>Attention compass</h3>
+    ${items.map((item) => `
+      <div class="compass-row">
+        <span>${escapeHtml(item.domain)}</span>
+        <div class="compass-track"><div style="width:${Math.max(5, Math.round(item.share * 100))}%"></div></div>
+        <b>${pct(item.share)}</b>
+      </div>
+    `).join("")}
+  `;
+}
+
+function renderFabricLanes(overview, fidelity) {
+  const root = $("fabricLanes");
+  if (!root) return;
+  const graphStats = overview.context_graph?.stats || {};
+  const sphereStats = overview.working_spheres?.stats || {};
+  const pack = overview.context_pack || {};
+  const policy = overview.fleet?.active_policy || {};
+  const lanes = [
+    {
+      name: "Sense",
+      value: `${fmtCompact(overview.totals.events_in_window)} samples`,
+      detail: `Depth ${policy.capture_depth || overview.context_graph?.capture_depth || 1}, ${fmtCompact(overview.top_apps?.length || 0)} surfaces`,
+      score: clamp(Number(overview.totals.events_in_window || 0) / 600, 0, 1),
+    },
+    {
+      name: "Synthesize",
+      value: `${fmtCompact(graphStats.node_count || 0)} nodes`,
+      detail: `${fmtCompact(graphStats.edge_count || 0)} relationships, ${fmtCompact(graphStats.events || 0)} work events`,
+      score: clamp(Number(graphStats.node_count || 0) / 42, 0, 1),
+    },
+    {
+      name: "Twin",
+      value: `${fmtCompact(sphereStats.sphere_count || 0)} spheres`,
+      detail: `${fmtCompact(sphereStats.active_count || 0)} active, ${fmtCompact(sphereStats.gated_spheres || 0)} gated`,
+      score: clamp(Number(sphereStats.sphere_count || 0) / 8, 0, 1),
+    },
+    {
+      name: "Simulate",
+      value: `${fidelity}% fidelity`,
+      detail: `${pack.status || "empty"} pack, ${fmtCompact(pack.admission?.counts?.deny || 0)} denied fields`,
+      score: fidelity / 100,
+    },
+  ];
+  root.innerHTML = lanes
+    .map((lane) => `
+      <article class="fabric-lane">
+        <div class="lane-top"><h3>${escapeHtml(lane.name)}</h3><b>${escapeHtml(lane.value)}</b></div>
+        <div class="lane-meter"><div style="width:${Math.round(lane.score * 100)}%"></div></div>
+        <p>${escapeHtml(lane.detail)}</p>
+      </article>
+    `)
+    .join("");
+}
+
+function renderTwinVitals(overview, extras) {
+  const root = $("twinVitals");
+  if (!root) return;
+  const pack = overview.context_pack || {};
+  const graphStats = overview.context_graph?.stats || {};
+  const vitals = [
+    ["Fidelity", `${extras.fidelity}%`, "fit between recent signals, graph, recency, and governance"],
+    ["Graph load", `${fmtCompact(graphStats.node_count || 0)} / ${fmtCompact(graphStats.edge_count || 0)}`, "nodes and relationships in the work graph"],
+    ["Private signals", fmtCompact(extras.privateSignals || 0), "masked, generalized, or withheld graph elements"],
+    ["Pack gate", pack.status || "empty", `${fmtCompact(pack.admission?.counts?.deny || 0)} denied, ${fmtCompact(pack.admission?.counts?.summarize || 0)} summarized`],
+  ];
+  root.innerHTML = vitals
+    .map(([label, value, detail]) => `
+      <article class="vital-row">
+        <div><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>
+        <p>${escapeHtml(detail)}</p>
+      </article>
+    `)
+    .join("");
+}
+
+function renderSimulationCards(overview, sphere, domain) {
+  const root = $("simulationCards");
+  if (!root) return;
+  const pack = overview.context_pack || {};
+  const opaque = (overview.surface_details || []).find((item) => String(item.status || "").includes("opaque"));
+  const systemShare = overview.domains?.find((item) => item.domain === "system")?.share || 0;
+  const fleet = overview.fleet || {};
+  const cards = [
+    {
+      title: "Continue active sphere",
+      state: sphere ? "ready" : "waiting",
+      signal: sphere ? `${sphere.label} with ${fmtCompact(sphere.events)} events` : "no active sphere",
+      outcome: sphere ? sphere.resume_pack?.next_action_guess || "Continue current context." : "Collect more foreground work signal.",
+    },
+    {
+      title: "Handoff to agent",
+      state: pack.status === "ready" ? "ready" : pack.status || "waiting",
+      signal: `${fmtCompact(pack.admission?.counts?.summarize || 0)} summarized fields, ${fmtCompact(pack.admission?.counts?.deny || 0)} denied`,
+      outcome: "Use the Context Packs tab for Kiro, Codex, or GitLab-safe Markdown.",
+    },
+    {
+      title: "Deepen opaque app",
+      state: opaque ? "attention" : "steady",
+      signal: opaque ? `${opaque.app} exposes Depth 1 only` : "no opaque app is dominating",
+      outcome: opaque ? "Add a per-app Accessibility connector before considering local OCR summaries." : "Keep current metadata boundary.",
+    },
+    {
+      title: "Deploy portable twin",
+      state: fleet.status === "enrolled" ? "ready" : "next",
+      signal: fleet.status === "enrolled" ? "control plane enrolled" : "local-only endpoint",
+      outcome: "Next enterprise step is signed enrollment plus approved context-pack registry.",
+    },
+    {
+      title: "Improve signal quality",
+      state: systemShare > 0.45 ? "attention" : "steady",
+      signal: `${pct(systemShare)} system or locked-session share`,
+      outcome: systemShare > 0.45 ? "Reduce locked-session noise with idle detection and pause/resume controls." : `Strongest work domain is ${domain?.domain || "unknown"}.`,
+    },
+  ];
+  root.innerHTML = "";
+  for (const item of cards) {
+    const node = document.createElement("article");
+    node.className = `simulation-card ${fleetTone(item.state)}`;
+    node.innerHTML = `
+      <div class="simulation-head">
+        <h3>${escapeHtml(item.title)}</h3>
+        <span class="status-badge ${fleetTone(item.state)}">${escapeHtml(item.state)}</span>
+      </div>
+      <p><b>Signal</b> ${escapeHtml(item.signal)}</p>
+      <p><b>Outcome</b> ${escapeHtml(item.outcome)}</p>
+    `;
+    root.appendChild(node);
+  }
+}
+
+function renderGovernanceStack(overview) {
+  const root = $("governanceStack");
+  if (!root) return;
+  const privacy = overview.privacy || {};
+  const policy = overview.fleet?.active_policy || {};
+  const pack = overview.context_pack || {};
+  const gates = [
+    ["Collection", overview.collector?.installed ? "active" : "attention", collectorHealth(overview).detail],
+    ["PII masking", privacy.mask_pii ? "ready" : "blocked", privacy.mask_pii ? "enabled before storage" : "must be enabled"],
+    ["URL minimization", policy.browser_url_path || policy.browser_url_query ? "attention" : "ready", policy.browser_url_path || policy.browser_url_query ? "path/query retention enabled" : "paths and queries redacted"],
+    ["Raw upload", policy.raw_event_upload ? "blocked" : "ready", policy.raw_event_upload ? "raw event upload enabled" : "raw event upload blocked"],
+    ["Export targets", pack.target?.allowed ? "ready" : "attention", (policy.allowed_export_targets || []).join(", ") || "local only"],
+    ["Storage", "local", privacy.data_location || "local SQLite"],
+  ];
+  root.innerHTML = gates
+    .map(([name, status, detail]) => `
+      <article class="governance-item ${fleetTone(status)}">
+        <div>
+          <h3>${escapeHtml(name)}</h3>
+          <p>${escapeHtml(detail)}</p>
+        </div>
+        <span class="status-badge ${fleetTone(status)}">${escapeHtml(status)}</span>
+      </article>
+    `)
+    .join("");
+}
+
+function drawTwinMap(overview) {
+  const canvas = $("twinMapCanvas");
+  if (!canvas) return;
+  const { ctx, width, height } = setupCanvas(canvas, 860, 460);
+  const compact = width < 520;
+  const spheres = (overview.working_spheres?.spheres || []).slice(0, compact ? 6 : 9);
+  const domains = (overview.domains || []).filter((item) => item.domain !== "system").slice(0, compact ? 4 : 5);
+  const pack = overview.context_pack || {};
+  const cx = width * (compact ? 0.5 : 0.48);
+  const cy = height * (compact ? 0.56 : 0.52);
+  const maxRadius = Math.min(width, height) * (compact ? 0.26 : 0.31);
+
+  ctx.fillStyle = "#080a0f";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.lineWidth = 1;
+  for (let x = 28; x < width; x += 42) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+  for (let y = 28; y < height; y += 42) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  for (let ring = 1; ring <= 3; ring += 1) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, maxRadius * (ring / 3), 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.08 + ring * 0.03})`;
+    ctx.stroke();
+  }
+
+  const palette = ["#66e5cf", "#ff8f70", "#a59bff", "#ffd166", "#7bd88f", "#f2f4f8"];
+  domains.forEach((domain, index) => {
+    const angle = -Math.PI / 2 + (index / Math.max(domains.length, 1)) * Math.PI * 2;
+    const r = maxRadius * (0.9 + (index % 2) * 0.12);
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, 8 + Number(domain.share || 0) * 42, 0, Math.PI * 2);
+    ctx.fillStyle = palette[index % palette.length];
+    ctx.globalAlpha = 0.82;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    drawGraphLabel(ctx, twinMapLabel(domain.domain, compact), clamp(x, 58, width - 58), y - 25, "center", compact ? 16 : 28);
+  });
+
+  spheres.forEach((sphere, index) => {
+    const angle = Math.PI / 8 + (index / Math.max(spheres.length, 1)) * Math.PI * 2;
+    const r = maxRadius * (0.42 + (index % 3) * 0.12);
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    const radius = clamp(7 + Math.sqrt(Number(sphere.dwell_seconds || 0)) / 18, 8, 24);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = sphere.gate_mode === "masked" ? "rgba(255, 143, 112, 0.38)" : "rgba(102, 229, 207, 0.26)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = sphere.state === "active" ? "#66e5cf" : sphere.state === "suspended" ? "#ffd166" : "#a59bff";
+    ctx.fill();
+    ctx.strokeStyle = sphere.gate_mode === "masked" ? "#ff8f70" : "rgba(255, 255, 255, 0.72)";
+    ctx.lineWidth = sphere.gate_mode === "masked" ? 3 : 1.5;
+    ctx.stroke();
+    if (index < 4) {
+      drawGraphLabel(ctx, twinMapLabel(sphere.label, compact), clamp(x, 66, width - 66), y + radius + 16, "center", compact ? 15 : 28);
+    }
+  });
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 44, 0, Math.PI * 2);
+  ctx.fillStyle = "#f7f4eb";
+  ctx.fill();
+  ctx.strokeStyle = pack.status === "ready" ? "#66e5cf" : "#ffd166";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.fillStyle = "#080a0f";
+  ctx.font = "800 15px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("YOU", cx, cy - 6);
+  ctx.font = "700 10px Inter, system-ui, sans-serif";
+  ctx.fillText(`${twinFidelityScore(overview)}% twin`, cx, cy + 13);
+
+  const legendX = compact ? 14 : width - 185;
+  const legendY = compact ? 22 : 28;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.beginPath();
+  roundedRectPath(ctx, legendX, legendY, 158, 118, 8);
+  ctx.fill();
+  ctx.fillStyle = "#f7f4eb";
+  ctx.font = "800 12px Inter, system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Twin layers", legendX + 14, legendY + 22);
+  [
+    ["#66e5cf", "active context"],
+    ["#ffd166", "suspended work"],
+    ["#a59bff", "memory sphere"],
+    ["#ff8f70", "privacy gated"],
+  ].forEach(([color, label], index) => {
+    const y = legendY + 45 + index * 17;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(legendX + 17, y - 4, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#c9d2df";
+    ctx.font = "600 10px Inter, system-ui, sans-serif";
+    ctx.fillText(label, legendX + 30, y);
+  });
+}
+
+function twinMapLabel(value, compact = false) {
+  const label = String(value || "");
+  if (!compact) return label;
+  const aliases = {
+    "browser-research": "research",
+    communication: "comms",
+    Application: "app",
+    "other / unclassified work": "other",
+  };
+  const normalized = aliases[label] || label.replace(/^New /, "").replace(/\s+microsoft$/i, "");
+  return normalized.length > 15 ? `${normalized.slice(0, 14)}...` : normalized;
+}
+
 function setStatus(overview) {
   const status = $("sensorStatus");
   const events = overview.totals.events_in_window;
@@ -192,7 +604,7 @@ function renderTransitions(items) {
 
 function fleetTone(status) {
   const value = String(status || "").toLowerCase();
-  if (["ready", "online", "implemented", "enabled", "local", "enrolled"].includes(value)) return "ready";
+  if (["ready", "online", "implemented", "enabled", "local", "enrolled", "active", "steady"].includes(value)) return "ready";
   if (["blocked", "offline"].includes(value)) return "blocked";
   if (["planned", "next", "not enrolled", "waiting", "stale", "attention", "collector-only"].includes(value)) return "attention";
   return "neutral";
@@ -1009,9 +1421,8 @@ function roundedRectPath(ctx, x, y, width, height, radius) {
   ctx.quadraticCurveTo(x, y, x + r, y);
 }
 
-function drawGraphLabel(ctx, text, x, y, align = "center") {
+function drawGraphLabel(ctx, text, x, y, align = "center", maxChars = 28) {
   const label = String(text || "");
-  const maxChars = 28;
   const short = label.length > maxChars ? `${label.slice(0, maxChars - 1)}...` : label;
   ctx.font = "700 11px Inter, system-ui, sans-serif";
   const metrics = ctx.measureText(short);
@@ -1386,6 +1797,7 @@ async function refresh() {
   state.overview = overview;
   state.events = overview.recent_events;
   renderMetrics(overview);
+  renderTwinExperience(overview);
   renderInsights(overview.insights);
   renderDomains(overview.domains);
   renderHeatmap(overview.hourly_heatmap);
@@ -1488,6 +1900,9 @@ function bindUi() {
       }
       if (document.querySelector("#signature.active-view") && state.overview) {
         renderSignature(state.overview.profile);
+      }
+      if (document.querySelector("#overview.active-view") && state.overview) {
+        drawTwinMap(state.overview);
       }
     }, 120);
   });

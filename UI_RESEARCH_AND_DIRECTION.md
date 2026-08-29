@@ -25,7 +25,9 @@ This dashboard is therefore built around five plain questions:
 The UI avoids a pure enterprise landing-page feel. It uses:
 
 - a data-console first screen instead of a marketing hero
+- a Workfabric-inspired simulation cockpit with a live twin map and context-fabric lanes
 - neutral light surfaces with teal, coral, violet, amber, and green signal colors
+- a high-contrast command surface for the active digital twin state
 - compact cards for metrics and repeated evidence
 - explicit source-to-evidence pipeline
 - a privacy ledger beside the behavioral analysis
@@ -33,6 +35,7 @@ The UI avoids a pure enterprise landing-page feel. It uses:
 ## Information Architecture
 
 - Overview: fast answer to current collection state and attention distribution
+- Twin Cockpit: live user twin, fidelity score, current sphere, attention compass, scenario rehearsal, and governance stack
 - Fleet: endpoint health, policy, connectors, sync-readiness, and portability
 - Activities: inferred working spheres, session returns, resume packs, and grouping explanations
 - Surface Detail: per-app cards showing what is known, what is missing, and how to deepen capture safely

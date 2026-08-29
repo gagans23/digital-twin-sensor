@@ -56,6 +56,10 @@ digital-twin-sensor ui
 
 It opens a local-only browser console with:
 
+- a Workfabric-inspired twin cockpit showing live twin state, fidelity, focus sphere, and privacy posture
+- a digital twin map of active contexts, memory spheres, and gated signals
+- a simulation console for deciding what to continue, export, deepen, or deploy
+- context-fabric lanes from sensing to synthesis to agent handoff
 - collection health
 - attention by domain
 - working spheres and resume packs

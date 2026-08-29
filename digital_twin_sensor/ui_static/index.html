@@ -13,8 +13,8 @@
           <div class="brand-mark" aria-hidden="true">
             <span></span><span></span><span></span>
           </div>
-          <div>
-            <p class="kicker">Local Attention Sensor</p>
+          <div class="brand-text">
+            <p class="kicker">Personal Context Fabric</p>
             <h1>Digital Twin Console</h1>
           </div>
         </div>
@@ -50,6 +50,73 @@
 
       <main>
         <section id="overview" class="view active-view" aria-labelledby="overviewTitle">
+          <div class="twin-experience">
+            <section class="twin-hero" aria-labelledby="twinHeroTitle">
+              <div class="twin-copy">
+                <div class="hero-meta">
+                  <p class="kicker">Living Digital Twin</p>
+                  <span id="twinHeroStatus" class="live-pill">Loading</span>
+                </div>
+                <h2 id="twinHeroTitle"><span id="twinName">User Twin</span></h2>
+                <p id="twinNarrative" class="twin-narrative">Building the local context model from redacted activity signals.</p>
+                <div class="twin-badges" aria-label="Twin health indicators">
+                  <div><span>Fidelity</span><b id="twinFidelityBadge">0%</b></div>
+                  <div><span>Active sphere</span><b id="twinActiveSphereBadge">none</b></div>
+                  <div><span>Privacy gate</span><b id="twinPrivacyBadge">checking</b></div>
+                </div>
+              </div>
+              <div class="twin-map-shell">
+                <canvas id="twinMapCanvas" class="twin-map-canvas" width="860" height="460" aria-label="Digital twin map"></canvas>
+              </div>
+            </section>
+
+            <aside class="focus-panel" aria-label="Current twin focus">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Current Twin State</p>
+                  <h2>Focus now</h2>
+                </div>
+                <span id="focusGate" class="chip">Gate</span>
+              </div>
+              <div id="focusNow" class="focus-now"></div>
+              <div id="attentionCompass" class="attention-compass"></div>
+            </aside>
+          </div>
+
+          <div class="simulation-grid">
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Context Fabric</p>
+                  <h2>Sense to simulation pipeline</h2>
+                </div>
+              </div>
+              <div id="fabricLanes" class="fabric-lanes"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Twin Vitals</p>
+              <h2>Model readiness</h2>
+              <div id="twinVitals" class="twin-vitals"></div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Simulation Console</p>
+                  <h2>Decision rehearsal</h2>
+                </div>
+              </div>
+              <div id="simulationCards" class="simulation-cards"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Governance</p>
+              <h2>Trust envelope</h2>
+              <div id="governanceStack" class="governance-stack"></div>
+            </article>
+          </div>
+
           <div class="status-grid">
             <article class="status-panel main-signal">
               <div class="panel-head">
