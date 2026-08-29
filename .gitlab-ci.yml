@@ -1,0 +1,23 @@
+stages:
+  - test
+
+unit_tests:
+  image: python:3.11-slim
+  stage: test
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e .
+    - python -m unittest discover -s tests
+    - python -m compileall digital_twin_sensor
+
+package_smoke:
+  image: python:3.11-slim
+  stage: test
+  script:
+    - python -m pip install --upgrade pip build
+    - python -m build
+  artifacts:
+    when: always
+    paths:
+      - dist/
+    expire_in: 7 days

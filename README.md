@@ -1,119 +1,115 @@
-# Digital Twin Sensor Starter
+# Digital Twin Sensor
 
-This is a privacy-first local prototype inspired by the X-SYNTH paper, which argues that context synthesis should use observed digital human attention as a relevance signal rather than relying on query-only retrieval.
+A local-first, privacy-gated digital twin sensor for personal context engineering and agent handoff.
 
-In this starter, the "sensor" is software. It samples your active macOS window, stores local attention events in SQLite, computes a rolling Digital Twin Signature, builds a living context graph with privacy gates, infers working spheres from redacted focus patterns, exports summary-only context packs through a Memory Admission Gate, and ranks artifacts using attention filters plus simple content relevance.
+Digital Twin Sensor observes lightweight computer-use signals on macOS, redacts sensitive information before storage, builds a living context graph, infers working spheres, and exports summary-only context packs for tools such as Kiro, Codex, and GitLab.
 
-If macOS only reports a locked or hidden user session such as `loginwindow`, the sensor records a low-detail `system` event. That keeps collection health visible without claiming it captured the foreground app.
+It is inspired by X-SYNTH, context engineering, and agent-memory research, but it makes one important product choice: a digital twin should not be a raw surveillance log. It should be an explainable, governed context system with visible user control.
 
-PII masking is enabled by default before data is written to SQLite. It masks emails, credit-card-like numbers validated with Luhn, SSNs, phone numbers, IP addresses, common secret/token shapes, URL paths, and configured names.
+![Digital Twin Sensor architecture](docs/assets/architecture.svg)
 
-At Depth 2, configured browsers such as Safari and Google Chrome can also record active-tab metadata: redacted tab title, URL domain, sanitized URL, and URL path/query policy. Raw browser paths, queries, fragments, usernames, and passwords are not stored by default.
+## What You Can Do With It
 
-At Depth 3, allowlisted apps such as Ibo Pro Player can attempt a macOS Accessibility metadata snapshot. This stores redacted UI labels and roles only, not screenshots, keystrokes, clipboard, microphone, camera, or raw video.
+- See what apps, domains, and work artifacts are getting your attention.
+- Build a rolling Digital Twin Signature from observed focus patterns.
+- Understand active and suspended work through working spheres.
+- Generate resume packs for interrupted tasks.
+- Export privacy-gated context packs for Kiro, Codex, GitLab issues, or local files.
+- Inspect what was collected, what was inferred, and what was deliberately withheld.
+- Keep the collector and dashboard alive with macOS LaunchAgents and a watchdog.
+- Pause collection, resume collection, and purge expired local rows.
+- Use the included research notes and product logs as the basis for a publishable context-engineering paper.
 
-## What It Implements
+## Product Pipeline
 
-The paper describes a four-stage pipeline:
+![Privacy-gated context pipeline](docs/assets/pipeline.svg)
 
-1. subject scoping
-2. per-person attention modality selection
-3. attention-and-content weighted retrieval
-4. synthesis with modality annotations
+```mermaid
+flowchart LR
+  A["Foreground app/window attention"] --> B["Capture-depth policy"]
+  B --> C["Pre-storage redaction"]
+  C --> D["Local SQLite event store"]
+  D --> E["Digital Twin Signature"]
+  D --> F["Living context graph"]
+  D --> G["Working spheres"]
+  F --> H["Memory Admission Gate"]
+  G --> H
+  H --> I["Summary-only context packs"]
+  I --> J["Kiro / Codex / GitLab"]
+  D --> K["Product Doctor + Watchdog"]
+```
 
-This starter implements a single-user version:
+## Privacy Boundary
 
-- subject scoping: one local subject from `config.json`
-- Digital Twin Signature: `v_dom`, `v_rhythm`, `v_base`, `v_resp`, `v_div`
-- context graph: subject, domain, app, artifact, task, time, and masked private-signal nodes
-- working spheres: inferred activities, session returns, transition paths, and resume packs
-- context packs: gated Kiro/Codex/GitLab-ready Markdown or JSON from selected working spheres
-- browser surface details: active-tab metadata for Safari/Chrome at Depth 2+
-- app surface details: allowlisted Accessibility metadata for opaque apps at Depth 3+
-- attention depth: app attention, playback visibility, eye-proxy posture, and next build recommendations
-- product operations: health doctor, watchdog, self-heal endpoint, and research-to-product backlog
-- user control: pause/resume collection and purge events older than the retention policy
-- privacy gates: capture depth, pre-storage redaction, graph minimization, and sensitive-source boundaries
-- filters: proportional, inverse, differential, recurrent, comparative, sequential, collective
-- retrieval: `weight = attention_score * content_score`
-- synthesis: text output explaining why each artifact was surfaced
+Collected by default:
+
+- active application
+- redacted window title
+- timestamp and dwell time
+- derived work domain
+- app-switching sequence
+- derived graph/sphere/context-pack metadata
+
+Not collected by default:
+
+- keystrokes
+- clipboard
+- microphone
+- camera
+- raw screenshots
+- browser cookies
+- passwords or tokens
+- raw browser URL paths, queries, or fragments
+- raw cloud upload
+
+PII masking is enabled before events are written to SQLite. The redactor masks emails, credit-card-like numbers validated with Luhn, US SSNs, phone numbers, IP addresses, common secret/token shapes, URL paths, and configured names.
 
 ## Quick Start
 
-From this folder:
-
 ```bash
+git clone <your-gitlab-repo-url>
+cd digital-twin-sensor-starter
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 digital-twin-sensor init
 digital-twin-sensor collect-once
 digital-twin-sensor profile
-digital-twin-sensor query "what have I been focused on today?"
-```
-
-## Local UI
-
-Launch the visual dashboard:
-
-```bash
 digital-twin-sensor ui
 ```
 
-It opens a local-only browser console with:
+Open:
 
-- a Workfabric-inspired twin cockpit showing live twin state, fidelity, focus sphere, and privacy posture
-- a digital twin map of active contexts, memory spheres, and gated signals
-- a simulation console for deciding what to continue, export, deepen, or deploy
-- context-fabric lanes from sensing to synthesis to agent handoff
-- a Signal Depth tab for app attention, player visibility, eye-proxy planning, and capture-depth readiness
-- a Product Ops tab for service availability, product doctor checks, paper deviations, product gaps, and research backlog
-- privacy controls for pausing collection, resuming collection, and purging expired local rows
-- collection health
-- attention by domain
-- working spheres and resume packs
-- context-pack export with admission counts, denied fields, and copyable Markdown
-- surface detail cards explaining what each app exposes and how to deepen capture
-- fleet manager for local device health, policy, connectors, and sync-readiness
-- active-hour rhythm
-- top apps and artifacts
-- privacy-gated context graph
-- Digital Twin Signature radar view
-- X-SYNTH-lite evidence search
-- raw event ledger
-- privacy ledger showing what is and is not collected
-
-If you only want the URL and do not want the browser to open automatically:
-
-```bash
-digital-twin-sensor ui --no-open
+```text
+http://127.0.0.1:8765/
 ```
 
-To keep the dashboard available at login:
+Do not open `digital_twin_sensor/ui_static/index.html` directly for normal use. The dashboard needs the local API server.
+
+## Install As A Background Sensor
 
 ```bash
-chmod +x scripts/install_dashboard_agent.sh scripts/uninstall_dashboard_agent.sh
+chmod +x scripts/install_launch_agent.sh scripts/install_dashboard_agent.sh scripts/install_watchdog_agent.sh
+scripts/install_launch_agent.sh
 scripts/install_dashboard_agent.sh
-```
-
-To keep the collector/dashboard self-healing:
-
-```bash
-chmod +x scripts/install_watchdog_agent.sh scripts/uninstall_watchdog_agent.sh
 scripts/install_watchdog_agent.sh
 ```
 
-For live collection:
+This installs:
+
+- `com.local.digital-twin-sensor`: continuous collector
+- `com.local.digital-twin-dashboard`: local dashboard at `127.0.0.1:8765`
+- `com.local.digital-twin-watchdog`: scheduled self-heal check every 60 seconds
+
+Check status:
 
 ```bash
-digital-twin-sensor run --interval 15 --verbose
+digital-twin-sensor doctor
 ```
 
-Stop with `Ctrl-C`.
+## macOS Permissions
 
-## macOS Permission
-
-The active-window collector uses AppleScript via `osascript`. macOS may require Accessibility permission for your terminal app.
+The active-window collector uses macOS Accessibility APIs through a native helper or AppleScript fallback.
 
 Open:
 
@@ -121,206 +117,151 @@ Open:
 System Settings -> Privacy & Security -> Accessibility
 ```
 
-Then enable the terminal app you are using.
+Enable the terminal app or Python runtime running the collector. When Depth 2 or Depth 3 app-specific metadata is enabled, macOS may also ask for Automation permission for Safari, Chrome, or allowlisted apps.
 
-## Deploy As A Background Sensor
+## Dashboard
 
-Run:
+The dashboard is a local web console with:
 
-```bash
-chmod +x scripts/install_launch_agent.sh scripts/uninstall_launch_agent.sh
-scripts/install_launch_agent.sh
-```
+- Overview: live twin cockpit, fidelity score, focus sphere, and privacy posture
+- Signal Depth: app attention, player visibility, capture-depth ladder, and eye-proxy planning
+- Product Ops: service health, self-heal, paper deviations, hardening gaps, and research backlog
+- Fleet: local endpoint posture, policy, connectors, and sync-readiness
+- Activities: inferred working spheres, session returns, and resume packs
+- Context Packs: Kiro/Codex/GitLab-ready gated Markdown or JSON
+- Context Graph: privacy-gated work graph
+- Twin Signature: behavioral vectors from attention traces
+- Evidence: X-SYNTH-lite query retrieval with selected filters
+- Events: local redacted event ledger
+- Privacy: captured/not-captured ledger, pause/resume, and retention purge
 
-This installs a user LaunchAgent that starts the sensor at login.
-On macOS, the installer also tries to compile a tiny native window probe at `~/.digital-twin-sensor/macos-window-probe`; if that is unavailable, collection falls back to AppleScript.
+## Common Commands
 
-Check logs:
-
-```bash
-tail -f ~/.digital-twin-sensor/sensor.log
-tail -f ~/.digital-twin-sensor/sensor.err.log
-```
-
-Uninstall the background agent:
-
-```bash
-scripts/uninstall_launch_agent.sh
-```
-
-Your local data remains in `~/.digital-twin-sensor`.
-
-## Useful Commands
-
-Collect one sample:
+Collect and analyze:
 
 ```bash
 digital-twin-sensor collect-once
-```
-
-Run continuously:
-
-```bash
 digital-twin-sensor run --interval 15
-```
-
-Enable Depth 2 browser-tab metadata:
-
-```bash
-digital-twin-sensor configure --depth 2 --browser-tab-details on --browser-url-path off --browser-url-query off
-```
-
-Enable Depth 3 allowlisted app metadata for a player:
-
-```bash
-digital-twin-sensor configure --depth 3 --accessibility-surface-details on --accessibility-app "Ibo Pro Player"
-```
-
-Depth 3 depends on macOS Accessibility permission and on whether the target app exposes useful labels. If it exposes nothing, the next product step is a local OCR summary gate that discards images and stores only redacted summaries.
-
-Print your Digital Twin Signature:
-
-```bash
 digital-twin-sensor profile --short-days 5 --long-days 14
+digital-twin-sensor query "what did I repeatedly return to?"
 ```
 
-Build the living context graph:
+Generate context:
 
 ```bash
 digital-twin-sensor graph --days 14
-```
-
-Infer working spheres and resume packs:
-
-```bash
 digital-twin-sensor activities --days 14
-```
-
-Show local fleet/device management status:
-
-```bash
-digital-twin-sensor fleet --days 14
-```
-
-Run the product doctor:
-
-```bash
-digital-twin-sensor doctor
-digital-twin-sensor doctor --json
-```
-
-Run the watchdog self-heal check:
-
-```bash
-digital-twin-sensor watchdog --fix
-```
-
-Pause or resume collection without uninstalling the background service:
-
-```bash
-digital-twin-sensor pause
-digital-twin-sensor resume
-```
-
-Delete local rows older than the retention policy, or reset the local event ledger:
-
-```bash
-digital-twin-sensor purge --older-than-days 30 --yes
-digital-twin-sensor purge --all --yes
-```
-
-Export a summary-only context pack:
-
-```bash
 digital-twin-sensor context-pack --days 14 --target kiro --format markdown
 digital-twin-sensor context-pack --days 14 --target gitlab --purpose gitlab --output work/context-pack.md
 ```
 
-Ask a query:
+Operate safely:
 
 ```bash
-digital-twin-sensor query "what work changed this week?"
-digital-twin-sensor query "what did I repeatedly come back to?"
-digital-twin-sensor query "what important area am I neglecting?"
+digital-twin-sensor doctor
+digital-twin-sensor watchdog --fix
+digital-twin-sensor pause
+digital-twin-sensor resume
+digital-twin-sensor purge --older-than-days 30 --yes
 ```
 
-Export recent raw events:
+Enable deeper capture:
 
 ```bash
-digital-twin-sensor export --days 7 > events.json
+digital-twin-sensor configure --depth 2 --browser-tab-details on --browser-url-path off --browser-url-query off
+digital-twin-sensor configure --depth 3 --accessibility-surface-details on --accessibility-app "Ibo Pro Player"
 ```
 
-Re-apply masking to already stored events after changing redaction rules:
+Depth 3 stores redacted UI labels and roles only. It does not store screenshots, keystrokes, clipboard content, microphone input, camera input, or raw video.
 
-```bash
-digital-twin-sensor redact-existing --dry-run
-digital-twin-sensor redact-existing
+## Architecture
+
+The system is built from small local modules:
+
+| Layer | Responsibility |
+| --- | --- |
+| Collector | macOS foreground app/window sampling with optional browser and Accessibility metadata |
+| Redaction | PII, names, credit cards, tokens, IPs, and URL-path masking before storage |
+| Store | local SQLite event ledger with retention deletion |
+| Digital Twin Signature | domain, rhythm, baseline, response, and diversity vectors |
+| Context graph | derived work graph over domains, apps, artifacts, tasks, time, and masked private signals |
+| Working spheres | inferred activities, interruptions, returns, and resume packs |
+| Context packs | purpose-gated Markdown/JSON export through Memory Admission Gate |
+| Product Ops | doctor, watchdog, health API, paper deviations, product gaps, and research backlog |
+| Dashboard | local web UI served from `127.0.0.1` |
+
+Read the full technical architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+## API
+
+Local API endpoints include:
+
+- `GET /api/overview`
+- `GET /api/health`
+- `GET /api/context-pack`
+- `GET /api/query`
+- `GET /api/fleet`
+- `POST /api/collect-once`
+- `POST /api/admin/watchdog`
+- `POST /api/admin/pause`
+- `POST /api/admin/resume`
+- `POST /api/admin/purge-retention?confirm=purge-retention`
+
+Read the API reference: [docs/API.md](docs/API.md)
+
+## Documentation
+
+| Document | Purpose |
+| --- | --- |
+| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Installation and first run |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and data flow |
+| [docs/API.md](docs/API.md) | Local dashboard API |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Local and enterprise deployment path |
+| [docs/GITLAB_PUBLISHING.md](docs/GITLAB_PUBLISHING.md) | GitLab push, project metadata, and release commands |
+| [docs/RESEARCH_AND_EVALUATION.md](docs/RESEARCH_AND_EVALUATION.md) | Study design and metrics |
+| [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.md) | Capture-depth and masking policy |
+| [CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md](CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md) | Last-three-year research synthesis |
+| [PRODUCT_BUILD_LOG.md](PRODUCT_BUILD_LOG.md) | Product build and validation log |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting and deployment cautions |
+| [SECURITY_PRIVACY.md](SECURITY_PRIVACY.md) | Security and privacy posture |
+| [ENTERPRISE_PORTABILITY.md](ENTERPRISE_PORTABILITY.md) | Fleet and enterprise portability model |
+
+## Research Positioning
+
+This project should be described as:
+
+```text
+a privacy-gated context synthesis system from digital attention traces
 ```
 
-Run the redaction tests:
+It should not yet be described as a faithful human replica.
+
+Current research gaps:
+
+- learned Query x Digital Twin Signature router
+- feedback-labeled evaluation
+- collective/team signal
+- encrypted storage
+- trust-calibration studies
+- anti-overclaim benchmark
+
+Good paper hypotheses:
+
+- Privacy-gated context packs improve task resumption compared with no context or query-only retrieval.
+- Working-sphere retrieval improves relevance for interrupted work compared with flat top-k event retrieval.
+- Summary-only context packs reduce leakage risk while preserving enough utility for agent handoff.
+- Visible product doctor diagnostics improve trust calibration compared with a hidden collector.
+
+## Testing
 
 ```bash
 python3 -m unittest discover -s tests
+python3 -m compileall digital_twin_sensor
+node --check digital_twin_sensor/ui_static/app.js
 ```
 
-## How To Use This With Kiro
+GitLab CI is included in `.gitlab-ci.yml`.
 
-Open this folder in a fresh terminal and run:
+## License
 
-```bash
-kiro-cli chat
-```
-
-Good first prompts:
-
-```text
-Read this project and create .kiro/steering files for architecture, privacy constraints, and next development tasks.
-```
-
-```text
-Turn this prototype into a spec for a production personal digital twin sensor. Include requirements, design, tasks, and privacy safeguards.
-```
-
-```text
-Add a browser-history connector that stores only URL domain and page title, with a config flag and retention policy.
-```
-
-## Production Roadmap
-
-Next build steps:
-
-1. add encrypted storage
-2. add a menubar status indicator
-3. add feedback buttons to context packs and evidence results
-4. add evolving context cards and memory-maintenance diagnostics
-5. add IDE/calendar/git connectors with opt-in toggles
-6. add local OCR summaries for explicitly allowlisted apps without storing screenshots
-7. grow working spheres into task models with objectives, steps, and blockers
-8. add GitLab summary sync for approved context packs and health reports
-
-See also:
-
-- `PRODUCT_BUILD_LOG.md`
-- `CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md`
-- `COLLECTION_DEPTH_AND_REDACTION.md`
-- `ENTERPRISE_PORTABILITY.md`
-8. add local embeddings for semantic content scoring
-9. add a small local API for querying the twin
-10. add feedback buttons so good/bad answers can tune filter selection
-11. add a visible menubar indicator so collection is never hidden
-12. add a cursor/scroll attention proxy that stores only aggregate zones and timing
-13. add explicit local gaze tracking only as an opt-in derived heatmap with no raw camera frames
-
-## Product Design Notes
-
-See `UI_RESEARCH_AND_DIRECTION.md` for the public Workfabric/ContextFabric references that shaped the dashboard and the ways this prototype intentionally improves transparency for a personal digital twin.
-
-See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.
-
-See `RELATED_CONTEXT_PAPERS.md` for adjacent research papers and concrete product concepts such as working spheres, task-model induction, resume packs, seen indexes, evolving context cards, and query-time memory admission gates.
-
-See `ENTERPRISE_PORTABILITY.md` for the fleet-management architecture, endpoint packaging path, and summary-only sync model.
-
-## Important Boundary
-
-Do not use this to monitor other people without informed consent. The X-SYNTH idea becomes powerful exactly because attention traces are sensitive. Treat them like private behavioral data.
+MIT. See [LICENSE](LICENSE).

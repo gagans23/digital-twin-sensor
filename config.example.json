@@ -1,6 +1,7 @@
 {
   "subject_id": "your-name-or-machine-id",
   "sample_interval_seconds": 15,
+  "collection_paused": false,
   "capture_window_title": true,
   "redact_sensitive_titles": true,
   "record_ignored_apps_as_system_events": true,

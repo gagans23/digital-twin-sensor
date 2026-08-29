@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="620" viewBox="0 0 1180 620" role="img" aria-labelledby="title desc">
+  <title id="title">Digital Twin Sensor Architecture</title>
+  <desc id="desc">A privacy-gated local sensor pipeline from macOS attention capture through context graph, working spheres, context packs, product operations, and optional enterprise sync.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f4eb; }
+      .panel { fill: #ffffff; stroke: #d9e0ea; stroke-width: 2; }
+      .dark { fill: #151922; }
+      .title { fill: #151922; font: 800 22px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .label { fill: #151922; font: 800 16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .small { fill: #5f6b7a; font: 600 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .darktext { fill: #f7f4eb; font: 800 16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .darksmall { fill: #c9d2df; font: 600 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .arrow { stroke: #5f6b7a; stroke-width: 2.5; fill: none; marker-end: url(#arrowhead); }
+      .teal { fill: #00a6a6; }
+      .coral { fill: #ff7a59; }
+      .violet { fill: #6d5dfc; }
+      .green { fill: #14845d; }
+      .amber { fill: #d99000; }
+      .soft { fill: #eef2f7; }
+      .gate { fill: #fff0c7; stroke: #d99000; stroke-width: 2; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5f6b7a" />
+    </marker>
+  </defs>
+  <rect class="bg" width="1180" height="620" rx="18" />
+  <rect x="30" y="24" width="1120" height="74" rx="12" class="dark" />
+  <circle cx="70" cy="61" r="12" class="teal" />
+  <circle cx="102" cy="61" r="12" class="coral" />
+  <circle cx="134" cy="61" r="12" class="violet" />
+  <text x="172" y="55" class="darktext">Digital Twin Sensor</text>
+  <text x="172" y="78" class="darksmall">local-first context fabric with privacy gates and product operations</text>
+
+  <rect x="46" y="142" width="185" height="116" rx="12" class="panel" />
+  <text x="66" y="176" class="label">Capture</text>
+  <text x="66" y="202" class="small">active app</text>
+  <text x="66" y="222" class="small">window title</text>
+  <text x="66" y="242" class="small">dwell + sequence</text>
+
+  <rect x="286" y="142" width="185" height="116" rx="12" class="gate" />
+  <text x="306" y="176" class="label">Privacy Gate</text>
+  <text x="306" y="202" class="small">PII masking</text>
+  <text x="306" y="222" class="small">URL minimization</text>
+  <text x="306" y="242" class="small">raw upload blocked</text>
+
+  <rect x="526" y="142" width="185" height="116" rx="12" class="panel" />
+  <text x="546" y="176" class="label">Local Store</text>
+  <text x="546" y="202" class="small">SQLite events</text>
+  <text x="546" y="222" class="small">retention purge</text>
+  <text x="546" y="242" class="small">pause/resume</text>
+
+  <rect x="766" y="142" width="185" height="116" rx="12" class="panel" />
+  <text x="786" y="176" class="label">Context Graph</text>
+  <text x="786" y="202" class="small">domain, app, task</text>
+  <text x="786" y="222" class="small">artifact, time</text>
+  <text x="786" y="242" class="small">masked private nodes</text>
+
+  <rect x="46" y="360" width="185" height="116" rx="12" class="panel" />
+  <text x="66" y="394" class="label">DTS</text>
+  <text x="66" y="420" class="small">domain preference</text>
+  <text x="66" y="440" class="small">rhythm, baseline</text>
+  <text x="66" y="460" class="small">response + diversity</text>
+
+  <rect x="286" y="360" width="185" height="116" rx="12" class="panel" />
+  <text x="306" y="394" class="label">Working Spheres</text>
+  <text x="306" y="420" class="small">activity clusters</text>
+  <text x="306" y="440" class="small">returns + transitions</text>
+  <text x="306" y="460" class="small">resume packs</text>
+
+  <rect x="526" y="360" width="185" height="116" rx="12" class="gate" />
+  <text x="546" y="394" class="label">Context Packs</text>
+  <text x="546" y="420" class="small">purpose-gated</text>
+  <text x="546" y="440" class="small">summary-only export</text>
+  <text x="546" y="460" class="small">Kiro, Codex, GitLab</text>
+
+  <rect x="766" y="360" width="185" height="116" rx="12" class="panel" />
+  <text x="786" y="394" class="label">Dashboard</text>
+  <text x="786" y="420" class="small">twin console</text>
+  <text x="786" y="440" class="small">product ops</text>
+  <text x="786" y="460" class="small">privacy controls</text>
+
+  <rect x="994" y="224" width="130" height="170" rx="12" class="panel" />
+  <text x="1014" y="258" class="label">Ops</text>
+  <text x="1014" y="284" class="small">doctor</text>
+  <text x="1014" y="304" class="small">watchdog</text>
+  <text x="1014" y="324" class="small">health API</text>
+  <text x="1014" y="344" class="small">research backlog</text>
+  <text x="1014" y="364" class="small">fleet posture</text>
+
+  <path class="arrow" d="M231 200 H286" />
+  <path class="arrow" d="M471 200 H526" />
+  <path class="arrow" d="M711 200 H766" />
+  <path class="arrow" d="M858 258 V360" />
+  <path class="arrow" d="M766 418 H711" />
+  <path class="arrow" d="M526 418 H471" />
+  <path class="arrow" d="M286 418 H231" />
+  <path class="arrow" d="M951 200 C1010 202 1030 213 1050 224" />
+  <path class="arrow" d="M951 418 C1010 414 1030 398 1050 394" />
+
+  <rect x="68" y="532" width="1030" height="44" rx="8" class="soft" />
+  <text x="88" y="560" class="small">Hard boundary: no keystrokes, clipboard, microphone, camera, raw screenshots, browser cookies, passwords, tokens, or raw cloud upload by default.</text>
+</svg>

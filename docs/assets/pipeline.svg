@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="360" viewBox="0 0 1180 360" role="img" aria-labelledby="title desc">
+  <title id="title">Privacy-Gated Context Pipeline</title>
+  <desc id="desc">Observed digital attention is redacted locally, transformed into graph and working-sphere memory, admitted through a context-pack gate, and exported as summary-only context.</desc>
+  <defs>
+    <style>
+      .bg { fill: #080a0f; }
+      .card { fill: #151922; stroke: rgba(255,255,255,0.16); stroke-width: 2; }
+      .gate { fill: #2b2614; stroke: #d99000; stroke-width: 2; }
+      .label { fill: #f7f4eb; font: 800 16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .small { fill: #c9d2df; font: 600 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .arrow { stroke: #66e5cf; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#66e5cf" />
+    </marker>
+  </defs>
+  <rect class="bg" width="1180" height="360" rx="18" />
+  <text x="42" y="54" class="label">Product Pipeline</text>
+  <text x="42" y="80" class="small">From local signals to agent-ready context without exporting the raw event ledger.</text>
+
+  <rect x="44" y="130" width="150" height="94" rx="12" class="card" />
+  <text x="64" y="164" class="label">Sense</text>
+  <text x="64" y="188" class="small">app, title, dwell</text>
+  <text x="64" y="208" class="small">switch path</text>
+
+  <rect x="244" y="130" width="150" height="94" rx="12" class="gate" />
+  <text x="264" y="164" class="label">Redact</text>
+  <text x="264" y="188" class="small">PII, names, cards</text>
+  <text x="264" y="208" class="small">URL paths</text>
+
+  <rect x="444" y="130" width="150" height="94" rx="12" class="card" />
+  <text x="464" y="164" class="label">Model</text>
+  <text x="464" y="188" class="small">DTS + filters</text>
+  <text x="464" y="208" class="small">context graph</text>
+
+  <rect x="644" y="130" width="150" height="94" rx="12" class="card" />
+  <text x="664" y="164" class="label">Cluster</text>
+  <text x="664" y="188" class="small">working spheres</text>
+  <text x="664" y="208" class="small">resume packs</text>
+
+  <rect x="844" y="130" width="150" height="94" rx="12" class="gate" />
+  <text x="864" y="164" class="label">Admit</text>
+  <text x="864" y="188" class="small">allow, mask, deny</text>
+  <text x="864" y="208" class="small">summarize</text>
+
+  <rect x="1044" y="130" width="92" height="94" rx="12" class="card" />
+  <text x="1064" y="164" class="label">Use</text>
+  <text x="1064" y="188" class="small">Kiro</text>
+  <text x="1064" y="208" class="small">GitLab</text>
+
+  <path class="arrow" d="M194 177 H244" />
+  <path class="arrow" d="M394 177 H444" />
+  <path class="arrow" d="M594 177 H644" />
+  <path class="arrow" d="M794 177 H844" />
+  <path class="arrow" d="M994 177 H1044" />
+
+  <text x="42" y="292" class="small">Default export policy: context packs and health reports, not raw events.</text>
+</svg>
