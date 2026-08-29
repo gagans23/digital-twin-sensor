@@ -1,19 +1,20 @@
 :root {
-  --paper: #f7f1e8;
-  --cream: #fffaf2;
-  --ink: #151922;
-  --ink-2: #080a0f;
-  --muted: #667080;
-  --line: #d9dfeb;
-  --teal: #00a6a6;
-  --mint: #66e5cf;
-  --coral: #ff7a59;
-  --violet: #6d5dfc;
-  --amber: #d99000;
-  --green: #14845d;
-  --rust: #a64022;
+  --paper: #f3eee4;
+  --cream: #fbf6ec;
+  --surface: #fffaf1;
+  --surface-2: #e8ece6;
+  --ink: #181614;
+  --ink-2: #0d1110;
+  --muted: #69655d;
+  --line: #d8d0c1;
+  --sage: #6f8675;
+  --sage-dark: #345b48;
+  --clay: #b55c41;
+  --clay-dark: #7c321f;
+  --brass: #a37d3f;
+  --slate: #41515d;
   --radius: 8px;
-  --shadow: 0 22px 70px rgba(21, 25, 34, 0.16);
+  --shadow: 0 22px 70px rgba(24, 22, 20, 0.14);
 }
 
 * {
@@ -26,8 +27,8 @@ html {
 
 body {
   background:
-    radial-gradient(circle at 14% 18%, rgba(102, 229, 207, 0.15), transparent 28%),
-    linear-gradient(180deg, #fffaf2 0%, #f7f1e8 34%, #eef3f5 100%);
+    radial-gradient(circle at 18% 10%, rgba(111, 134, 117, 0.16), transparent 28%),
+    linear-gradient(180deg, var(--cream) 0%, var(--paper) 42%, var(--surface-2) 100%);
   color: var(--ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
@@ -56,8 +57,8 @@ a {
 .site-header {
   align-items: center;
   backdrop-filter: blur(18px);
-  background: rgba(255, 250, 242, 0.78);
-  border: 1px solid rgba(21, 25, 34, 0.1);
+  background: rgba(248, 241, 229, 0.84);
+  border: 1px solid rgba(24, 22, 20, 0.12);
   border-radius: var(--radius);
   display: flex;
   gap: 22px;
@@ -101,15 +102,15 @@ a {
 }
 
 .brand-glyph i:nth-child(1) {
-  background: var(--mint);
+  background: var(--sage);
 }
 
 .brand-glyph i:nth-child(2) {
-  background: var(--coral);
+  background: var(--clay);
 }
 
 .brand-glyph i:nth-child(3) {
-  background: var(--violet);
+  background: var(--brass);
 }
 
 nav {
@@ -125,7 +126,7 @@ nav::-webkit-scrollbar {
 
 nav a {
   border-radius: 999px;
-  color: rgba(21, 25, 34, 0.72);
+  color: rgba(24, 22, 20, 0.7);
   flex: none;
   font-size: 0.86rem;
   font-weight: 720;
@@ -134,7 +135,7 @@ nav a {
 }
 
 nav a:hover {
-  background: rgba(21, 25, 34, 0.08);
+  background: rgba(24, 22, 20, 0.08);
   color: var(--ink);
 }
 
@@ -162,8 +163,8 @@ nav a:hover {
 
 .hero-shade {
   background:
-    linear-gradient(90deg, rgba(8, 10, 15, 0.92), rgba(8, 10, 15, 0.38) 52%, rgba(8, 10, 15, 0.82)),
-    linear-gradient(0deg, rgba(8, 10, 15, 0.92), transparent 50%);
+    linear-gradient(90deg, rgba(13, 17, 16, 0.95), rgba(13, 17, 16, 0.48) 54%, rgba(13, 17, 16, 0.86)),
+    linear-gradient(0deg, rgba(13, 17, 16, 0.95), transparent 52%);
 }
 
 .hero-copy {
@@ -173,11 +174,11 @@ nav a:hover {
 }
 
 .eyebrow {
-  color: var(--coral);
+  color: #e28a6d;
 }
 
 .kicker {
-  color: var(--rust);
+  color: var(--clay-dark);
 }
 
 .eyebrow,
@@ -254,8 +255,8 @@ h1 {
 }
 
 .hero-metrics div {
-  background: rgba(255, 250, 242, 0.08);
-  border: 1px solid rgba(255, 250, 242, 0.14);
+  background: rgba(251, 246, 236, 0.08);
+  border: 1px solid rgba(251, 246, 236, 0.16);
   border-radius: var(--radius);
   min-height: 84px;
   padding: 14px;
@@ -267,7 +268,7 @@ h1 {
 }
 
 .hero-metrics strong {
-  color: var(--mint);
+  color: #b8cfbd;
   font-size: 1.05rem;
 }
 
@@ -283,7 +284,7 @@ h1 {
 .motion-panel,
 .product-grid,
 .research-section,
-.deploy-section {
+.essay-link {
   margin: 0 auto;
   max-width: 1120px;
   padding: clamp(74px, 10vw, 130px) 22px;
@@ -293,7 +294,7 @@ h1 {
 .section-head h2,
 .motion-copy h2,
 .paper-card h2,
-.deploy-section h2 {
+.essay-link h2 {
   font-size: clamp(2.4rem, 6vw, 5.8rem);
   letter-spacing: 0;
   line-height: 0.94;
@@ -302,8 +303,7 @@ h1 {
 
 .intro p:last-child,
 .motion-copy p,
-.paper-card p,
-.deploy-section p {
+.paper-card p {
   color: var(--muted);
   font-size: 1.07rem;
   line-height: 1.65;
@@ -320,9 +320,8 @@ h1 {
 
 .pipe-card,
 .feature-card,
-.paper-card,
-.deploy-section {
-  background: rgba(255, 255, 255, 0.76);
+.paper-card {
+  background: rgba(255, 250, 241, 0.82);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: 0 1px 0 rgba(21, 25, 34, 0.03);
@@ -336,7 +335,7 @@ h1 {
 }
 
 .pipe-card::after {
-  background: linear-gradient(180deg, var(--mint), transparent);
+  background: linear-gradient(180deg, var(--sage), transparent);
   content: "";
   height: 74px;
   opacity: 0.42;
@@ -348,7 +347,7 @@ h1 {
 }
 
 .pipe-card.gate::after {
-  background: linear-gradient(180deg, var(--amber), transparent);
+  background: linear-gradient(180deg, var(--clay), transparent);
 }
 
 .pipe-card span {
@@ -383,7 +382,8 @@ h1 {
 .twin-stage {
   aspect-ratio: 1;
   background:
-    linear-gradient(135deg, rgba(8, 10, 15, 0.98), rgba(21, 25, 34, 0.96)),
+    radial-gradient(circle at 62% 38%, rgba(111, 134, 117, 0.18), transparent 36%),
+    linear-gradient(135deg, rgba(13, 17, 16, 0.98), rgba(24, 22, 20, 0.96)),
     var(--ink-2);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -393,8 +393,8 @@ h1 {
 
 .twin-stage::before {
   background:
-    linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255,255,255,0.055) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(251, 246, 236, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(251, 246, 236, 0.045) 1px, transparent 1px);
   background-size: 44px 44px;
   content: "";
   inset: 0;
@@ -403,7 +403,7 @@ h1 {
 }
 
 .orbit {
-  border: 1px solid rgba(255, 250, 242, 0.18);
+  border: 1px solid rgba(251, 246, 236, 0.18);
   border-radius: 50%;
   inset: 16%;
   position: absolute;
@@ -427,8 +427,8 @@ h1 {
 
 .stage-label,
 .signal-pill {
-  background: rgba(255, 250, 242, 0.11);
-  border: 1px solid rgba(255, 250, 242, 0.16);
+  background: rgba(251, 246, 236, 0.1);
+  border: 1px solid rgba(251, 246, 236, 0.16);
   border-radius: 999px;
   color: var(--cream);
   font-size: 0.8rem;
@@ -455,7 +455,7 @@ h1 {
 .twin-core {
   align-items: center;
   background: var(--cream);
-  border: 5px solid var(--mint);
+  border: 5px solid var(--sage);
   border-radius: 50%;
   color: var(--ink-2);
   display: grid;
@@ -511,15 +511,15 @@ h1 {
 }
 
 .feature-card:nth-child(1) {
-  border-top: 5px solid var(--teal);
+  border-top: 5px solid var(--sage);
 }
 
 .feature-card:nth-child(2) {
-  border-top: 5px solid var(--coral);
+  border-top: 5px solid var(--clay);
 }
 
 .feature-card:nth-child(3) {
-  border-top: 5px solid var(--violet);
+  border-top: 5px solid var(--brass);
 }
 
 .research-section {
@@ -530,8 +530,8 @@ h1 {
 
 .paper-card {
   background:
-    linear-gradient(135deg, rgba(102, 229, 207, 0.14), rgba(255, 255, 255, 0.9) 42%),
-    #ffffff;
+    linear-gradient(135deg, rgba(111, 134, 117, 0.16), rgba(255, 250, 241, 0.92) 44%),
+    var(--surface);
   padding: clamp(26px, 6vw, 58px);
 }
 
@@ -568,23 +568,31 @@ h1 {
   padding: 22px;
 }
 
-.deploy-section {
-  margin-bottom: 70px;
+.essay-link {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 22px;
+  justify-content: space-between;
+  max-width: none;
+  padding-left: max(22px, calc((100vw - 1120px) / 2));
+  padding-right: max(22px, calc((100vw - 1120px) / 2));
 }
 
-.deploy-section .button {
-  border-color: var(--line);
-  color: var(--ink);
+.essay-link h2 {
+  font-size: clamp(2rem, 4.8vw, 4.8rem);
 }
 
-.deploy-section .button.primary {
+.button.primary.dark {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--cream);
 }
 
 code {
-  background: rgba(21, 25, 34, 0.08);
+  background: rgba(24, 22, 20, 0.08);
   border-radius: 6px;
   padding: 2px 5px;
 }
@@ -604,6 +612,12 @@ footer {
 footer span:first-child {
   color: var(--ink);
   font-weight: 850;
+}
+
+footer a {
+  color: var(--clay-dark);
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .motion-ready .reveal {
@@ -658,6 +672,11 @@ footer span:first-child {
   .product-grid,
   .quote-strip {
     grid-template-columns: 1fr;
+  }
+
+  .essay-link {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .motion-panel {
@@ -765,7 +784,7 @@ footer span:first-child {
   .motion-panel,
   .product-grid,
   .research-section,
-  .deploy-section {
+  .essay-link {
     padding-left: 18px;
     padding-right: 18px;
   }
@@ -774,7 +793,7 @@ footer span:first-child {
   .section-head h2,
   .motion-copy h2,
   .paper-card h2,
-  .deploy-section h2 {
+  .essay-link h2 {
     font-size: clamp(2.05rem, 12vw, 3.4rem);
   }
 

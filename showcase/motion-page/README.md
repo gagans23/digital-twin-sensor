@@ -1,6 +1,6 @@
 # Motion Page
 
-This folder contains a static portfolio/case-study page for Digital Twin Sensor.
+This folder contains a static motion case-study page for Digital Twin Sensor.
 
 Files:
 
@@ -24,7 +24,17 @@ http://127.0.0.1:8770/showcase/motion-page/
 
 ## Add To A Website
 
-Copy the `showcase/motion-page` folder into your site and link to `index.html`.
+Use `showcase/index.html` as the special website link, or point directly to this page:
+
+```text
+showcase/motion-page/index.html
+```
+
+The companion essay lives at:
+
+```text
+showcase/context-moat/index.html
+```
 
 The page is intentionally static:
 

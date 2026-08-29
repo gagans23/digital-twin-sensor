@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="An enterprise essay on context engineering, digital twins, and why governed context becomes a durable AI moat.">
+    <title>Context Is The Moat | Digital Twin Sensor</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#article">Skip to article</a>
+    <header class="site-header">
+      <a class="brand" href="../motion-page/">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>Digital Twin Sensor</span>
+      </a>
+      <nav aria-label="Essay navigation">
+        <a href="../motion-page/">Motion page</a>
+        <a href="#framework">Framework</a>
+        <a href="#notes">Research</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="essay-hero">
+        <p class="eyebrow">Enterprise context engineering</p>
+        <h1>Context Is The Moat</h1>
+        <p class="dek">
+          The next durable advantage in enterprise AI will not come from having the longest prompt
+          or the newest model. It will come from knowing how work actually happens, remembering it
+          responsibly, and turning that memory into safer action.
+        </p>
+        <div class="hero-meta" aria-label="Article metadata">
+          <span>Field note</span>
+          <span>Digital twins</span>
+          <span>Governed memory</span>
+        </div>
+      </section>
+
+      <article id="article" class="article">
+        <p class="lead">
+          I started this project with a simple frustration: every AI tool feels sharp at the first
+          request and strangely forgetful by the third. It can explain a codebase, summarize a
+          document, or draft a plan. Then the next day it asks for the same background again. The
+          model may be stronger, but the work has no memory.
+        </p>
+
+        <p>
+          That is the real gap. Enterprise AI is still being sold as a model problem when, in daily
+          use, it is mostly a context problem. The model is the reasoning engine. Context is the
+          map of the room. Without the map, the engine burns cycles guessing where the walls are.
+        </p>
+
+        <p>
+          My own path into this came through building a local digital twin sensor. At first the
+          question sounded almost mechanical: can I know what I am doing in Safari, in a trading
+          tool, in an editor, or inside a project handoff? But the moment you ask that seriously,
+          you run into the deeper question. What does it mean to know what a person is doing without
+          turning the machine into surveillance?
+        </p>
+
+        <h2>What Context Really Means</h2>
+        <p>
+          Context is not the text that happens to fit into a prompt window. In enterprise work,
+          context is the living frame around a decision: the artifacts involved, the people or
+          systems affected, the policy boundary, the sequence of actions, the exceptions, the timing,
+          and the reason one path was chosen over another.
+        </p>
+
+        <p>
+          A CRM record can tell you that a customer was escalated. It usually cannot tell you why
+          the escalation mattered, which documents were consulted, which rule was bent, which Slack
+          thread changed the decision, or whether the account team returned to the same concern three
+          times over two weeks. Systems of record capture state. Context captures the work around
+          the state.
+        </p>
+
+        <p>
+          That distinction matters because agents do not fail only when they lack facts. They fail
+          when they lack the shape of the situation. A support agent needs to know not just the refund
+          policy, but that this customer was promised an exception by a regional manager. A finance
+          agent needs to know not just the invoice, but that the vendor is tied to a blocked renewal.
+          A coding agent needs to know not just the repository, but which investigation path has
+          already been abandoned.
+        </p>
+
+        <h2>Why The Moat Moves From Model To Memory</h2>
+        <p>
+          Models are improving quickly, and that is exactly why the moat moves elsewhere. When the
+          same frontier capability is available through an API, advantage shifts to what the model
+          is allowed to see, how cleanly it can use that information, and whether the organization
+          can trust the resulting action.
+        </p>
+
+        <p>
+          The enterprise context moat is a compounding loop. Work creates traces. Traces become
+          structured context. Context improves recommendations and agent actions. Those actions
+          create new traces, including outcomes and corrections. Over time, the organization builds
+          something that a generic tool cannot scrape from the outside: a governed memory of how
+          its work is actually done.
+        </p>
+
+        <p>
+          This is different from a data lake. A data lake stores raw material. A context layer
+          preserves meaning. It knows that a browser tab, a spreadsheet, a code change, a ticket,
+          and a calendar meeting may belong to one working sphere. It knows that some details can
+          be shared with an agent, some must be summarized, and some must never leave the device.
+        </p>
+
+        <h2>The Hard Part Is Not Collection</h2>
+        <p>
+          It is easy to collect too much. Operating systems, browsers, SaaS tools, and endpoint
+          agents can produce a flood of events. The hard product judgment is deciding what not to
+          collect, what to mask before storage, what to keep only as a short-lived signal, and what
+          deserves to become memory.
+        </p>
+
+        <p>
+          In the sensor, that led to a simple rule: raw traces are not the product. The product is
+          the governed interpretation. Foreground application, redacted window title, browser domain,
+          dwell time, switching rhythm, and return patterns can be enough to form a working sphere.
+          A credit card number, private name, token, full URL path, or message body is not necessary
+          for most context decisions and should be masked or excluded.
+        </p>
+
+        <p>
+          This is where digital twins become credible. A weak digital twin is a profile vector with
+          a confident label. A useful digital twin is a living context graph with consent, provenance,
+          retention, and admission control. It can say: this is the evidence, this is the inference,
+          this is the privacy risk, this is what an agent may receive, and this is what stayed local.
+        </p>
+
+        <h2 id="framework">A Practical Framework</h2>
+        <p>
+          I would build enterprise context in six layers.
+        </p>
+
+        <ol>
+          <li><strong>Sense:</strong> capture high-signal work traces such as active application, artifact identity, dwell, switch paths, workflow events, and explicit user notes.</li>
+          <li><strong>Redact:</strong> remove secrets, payment data, private names, full message bodies, sensitive URL paths, and personal identifiers before durable storage.</li>
+          <li><strong>Structure:</strong> convert traces into entities, relationships, time windows, working spheres, decisions, and confidence scores.</li>
+          <li><strong>Maintain:</strong> decay stale context, merge duplicate memories, preserve contradictions, and keep provenance visible.</li>
+          <li><strong>Admit:</strong> decide what a given agent, workflow, or teammate is allowed to see for a specific purpose.</li>
+          <li><strong>Learn:</strong> capture outcomes, corrections, overrides, and user feedback so the context graph improves without becoming opaque.</li>
+        </ol>
+
+        <p>
+          The admission layer is the part most products underinvest in. Context is powerful because
+          it is close to the work. That also makes it sensitive. The same trace that helps an agent
+          resume a task could expose private behavior if it is copied blindly into a prompt. Enterprise
+          systems need gates, not just connectors.
+        </p>
+
+        <h2>The Enterprise Version</h2>
+        <p>
+          In a company, the same pattern scales from the individual to the team. A single worker has
+          attention traces. A team has decision traces. A department has recurring exceptions,
+          escalation paths, undocumented rules, approval habits, and tool choreography. The context
+          moat is the system that captures this without flattening it into noise.
+        </p>
+
+        <p>
+          The payoff is not just better search. It is safer delegation. An agent can draft the next
+          action because it sees the allowed context. A manager can understand where work gets stuck.
+          A new employee can inherit the history of a process without reading six months of tickets.
+          An auditor can see why an automated recommendation was made.
+        </p>
+
+        <p>
+          The organizations that get this right will have agents that feel less like chat windows
+          and more like experienced colleagues. Not because the model is magical, but because the
+          surrounding context system gives it continuity, restraint, and institutional memory.
+        </p>
+
+        <h2>The Product Bet</h2>
+        <p>
+          The Digital Twin Sensor is a small prototype of that larger bet. It watches lightweight
+          computer-use signals, masks sensitive data before storage, groups activity into working
+          spheres, and exports summary-only context packs. The important decision is architectural:
+          treat context as a governed product surface, not as exhaust.
+        </p>
+
+        <p>
+          That is why the interface matters. A user should not have to trust a black box that claims
+          to understand them. They should see what was collected, what was redacted, what was inferred,
+          which signals are weak, which memories are aging out, and what exactly will be shared with
+          an agent. The UI is not decoration. It is the trust boundary.
+        </p>
+
+        <p>
+          If I were taking this into an enterprise pilot, I would measure four things before claiming
+          victory: time saved in task resumption, reduction in repeated briefing, precision of context
+          packs, and user trust in the privacy controls. The strongest context system will not be the
+          one that collects the deepest raw feed. It will be the one people are willing to keep running.
+        </p>
+
+        <h2>Where This Goes</h2>
+        <p>
+          The next version should go deeper, but carefully: richer browser and application adapters,
+          optional local screenshots with aggressive redaction, calendar and document linkage, team
+          memory spaces, and enterprise policy packs. Eye tracking and media-level attention can be
+          useful in controlled settings, but they belong behind explicit consent and narrow purpose,
+          not as a default capture mode.
+        </p>
+
+        <p>
+          The future is not a company where every human is monitored by an AI layer. That is the
+          wrong reading of the technology. The better future is one where work has memory, agents
+          have context, and people keep the right to inspect, correct, and limit what the system
+          thinks it knows.
+        </p>
+
+        <p>
+          Context is the moat because it is earned through real work. It cannot be bought fully formed.
+          It has to be instrumented, cleaned, governed, and trusted over time. That makes it slower
+          to build than a demo, but far harder to copy once it works.
+        </p>
+
+        <section id="notes" class="notes" aria-label="Research notes">
+          <h2>Research Notes That Shaped This</h2>
+          <p>
+            X-SYNTH frames context synthesis as a relevance and behavioral-signal problem, not just
+            retrieval. Recent agent-memory work argues that long-horizon agents need memory systems
+            with representation, extraction, routing, update, and maintenance. Context-graph writing
+            in the enterprise world points to a similar product conclusion: the valuable unit is the
+            decision trace, not another pile of raw data.
+          </p>
+          <div class="paper-links">
+            <a href="https://arxiv.org/abs/2605.15505" target="_blank" rel="noreferrer">X-SYNTH</a>
+            <a href="https://arxiv.org/abs/2510.04618" target="_blank" rel="noreferrer">Agentic Context Engineering</a>
+            <a href="https://arxiv.org/abs/2502.12110" target="_blank" rel="noreferrer">A-MEM</a>
+            <a href="https://arxiv.org/html/2606.24775v1" target="_blank" rel="noreferrer">Agent-Native Memory</a>
+            <a href="https://arize.com/blog/using-context-graphs-build-a-data-moat-like-googles-using-your-enterprise-data/" target="_blank" rel="noreferrer">Decision traces</a>
+          </div>
+        </section>
+      </article>
+
+      <section class="case-link" aria-label="Motion page link">
+        <p class="eyebrow">Companion piece</p>
+        <h2>See the motion case study for the Digital Twin Sensor.</h2>
+        <a class="button" href="../motion-page/">Open the motion page</a>
+      </section>
+    </main>
+  </body>
+</html>

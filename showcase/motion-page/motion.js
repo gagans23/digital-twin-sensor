@@ -7,7 +7,7 @@ let dpr = 1;
 let points = [];
 let pointer = { x: 0, y: 0, active: false };
 
-const colors = ["#66e5cf", "#ff7a59", "#6d5dfc", "#d99000", "#ffffff"];
+const colors = ["#9fb49f", "#c06a4d", "#a37d3f", "#6f8675", "#fbf6ec"];
 
 function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
@@ -63,8 +63,8 @@ function drawGrid(time) {
 function draw(time = 0) {
   ctx.clearRect(0, 0, width, height);
   const gradient = ctx.createRadialGradient(width * 0.66, height * 0.42, 20, width * 0.66, height * 0.42, Math.max(width, height) * 0.8);
-  gradient.addColorStop(0, "rgba(109, 93, 252, 0.32)");
-  gradient.addColorStop(0.38, "rgba(0, 166, 166, 0.14)");
+  gradient.addColorStop(0, "rgba(111, 134, 117, 0.28)");
+  gradient.addColorStop(0.38, "rgba(181, 92, 65, 0.12)");
   gradient.addColorStop(1, "rgba(8, 10, 15, 0)");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
@@ -79,7 +79,7 @@ function draw(time = 0) {
   for (let i = 1; i <= 4; i += 1) {
     ctx.beginPath();
     ctx.ellipse(cx, cy, orbit * (0.36 + i * 0.18), orbit * (0.2 + i * 0.12), i * 0.42 + time * 0.00008, 0, Math.PI * 2);
-    ctx.strokeStyle = i % 2 ? "#66e5cf" : "#ff7a59";
+    ctx.strokeStyle = i % 2 ? "#9fb49f" : "#c06a4d";
     ctx.lineWidth = 1;
     ctx.stroke();
   }
@@ -113,7 +113,7 @@ function draw(time = 0) {
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       if (dist < 118) {
         ctx.globalAlpha = (1 - dist / 118) * 0.2;
-        ctx.strokeStyle = a.gate || b.gate ? "#ff7a59" : "#66e5cf";
+        ctx.strokeStyle = a.gate || b.gate ? "#c06a4d" : "#9fb49f";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
@@ -138,8 +138,8 @@ function draw(time = 0) {
 
   if (width >= 720) {
     drawLabel(cx, cy, "Living context graph", "#ffffff");
-    drawLabel(width * 0.78, height * 0.66, "memory gate", "#66e5cf");
-    drawLabel(width * 0.53, height * 0.25, "attention trace", "#ff7a59");
+  drawLabel(width * 0.78, height * 0.66, "memory gate", "#9fb49f");
+  drawLabel(width * 0.53, height * 0.25, "attention trace", "#c06a4d");
   }
 
   if (!prefersReduced) {
