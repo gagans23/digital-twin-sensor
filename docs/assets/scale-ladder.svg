@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="430" viewBox="0 0 1180 430" role="img" aria-labelledby="t d">
+  <title id="t">Deployment scale ladder</title>
+  <desc id="d">Eight deployment tiers from individual to world. Observable practice rises steeply at each tier because context compounds across people.</desc>
+  <rect width="1180" height="430" rx="18" fill="#080A0F"/>
+  <text x="42" y="46" fill="#F7F4EB" font-family="system-ui,-apple-system,sans-serif" font-size="16" font-weight="800">Observable practice, by deployment tier</text>
+  <text x="42" y="70" fill="#8C97A6" font-family="ui-monospace,monospace" font-size="11" font-weight="600" letter-spacing="1.2">EACH TIER SEES SOMETHING THE ONE BELOW IT CANNOT</text>
+  <line x1="42" y1="344" x2="1138" y2="344" stroke="rgba(255,255,255,0.16)" stroke-width="1.5"/>
+  <path d="M93 318 L231 296 L369 268 L507 236 L645 198 L783 148 L921 90 L1059 44" fill="none" stroke="rgba(102,229,207,.45)" stroke-width="2"/>
+  <rect x="70" y="318" width="46" height="26" rx="4" fill="#2F7E6D"/>
+  <rect x="208" y="296" width="46" height="48" rx="4" fill="#3D8368"/>
+  <rect x="346" y="268" width="46" height="76" rx="4" fill="#548863"/>
+  <rect x="484" y="236" width="46" height="108" rx="4" fill="#6F8D5C"/>
+  <rect x="622" y="198" width="46" height="146" rx="4" fill="#8E9151"/>
+  <rect x="760" y="148" width="46" height="196" rx="4" fill="#A88F44"/>
+  <rect x="898" y="90" width="46" height="254" rx="4" fill="#BC8B34"/>
+  <rect x="1036" y="44" width="46" height="300" rx="4" fill="#C9962E"/>
+  <g font-family="ui-monospace,monospace" font-size="11" font-weight="700" fill="#E4E9F0" letter-spacing="1.1" text-anchor="middle">
+    <text x="93" y="370">INDIVIDUAL</text><text x="231" y="370">TEAM</text><text x="369" y="370">DEPARTMENT</text>
+    <text x="507" y="370">BUSINESS UNIT</text><text x="645" y="370">ORGANISATION</text><text x="783" y="370">SECTOR</text>
+    <text x="921" y="370">COUNTRY</text><text x="1059" y="370">WORLD</text>
+  </g>
+  <g font-family="ui-monospace,monospace" font-size="10.5" font-weight="600" fill="#7C8A99" text-anchor="middle">
+    <text x="93" y="392">1</text><text x="231" y="392">10s</text><text x="369" y="392">100s</text>
+    <text x="507" y="392">1,000s</text><text x="645" y="392">10,000s</text><text x="783" y="392">millions</text>
+    <text x="921" y="392">10s of millions</text><text x="1059" y="392">billions</text>
+  </g>
+  <text x="42" y="418" fill="#6E7A88" font-family="ui-monospace,monospace" font-size="10.5" font-weight="600">Height is observable practice, not headcount. The curve steepens because the seams between people are where undocumented knowledge sits.</text>
+</svg>

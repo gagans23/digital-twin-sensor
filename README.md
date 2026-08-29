@@ -1,28 +1,37 @@
 # Digital Twin Sensor
 
-A local-first, privacy-gated digital twin sensor for personal context engineering and agent handoff.
+**A local-first, privacy-gated context sensor for personal and enterprise context engineering.**
 
-Digital Twin Sensor observes lightweight computer-use signals on macOS, redacts sensitive information before storage, builds a living context graph, infers working spheres, and exports summary-only context packs for tools such as Kiro, Codex, and GitLab.
+![MIT licence](https://img.shields.io/badge/licence-MIT-B98A2F)
+![Python 3](https://img.shields.io/badge/python-3.10%2B-2F7E6D)
+![Platform macOS](https://img.shields.io/badge/platform-macOS-14263B)
+![Storage local SQLite](https://img.shields.io/badge/storage-local%20SQLite-5C6672)
+![Cloud upload none](https://img.shields.io/badge/cloud%20upload-none-A2432F)
+![Status prototype](https://img.shields.io/badge/status-working%20prototype-8F6A1C)
 
-It is inspired by X-SYNTH, context engineering, and agent-memory research, but it makes one important product choice: a digital twin should not be a raw surveillance log. It should be an explainable, governed context system with visible user control.
+Enterprise context does not live in documents. It lives in how work actually happens — what people attend to, in what order, what they abandon and return to. Documents are the residue of that process, not the process itself.
+
+This is a working sensor for the process. It observes lightweight computer-use signals on macOS, **redacts before it stores**, builds a living context graph, infers working spheres, and exports summary-only context packs for tools such as Kiro, Codex and GitLab.
+
+It is inspired by X-SYNTH, context-engineering and agent-memory research, but it makes one deliberate product choice: **a digital twin should not be a raw surveillance log.** It should be an explainable, governed context system with visible user control.
+
+> **Read the argument first:** [The Empty Window](https://gagansachdeva.com/writing/the-empty-window.html) · [Context Is The Moat](https://gagansachdeva.com/showcase/digital-twin-sensor/context-moat/) · [Visual case study](https://gagansachdeva.com/showcase/digital-twin-sensor/)
+
+---
+
+## Architecture
 
 ![Digital Twin Sensor architecture](docs/assets/architecture.svg)
 
-## What You Can Do With It
+Every box runs locally. The only thing that crosses a boundary is a context pack a gate has already approved. The sensor stays useful with the network off — that is a design constraint, not a limitation. An endpoint that degrades when disconnected gets uninstalled by exactly the people whose knowledge you most need.
 
-- See what apps, domains, and work artifacts are getting your attention.
-- Build a rolling Digital Twin Signature from observed focus patterns.
-- Understand active and suspended work through working spheres.
-- Generate resume packs for interrupted tasks.
-- Export privacy-gated context packs for Kiro, Codex, GitLab issues, or local files.
-- Inspect what was collected, what was inferred, and what was deliberately withheld.
-- Keep the collector and dashboard alive with macOS LaunchAgents and a watchdog.
-- Pause collection, resume collection, and purge expired local rows.
-- Use the included research notes and product logs as the basis for a publishable context-engineering paper.
+---
 
-## Product Pipeline
+## The pipeline
 
 ![Privacy-gated context pipeline](docs/assets/pipeline.svg)
+
+Two of the six stages are gates, not transforms. Redaction happens **before the write**, not before the query — which is the whole difference between a governed sensor and a surveillance log with a filter bolted on.
 
 ```mermaid
 flowchart LR
@@ -39,248 +48,365 @@ flowchart LR
   D --> K["Product Doctor + Watchdog"]
 ```
 
-## Privacy Boundary
+---
 
-Collected by default:
+## Capture depth — three separate decisions
 
-- active application
-- redacted window title
-- timestamp and dwell time
-- derived work domain
-- app-switching sequence
-- derived graph/sphere/context-pack metadata
+Nothing escalates on its own. Each depth is an explicit switch, and each one refuses more than it grants.
 
-Not collected by default:
+```mermaid
+flowchart TB
+  subgraph D1["DEPTH 1 · default"]
+    A1["active application"] --- A2["redacted window title"]
+    A3["timestamp + dwell"] --- A4["derived work domain"]
+    A5["app-switching sequence"]
+  end
+  subgraph D2["DEPTH 2 · opt-in"]
+    B1["browser tab title"] --- B2["browser domain"]
+    B3["URL path / query / fragment — OFF by default"]
+  end
+  subgraph D3["DEPTH 3 · allowlist only"]
+    C1["redacted UI labels + roles"] --- C2["named applications only"]
+    C3["no screenshots · no keystrokes · no video"]
+  end
+  D1 --> D2 --> D3
+```
 
-- keystrokes
-- clipboard
-- microphone
-- camera
-- raw screenshots
-- browser cookies
-- passwords or tokens
-- raw browser URL paths, queries, or fragments
-- raw cloud upload
-
-PII masking is enabled before events are written to SQLite. The redactor masks emails, credit-card-like numbers validated with Luhn, US SSNs, phone numbers, IP addresses, common secret/token shapes, URL paths, and configured names.
-
-## Quick Start
+The domain tells you the workstream. The query string tells you far more than anyone consented to. That is why they are separate flags.
 
 ```bash
-git clone <your-gitlab-repo-url>
-cd digital-twin-sensor-starter
+# attention shape only — the default
+digital-twin-sensor collect-once
+
+# add browser tab context, leave URL internals off
+digital-twin-sensor configure --depth 2 --browser-tab-details on \
+  --browser-url-path off --browser-url-query off
+
+# add redacted interface labels, for one named app
+digital-twin-sensor configure --depth 3 --accessibility-surface-details on \
+  --accessibility-app "Ibo Pro Player"
+```
+
+Full policy: [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.md)
+
+---
+
+## The privacy boundary
+
+| Collected by default | Never collected |
+| --- | --- |
+| active application | keystrokes |
+| redacted window title | clipboard contents |
+| timestamp and dwell time | microphone / camera |
+| derived work domain | raw screenshots or video |
+| app-switching sequence | browser cookies |
+| graph / sphere / pack metadata | passwords or tokens |
+| | raw URL paths, queries, fragments |
+| | any raw cloud upload |
+
+PII masking runs before events are written to SQLite. The redactor masks emails, Luhn-validated card numbers, US SSNs, phone numbers, IP addresses, common secret and token shapes, URL paths, and configured names.
+
+A worker who believes they are being logged changes what they do — and then you have captured the performance instead of the practice. The boundary is not a setting. It is the product.
+
+---
+
+## The Memory Admission Gate
+
+Nothing reaches an agent because it exists in the store. It reaches an agent because a gate decided it should, for a stated purpose.
+
+```mermaid
+flowchart TD
+  S["Working sphere + graph evidence"] --> P{"Declared purpose?"}
+  P -->|no| DENY["Deny — no purpose, no export"]
+  P -->|yes| R{"Sensitivity label"}
+  R -->|high| DENY
+  R -->|medium| M["Mask entities, keep structure"]
+  R -->|low| K["Keep"]
+  M --> F{"Freshness within window?"}
+  K --> F
+  F -->|stale| DROP["Drop evidence, note the gap"]
+  F -->|fresh| SUM["Summarise — no raw events"]
+  DROP --> SUM
+  SUM --> OUT["Context pack (Markdown / JSON)"]
+  OUT --> T["Kiro · Codex · GitLab"]
+```
+
+Every pack records what was withheld and why. An agent that cannot tell you what it did not have cannot be trusted with what it did.
+---
+
+## Memory as an operable service
+
+Agent memory degrades silently unless someone maintains it. This treats memory quality as an operations problem with visible health checks, not as a hidden backend detail.
+
+```mermaid
+flowchart LR
+  W["WRITE<br/>events, spheres, graph nodes"] --> MG["MANAGE<br/>link, evolve, deduplicate"]
+  MG --> RD["READ<br/>attention-weighted retrieval"]
+  RD --> MT["MAINTAIN<br/>stale nodes, drift, expiry"]
+  MT --> W
+  MT --> DOC["Product Doctor<br/>+ Watchdog"]
+  DOC --> HEALTH["/api/health · digital-twin-sensor doctor"]
+```
+
+The Product Ops surface reports stale nodes, disconnected graph communities, duplicate memories, sensitive rows nearing retention expiry, retrieval drift, and context cards with weak evidence support.
+
+---
+
+## From one machine to a fleet
+
+![Deployment scale ladder](docs/assets/scale-ladder.svg)
+
+One sensor is a personal tool. The interesting property of this class of system is that value does not scale linearly with deployment — it changes *kind* at each tier. New context appears that was invisible one level down, and with it a new set of things that can run without anyone asking.
+
+| Tier | Sees what the tier below cannot | Starts running by itself | What it costs |
+| --- | --- | --- | --- |
+| **Individual** | your own attention trace | resume packs after every interruption | your own consent, nothing more |
+| **Team** | the seam between people | expertise routing by practice, not job title | ten people can re-identify each other from "anonymous" data |
+| **Department** | process as practised vs as written | self-maintaining process map; exception patterns | aggregation floors become mandatory |
+| **Business unit** | the shadow operating model | measured hand-off latency; controls people route around | the findings will embarrass someone |
+| **Organisation** | institutional memory as a maintained asset | agents grounded in how *this* firm decides | works councils, regulators, a real internal argument |
+| **Sector** | practice compared across firms, federated | benchmarks of *how*, not just *what* | only works with cohort-size floors |
+| **Country** | where skills actually sit | policy effects measured in weeks | stops being a company's decision |
+| **World** | a live map of how human work is done | a training substrate for systems that understand work | the engineering is the easy half |
+
+The path from one sensor to a billion is packaging, enrollment, policy distribution and a sync protocol. All solved problems in endpoint management; none of them research. Somebody will build it. The only real question is whether the version that wins has a gate in it — and gates are cheap at tier one and impossible to retrofit at tier six.
+
+Fleet model and control-plane specification: [ENTERPRISE_PORTABILITY.md](ENTERPRISE_PORTABILITY.md)
+
+---
+
+## Implementation status
+
+Honest accounting. The endpoint half is built; the control plane is specified, not shipped.
+
+| Capability | Status |
+| --- | --- |
+| Attention collector with depth policy | ✅ built |
+| Pre-storage redaction | ✅ built |
+| Local SQLite store with retention purge | ✅ built |
+| Digital Twin Signature | ✅ built |
+| Context graph and working spheres | ✅ built |
+| Memory Admission Gate + context packs | ✅ built |
+| Product Doctor, watchdog, health API | ✅ built |
+| Fleet posture: identity, policy, connectors, sync-readiness | ✅ built |
+| Eleven-tab local dashboard | ✅ built |
+| Trust-calibration surfacing (confidence, evidence age) | 🟡 partial |
+| Memory maintenance diagnostics | 🟡 partial |
+| Evolving context cards | ⬜ designed |
+| Feedback-labelled pack evaluation | ⬜ designed |
+| Encrypted local store, signed installers | ⬜ designed |
+| Remote control plane, enrollment, audit log | ⬜ designed |
+| Windows / Linux endpoints | ⬜ designed |
+
+---
+
+## Research grounding
+
+This is not a from-scratch invention. Each design decision traces to something in the 2024–2026 literature, and the table below is the honest map of what was read, what it changed, and whether that change is actually in the code.
+
+| Paper | What it changed here | In code |
+| --- | --- | --- |
+| [X-SYNTH](https://arxiv.org/abs/2605.15505) — enterprise context from observed attention | Digital Twin Signature, attention filters, evidence weighting | ✅ |
+| [Context Engineering Survey](https://arxiv.org/abs/2507.13334) | framed the product as a pipeline, not a dashboard | ✅ |
+| [Memory in the Age of AI Agents](https://arxiv.org/abs/2512.13564) | split memory into event / sphere / graph / pack | ✅ |
+| [Digital Twins as Funhouse Mirrors](https://arxiv.org/abs/2509.19088) | refuse to claim a faithful human replica; show evidence gaps | ✅ |
+| [Agent-Native Memory Systems](https://arxiv.org/html/2606.24775v1) | expose representation / extraction / retrieval / maintenance as health checks | 🟡 |
+| [Trust Calibration in Twin Agents](https://arxiv.org/abs/2605.19838) | show confidence and error attribution before an agent speaks *as* the user | 🟡 |
+| [A-Mem](https://arxiv.org/abs/2502.12110) — agentic memory | evolving, linked memory instead of append-only logs | ⬜ |
+| [Agentic Context Engineering](https://arxiv.org/abs/2510.04618) | curate contexts as playbooks without context collapse | ⬜ |
+| [Memory for Autonomous LLM Agents](https://arxiv.org/html/2603.07670v1) | write / manage / read model plus maintenance jobs | ⬜ |
+| [Context Engineering via Digital-Twin MDP](https://arxiv.org/abs/2603.22083) | use feedback labels to evaluate pack policy offline | ⬜ |
+
+Full synthesis with product implications: [CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md](CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md) · extended reading: [RELATED_CONTEXT_PAPERS.md](RELATED_CONTEXT_PAPERS.md)
+
+### How this should be described
+
+> a privacy-gated context synthesis system from digital attention traces
+
+Not a faithful human replica. Known gaps: learned Query × Signature router, feedback-labelled evaluation, collective/team signal, encrypted storage, trust-calibration studies, an anti-overclaim benchmark.
+
+### Hypotheses worth testing
+
+- **H1** — Privacy-gated context packs improve task resumption over no context and over query-only retrieval.
+- **H2** — Working-sphere retrieval beats flat top-k event retrieval for interrupted work.
+- **H3** — Summary-only packs reduce leakage risk while preserving handoff utility.
+- **H4** — A visible Product Doctor improves trust calibration compared with a hidden collector.
+- **H5** — Memory maintenance reduces stale-context errors over multi-week use.
+
+Study design and metrics: [docs/RESEARCH_AND_EVALUATION.md](docs/RESEARCH_AND_EVALUATION.md)
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/gagans23/digital-twin-sensor.git
+cd digital-twin-sensor
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
+
 digital-twin-sensor init
 digital-twin-sensor collect-once
 digital-twin-sensor profile
 digital-twin-sensor ui
 ```
 
-Open:
+Open <http://127.0.0.1:8765/>.
 
-```text
-http://127.0.0.1:8765/
-```
+Do not open `digital_twin_sensor/ui_static/index.html` directly — the dashboard needs the local API server.
 
-Do not open `digital_twin_sensor/ui_static/index.html` directly for normal use. The dashboard needs the local API server.
+### macOS permissions
 
-## Install As A Background Sensor
+The active-window collector uses macOS Accessibility APIs through a native helper, with an AppleScript fallback. Enable your terminal or Python runtime under **System Settings → Privacy & Security → Accessibility**. Depth 2 and Depth 3 may additionally prompt for Automation permission for Safari, Chrome, or allowlisted apps.
+
+### Install as a background sensor
 
 ```bash
 chmod +x scripts/install_launch_agent.sh scripts/install_dashboard_agent.sh scripts/install_watchdog_agent.sh
 scripts/install_launch_agent.sh
 scripts/install_dashboard_agent.sh
 scripts/install_watchdog_agent.sh
-```
-
-This installs:
-
-- `com.local.digital-twin-sensor`: continuous collector
-- `com.local.digital-twin-dashboard`: local dashboard at `127.0.0.1:8765`
-- `com.local.digital-twin-watchdog`: scheduled self-heal check every 60 seconds
-
-Check status:
-
-```bash
 digital-twin-sensor doctor
 ```
 
-## macOS Permissions
+Three LaunchAgents, three jobs:
 
-The active-window collector uses macOS Accessibility APIs through a native helper or AppleScript fallback.
+| Service | Role |
+| --- | --- |
+| `com.local.digital-twin-sensor` | continuous collector |
+| `com.local.digital-twin-dashboard` | local dashboard on `127.0.0.1:8765` |
+| `com.local.digital-twin-watchdog` | scheduled self-heal check every 60 seconds |
 
-Open:
+The watchdog is scheduled rather than resident, so a healthy `launchctl print` may show it as `not running` with a recent zero exit code. That is correct.
 
-```text
-System Settings -> Privacy & Security -> Accessibility
+---
+
+## Module map
+
+```mermaid
+flowchart TB
+  cli["cli.py<br/>command surface"] --> collectors["collectors/<br/>macOS attention"]
+  collectors --> redaction["redaction.py<br/>mask before write"]
+  redaction --> store["store.py<br/>SQLite + retention"]
+  store --> twin["twin.py<br/>signature vectors"]
+  store --> cgraph["context_graph.py"]
+  store --> spheres["working_spheres.py"]
+  cgraph --> pack["context_pack.py<br/>admission gate"]
+  spheres --> pack
+  store --> query["query.py<br/>evidence retrieval"]
+  store --> health["health.py<br/>doctor"]
+  health --> fleet["fleet.py<br/>device posture"]
+  pack --> web["web.py + ui_static/<br/>local dashboard + API"]
+  query --> web
+  fleet --> web
 ```
 
-Enable the terminal app or Python runtime running the collector. When Depth 2 or Depth 3 app-specific metadata is enabled, macOS may also ask for Automation permission for Safari, Chrome, or allowlisted apps.
+`config.py` holds capture-depth policy, device identity and retention settings; every module reads its limits from there rather than deciding for itself.
+
+---
 
 ## Dashboard
 
-The dashboard is a local web console with:
+Eleven tabs, each answering a different question:
 
-- Overview: live twin cockpit, fidelity score, focus sphere, and privacy posture
-- Signal Depth: app attention, player visibility, capture-depth ladder, and eye-proxy planning
-- Product Ops: service health, self-heal, paper deviations, hardening gaps, and research backlog
-- Fleet: local endpoint posture, policy, connectors, and sync-readiness
-- Activities: inferred working spheres, session returns, and resume packs
-- Context Packs: Kiro/Codex/GitLab-ready gated Markdown or JSON
-- Context Graph: privacy-gated work graph
-- Twin Signature: behavioral vectors from attention traces
-- Evidence: X-SYNTH-lite query retrieval with selected filters
-- Events: local redacted event ledger
-- Privacy: captured/not-captured ledger, pause/resume, and retention purge
+| Tab | Question it answers |
+| --- | --- |
+| Overview | what is the twin's current state and privacy posture? |
+| Signal Depth | what is being captured, at what depth, and what is refused? |
+| Product Ops | is the memory service healthy — and where is it drifting? |
+| Fleet | what is this endpoint's policy, connector and sync posture? |
+| Activities | what work is open, suspended, or waiting to resume? |
+| Context Packs | what would an agent actually receive, and what was withheld? |
+| Context Graph | how does this work connect to other work? |
+| Twin Signature | what behavioural patterns does the attention trace imply? |
+| Evidence | what supports a given retrieval, and how fresh is it? |
+| Events | the raw redacted local ledger |
+| Privacy | captured / not-captured ledger, pause, resume, retention purge |
 
-## Showcase And Essay
+---
 
-A special website link is included at:
-
-```text
-showcase/index.html
-```
-
-It points to both the motion case study and the enterprise essay:
-
-```text
-showcase/motion-page/index.html
-showcase/context-moat/index.html
-```
-
-Run a static server from the repository root:
+## Common commands
 
 ```bash
-python3 -m http.server 8770
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8770/showcase/
-http://127.0.0.1:8770/showcase/motion-page/
-http://127.0.0.1:8770/showcase/context-moat/
-```
-
-## Common Commands
-
-Collect and analyze:
-
-```bash
+# collect and analyse
 digital-twin-sensor collect-once
 digital-twin-sensor run --interval 15
 digital-twin-sensor profile --short-days 5 --long-days 14
 digital-twin-sensor query "what did I repeatedly return to?"
-```
 
-Generate context:
-
-```bash
+# generate context
 digital-twin-sensor graph --days 14
 digital-twin-sensor activities --days 14
 digital-twin-sensor context-pack --days 14 --target kiro --format markdown
 digital-twin-sensor context-pack --days 14 --target gitlab --purpose gitlab --output work/context-pack.md
-```
 
-Operate safely:
-
-```bash
+# operate safely
 digital-twin-sensor doctor
 digital-twin-sensor watchdog --fix
+digital-twin-sensor fleet
 digital-twin-sensor pause
 digital-twin-sensor resume
 digital-twin-sensor purge --older-than-days 30 --yes
 ```
 
-Enable deeper capture:
+---
 
-```bash
-digital-twin-sensor configure --depth 2 --browser-tab-details on --browser-url-path off --browser-url-query off
-digital-twin-sensor configure --depth 3 --accessibility-surface-details on --accessibility-app "Ibo Pro Player"
-```
+## Local API
 
-Depth 3 stores redacted UI labels and roles only. It does not store screenshots, keystrokes, clipboard content, microphone input, camera input, or raw video.
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/overview` | twin cockpit state |
+| `GET /api/health` | doctor output, service and connector health |
+| `GET /api/context-pack` | gated pack for a declared purpose |
+| `GET /api/query` | evidence retrieval with filters |
+| `GET /api/fleet` | device identity, policy, sync-readiness |
+| `POST /api/collect-once` | single collection cycle |
+| `POST /api/admin/watchdog` | run self-heal |
+| `POST /api/admin/pause` · `/resume` | collection controls |
+| `POST /api/admin/purge-retention?confirm=purge-retention` | retention deletion |
 
-## Architecture
+Reference: [docs/API.md](docs/API.md)
 
-The system is built from small local modules:
+---
+
+## Layer responsibilities
 
 | Layer | Responsibility |
 | --- | --- |
 | Collector | macOS foreground app/window sampling with optional browser and Accessibility metadata |
-| Redaction | PII, names, credit cards, tokens, IPs, and URL-path masking before storage |
+| Redaction | PII, names, cards, tokens, IPs and URL-path masking before storage |
 | Store | local SQLite event ledger with retention deletion |
-| Digital Twin Signature | domain, rhythm, baseline, response, and diversity vectors |
-| Context graph | derived work graph over domains, apps, artifacts, tasks, time, and masked private signals |
-| Working spheres | inferred activities, interruptions, returns, and resume packs |
-| Context packs | purpose-gated Markdown/JSON export through Memory Admission Gate |
-| Product Ops | doctor, watchdog, health API, paper deviations, product gaps, and research backlog |
+| Digital Twin Signature | domain, rhythm, baseline, response and diversity vectors |
+| Context graph | work graph over domains, apps, artifacts, tasks, time, and masked private signals |
+| Working spheres | inferred activities, interruptions, returns and resume packs |
+| Context packs | purpose-gated Markdown/JSON export through the Memory Admission Gate |
+| Product Ops | doctor, watchdog, health API, paper deviations, gaps, research backlog |
+| Fleet | device identity, policy summary, connector inventory, sync-readiness gates |
 | Dashboard | local web UI served from `127.0.0.1` |
 
-Read the full technical architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-
-## API
-
-Local API endpoints include:
-
-- `GET /api/overview`
-- `GET /api/health`
-- `GET /api/context-pack`
-- `GET /api/query`
-- `GET /api/fleet`
-- `POST /api/collect-once`
-- `POST /api/admin/watchdog`
-- `POST /api/admin/pause`
-- `POST /api/admin/resume`
-- `POST /api/admin/purge-retention?confirm=purge-retention`
-
-Read the API reference: [docs/API.md](docs/API.md)
+---
 
 ## Documentation
 
 | Document | Purpose |
 | --- | --- |
-| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Installation and first run |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and data flow |
-| [docs/API.md](docs/API.md) | Local dashboard API |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Local and enterprise deployment path |
-| [docs/GITLAB_PUBLISHING.md](docs/GITLAB_PUBLISHING.md) | GitLab push, project metadata, and release commands |
-| [docs/RESEARCH_AND_EVALUATION.md](docs/RESEARCH_AND_EVALUATION.md) | Study design and metrics |
-| [showcase](showcase) | Special website link, motion case study, and enterprise context-moat essay |
-| [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.md) | Capture-depth and masking policy |
-| [CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md](CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md) | Last-three-year research synthesis |
-| [PRODUCT_BUILD_LOG.md](PRODUCT_BUILD_LOG.md) | Product build and validation log |
-| [SECURITY.md](SECURITY.md) | Vulnerability reporting and deployment cautions |
-| [SECURITY_PRIVACY.md](SECURITY_PRIVACY.md) | Security and privacy posture |
-| [ENTERPRISE_PORTABILITY.md](ENTERPRISE_PORTABILITY.md) | Fleet and enterprise portability model |
+| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | installation and first run |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | system architecture and data flow |
+| [docs/API.md](docs/API.md) | local dashboard API |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | local and enterprise deployment path |
+| [docs/RESEARCH_AND_EVALUATION.md](docs/RESEARCH_AND_EVALUATION.md) | study design and metrics |
+| [docs/GITLAB_PUBLISHING.md](docs/GITLAB_PUBLISHING.md) | GitLab push, project metadata, release commands |
+| [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.md) | capture-depth and masking policy |
+| [ENTERPRISE_PORTABILITY.md](ENTERPRISE_PORTABILITY.md) | fleet and control-plane model |
+| [CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md](CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md) | three-year research synthesis |
+| [RELATED_CONTEXT_PAPERS.md](RELATED_CONTEXT_PAPERS.md) | extended reading list |
+| [CONTEXT_CAPTURE_ROADMAP.md](CONTEXT_CAPTURE_ROADMAP.md) | what gets captured next, and why |
+| [PRODUCT_BUILD_LOG.md](PRODUCT_BUILD_LOG.md) | build and validation log |
+| [UI_RESEARCH_AND_DIRECTION.md](UI_RESEARCH_AND_DIRECTION.md) | interface research |
+| [SECURITY.md](SECURITY.md) · [SECURITY_PRIVACY.md](SECURITY_PRIVACY.md) | reporting, posture, deployment cautions |
+| [showcase/](showcase) | motion case study and the context-moat essay |
 
-## Research Positioning
-
-This project should be described as:
-
-```text
-a privacy-gated context synthesis system from digital attention traces
-```
-
-It should not yet be described as a faithful human replica.
-
-Current research gaps:
-
-- learned Query x Digital Twin Signature router
-- feedback-labeled evaluation
-- collective/team signal
-- encrypted storage
-- trust-calibration studies
-- anti-overclaim benchmark
-
-Good paper hypotheses:
-
-- Privacy-gated context packs improve task resumption compared with no context or query-only retrieval.
-- Working-sphere retrieval improves relevance for interrupted work compared with flat top-k event retrieval.
-- Summary-only context packs reduce leakage risk while preserving enough utility for agent handoff.
-- Visible product doctor diagnostics improve trust calibration compared with a hidden collector.
+---
 
 ## Testing
 
@@ -290,8 +416,14 @@ python3 -m compileall digital_twin_sensor
 node --check digital_twin_sensor/ui_static/app.js
 ```
 
-GitLab CI is included in `.gitlab-ci.yml`.
+Ten suites cover redaction, admission, attention depth, browser capture, accessibility surface, context graph, working spheres, packs, controls, fleet and health. CI config in `.gitlab-ci.yml`.
 
-## License
+---
+
+## Contributing
+
+Changes that widen the collection boundary need a matching change to [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.md), a test, and a visible surface in the Privacy tab. A capture capability that a user cannot see is a bug, regardless of how useful it is. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Licence
 
 MIT. See [LICENSE](LICENSE).
