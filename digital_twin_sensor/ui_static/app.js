@@ -1,5 +1,6 @@
 const state = {
   overview: null,
+  health: null,
   events: [],
   contextPack: null,
   days: 14,
@@ -89,6 +90,10 @@ function topWorkDomain(overview) {
 function collectorHealth(overview) {
   const collector = overview?.collector || {};
   const age = overview?.totals?.last_age_seconds;
+  const paused = Boolean(overview?.privacy?.collection_paused || collector.collection_paused);
+  if (paused) {
+    return { label: "Paused", tone: "attention", detail: "collection paused intentionally" };
+  }
   const running = collector.installed && ["active", "running"].includes(collector.state);
   if (running && age !== null && age !== undefined && age < 120) {
     return { label: "Live", tone: "ready", detail: `last sample ${fmtSeconds(age)} ago` };
@@ -387,6 +392,68 @@ function renderAttentionDepth(depth) {
   renderDepthRecommendations(depth.recommendations || []);
 }
 
+function renderProductOps(health) {
+  if (!$("opsStatus")) return;
+  state.health = health || null;
+  if (!health) {
+    $("opsStatus").textContent = "No health data";
+    renderStatusList("opsDiagnostics", [], "ops-card");
+    renderStatusList("opsBeyondPaper", [], "ops-card");
+    renderStatusList("opsPaperDeviations", [], "ops-card");
+    renderStatusList("opsProductGaps", [], "ops-card");
+    renderStatusList("opsResearchBacklog", [], "ops-card");
+    renderOpsServices(null);
+    return;
+  }
+
+  const status = health.status || "unknown";
+  $("opsStatus").textContent = status === "ready" ? "Ready" : status;
+  $("opsStatus").classList.toggle("ready", status === "ready");
+  $("opsStatus").classList.toggle("blocked", status === "blocked");
+
+  const summary = health.summary || {};
+  const last = health.last_event || {};
+  $("opsSummary").innerHTML = `
+    <div class="ops-summary-card ready"><b>${fmtCompact(summary.ready || 0)}</b><span>ready checks</span></div>
+    <div class="ops-summary-card attention"><b>${fmtCompact(summary.attention || 0)}</b><span>attention checks</span></div>
+    <div class="ops-summary-card blocked"><b>${fmtCompact(summary.blocked || 0)}</b><span>blocked checks</span></div>
+    <div class="ops-summary-card"><b>${last.last_age_seconds === null || last.last_age_seconds === undefined ? "none" : fmtSeconds(last.last_age_seconds)}</b><span>last sample</span></div>
+    <div class="ops-summary-card"><b>Depth ${escapeHtml(summary.capture_depth || 1)}</b><span>capture policy</span></div>
+  `;
+
+  renderOpsServices(health.services || {});
+  renderStatusList("opsDiagnostics", health.diagnostics || [], "ops-card");
+  renderStatusList("opsBeyondPaper", health.beyond_paper || [], "ops-card");
+  renderStatusList("opsPaperDeviations", health.paper_deviations || [], "ops-card");
+  renderStatusList("opsProductGaps", health.product_gaps || [], "ops-card");
+  renderStatusList("opsResearchBacklog", health.research_backlog || [], "ops-card");
+}
+
+function renderOpsServices(services) {
+  const root = $("opsServices");
+  if (!root) return;
+  if (!services) {
+    root.innerHTML = `<div class="empty">No service data yet.</div>`;
+    return;
+  }
+  root.innerHTML = Object.entries(services)
+    .map(([name, item]) => {
+      const displayState = name === "watchdog" && item.installed && item.state === "not running" ? "scheduled" : item.state;
+      const tone = fleetTone(displayState);
+      return `
+      <article class="service-card ${tone}">
+        <div class="status-card-head">
+          <h3>${escapeHtml(name)}</h3>
+          <span class="status-badge ${tone}">${escapeHtml(displayState || "unknown")}</span>
+        </div>
+        <p>pid ${escapeHtml(item.pid || "none")}</p>
+        <small>${escapeHtml(item.last_exit_code || item.detail || "no exit")}</small>
+      </article>
+    `;
+    })
+    .join("");
+}
+
 function renderAppAttention(items) {
   const root = $("appAttention");
   if (!root) return;
@@ -656,9 +723,12 @@ function setStatus(overview) {
   const events = overview.totals.events_in_window;
   const age = overview.totals.last_age_seconds;
   const collector = overview.collector || {};
+  const paused = Boolean(overview?.privacy?.collection_paused || collector.collection_paused);
   const running = collector.installed && ["active", "running"].includes(collector.state);
-  status.classList.toggle("ready", running && events > 0 && age !== null && age < 120);
-  if (running && age !== null && age < 120) {
+  status.classList.toggle("ready", !paused && running && events > 0 && age !== null && age < 120);
+  if (paused) {
+    status.textContent = "Paused by user";
+  } else if (running && age !== null && age < 120) {
     status.textContent = "Collecting";
   } else if (running && events > 0) {
     status.textContent = `Running · last ${fmtSeconds(age)} ago`;
@@ -771,9 +841,9 @@ function renderTransitions(items) {
 
 function fleetTone(status) {
   const value = String(status || "").toLowerCase();
-  if (["ready", "online", "implemented", "enabled", "local", "enrolled", "active", "steady", "rich", "captured", "watching"].includes(value)) return "ready";
-  if (["blocked", "offline", "off"].includes(value)) return "blocked";
-  if (["planned", "next", "not enrolled", "waiting", "stale", "attention", "collector-only", "opaque", "gated", "basic"].includes(value)) return "attention";
+  if (["ready", "online", "implemented", "enabled", "local", "enrolled", "active", "running", "scheduled", "steady", "rich", "captured", "watching"].includes(value)) return "ready";
+  if (["blocked", "offline", "off", "failed"].includes(value)) return "blocked";
+  if (["planned", "next", "not enrolled", "not installed", "waiting", "stale", "unsupported", "unknown", "attention", "collector-only", "opaque", "gated", "basic"].includes(value)) return "attention";
   return "neutral";
 }
 
@@ -866,6 +936,7 @@ function renderPolicy(policy) {
   }
   const rows = [
     ["Capture depth", `Depth ${policy.capture_depth ?? 1}`],
+    ["Collection", policy.collection_paused ? "paused" : "enabled"],
     ["PII masking", policy.mask_pii ? "on" : "off"],
     ["Browser tab detail", policy.browser_tab_details ? "on" : "off"],
     ["URL paths", policy.browser_url_path ? "stored" : "redacted"],
@@ -913,6 +984,9 @@ function renderStatusList(id, items, className) {
     const depth = item.depth ? `<span class="chip">${escapeHtml(item.depth)}</span>` : "";
     const scope = item.scope ? `<p>${escapeHtml(item.scope)}</p>` : "";
     const sync = item.sync_policy ? `<small>${escapeHtml(item.sync_policy)}</small>` : "";
+    const source = item.source
+      ? `<a class="source-link" href="${escapeHtml(item.source)}" target="_blank" rel="noreferrer">source paper</a>`
+      : "";
     node.innerHTML = `
       <div class="status-card-head">
         <h3>${escapeHtml(item.name)}</h3>
@@ -922,6 +996,7 @@ function renderStatusList(id, items, className) {
       ${scope}
       <p>${escapeHtml(item.detail || "")}</p>
       ${sync}
+      ${source}
     `;
     root.appendChild(node);
   }
@@ -1905,6 +1980,7 @@ function renderEvents(events) {
 }
 
 function renderPrivacy(privacy) {
+  if (!privacy) return;
   $("capturedList").innerHTML = privacy.captured.map((item) => `<div class="privacy-item">${escapeHtml(item)}</div>`).join("");
   $("notCapturedList").innerHTML = privacy.not_captured.map((item) => `<div class="privacy-item">${escapeHtml(item)}</div>`).join("");
   $("dataLocation").textContent = privacy.data_location;
@@ -1917,8 +1993,29 @@ function renderPrivacy(privacy) {
     <span class="flag ${privacy.redact_sensitive_titles ? "enabled" : ""}">sensitive redaction ${privacy.redact_sensitive_titles ? "on" : "off"}</span>
     <span class="flag ${privacy.mask_pii ? "enabled" : ""}">PII masking ${privacy.mask_pii ? "on" : "off"}</span>
     <span class="flag ${privacy.redact_url_paths ? "enabled" : ""}">URL paths ${privacy.redact_url_paths ? "masked" : "stored"}</span>
+    <span class="flag ${privacy.collection_paused ? "" : "enabled"}">collection ${privacy.collection_paused ? "paused" : "on"}</span>
     <span class="flag enabled">redacted: ${escapeHtml(summary)}</span>
   `;
+  renderCollectionControl(privacy);
+}
+
+function renderCollectionControl(privacy) {
+  const root = $("collectionControl");
+  if (!root) return;
+  const paused = Boolean(privacy.collection_paused);
+  const expired = Number(privacy.expired_event_count || 0);
+  root.innerHTML = `
+    <div class="privacy-control-card"><strong>${paused ? "Paused" : "Collecting"}</strong><span>collection mode</span></div>
+    <div class="privacy-control-card"><strong>${fmtCompact(privacy.retention_days || 30)}d</strong><span>retention window</span></div>
+    <div class="privacy-control-card"><strong>${fmtCompact(expired)}</strong><span>expired rows</span></div>
+    <div class="privacy-control-card"><strong>${privacy.oldest_event ? fmtTime(privacy.oldest_event) : "none"}</strong><span>oldest sample</span></div>
+  `;
+  const pauseButton = $("pauseCollectionBtn");
+  const resumeButton = $("resumeCollectionBtn");
+  const purgeButton = $("purgeRetentionBtn");
+  if (pauseButton) pauseButton.disabled = paused;
+  if (resumeButton) resumeButton.disabled = !paused;
+  if (purgeButton) purgeButton.disabled = expired <= 0;
 }
 
 async function runEvidenceQuery(text) {
@@ -1960,8 +2057,12 @@ async function runEvidenceQuery(text) {
 }
 
 async function refresh() {
-  const overview = await getJson(`/api/overview?days=${state.days}&limit=120`);
+  const [overview, health] = await Promise.all([
+    getJson(`/api/overview?days=${state.days}&limit=120`),
+    getJson("/api/health"),
+  ]);
   state.overview = overview;
+  state.health = health;
   state.events = overview.recent_events;
   renderMetrics(overview);
   renderTwinExperience(overview);
@@ -1972,6 +2073,7 @@ async function refresh() {
   renderRankList("topApps", overview.top_apps);
   renderTransitions(overview.transitions);
   renderAttentionDepth(overview.attention_depth);
+  renderProductOps(health);
   renderFleet(overview.fleet);
   renderActivities(overview.working_spheres);
   renderContextPack(overview.context_pack);
@@ -1988,6 +2090,23 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function activateView(viewName) {
+  const view = $(viewName);
+  const button = [...document.querySelectorAll(".tab")].find((tab) => tab.dataset.view === viewName);
+  if (!view || !button) return;
+  document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
+  document.querySelectorAll(".view").forEach((item) => item.classList.remove("active-view"));
+  button.classList.add("active");
+  view.classList.add("active-view");
+  button.scrollIntoView({ block: "nearest", inline: "nearest" });
+  if (viewName === "graph" && state.overview) {
+    window.requestAnimationFrame(() => renderContextGraph(state.overview.context_graph));
+  }
+  if (viewName === "signature" && state.overview) {
+    window.requestAnimationFrame(() => renderSignature(state.overview.profile));
+  }
 }
 
 function bindUi() {
@@ -2025,19 +2144,70 @@ function bindUi() {
 
   $("copyPackBtn").addEventListener("click", copyContextPack);
 
+  $("selfHealBtn").addEventListener("click", async () => {
+    try {
+      const result = await getJson("/api/admin/watchdog", { method: "POST" });
+      renderProductOps(result.report);
+      showToast(result.fixed ? "Watchdog applied a fix" : "Health check passed");
+      await refresh();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
+  $("pauseCollectionBtn").addEventListener("click", async () => {
+    try {
+      await getJson("/api/admin/pause", { method: "POST" });
+      showToast("Collection paused");
+      await refresh();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
+  $("resumeCollectionBtn").addEventListener("click", async () => {
+    try {
+      await getJson("/api/admin/resume", { method: "POST" });
+      showToast("Collection resumed");
+      await refresh();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
+  $("purgeRetentionBtn").addEventListener("click", async () => {
+    const privacy = state.overview?.privacy || {};
+    const expired = Number(privacy.expired_event_count || 0);
+    if (!expired) {
+      showToast("No expired rows to purge");
+      return;
+    }
+    if (!window.confirm(`Delete ${expired} local events older than ${privacy.retention_days || 30} days?`)) {
+      return;
+    }
+    try {
+      const result = await getJson("/api/admin/purge-retention?confirm=purge-retention", { method: "POST" });
+      showToast(`Deleted ${result.deleted} expired rows`);
+      await refresh();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
-      document.querySelectorAll(".view").forEach((view) => view.classList.remove("active-view"));
-      button.classList.add("active");
-      $(button.dataset.view).classList.add("active-view");
-      if (button.dataset.view === "graph" && state.overview) {
-        window.requestAnimationFrame(() => renderContextGraph(state.overview.context_graph));
-      }
-      if (button.dataset.view === "signature" && state.overview) {
-        window.requestAnimationFrame(() => renderSignature(state.overview.profile));
-      }
+      activateView(button.dataset.view);
+      window.history.replaceState(null, "", `#${button.dataset.view}`);
     });
+  });
+
+  const initialView = window.location.hash.replace("#", "").trim();
+  if (initialView) {
+    activateView(initialView);
+  }
+  window.addEventListener("hashchange", () => {
+    const nextView = window.location.hash.replace("#", "").trim();
+    if (nextView) activateView(nextView);
   });
 
   $("eventFilter").addEventListener("input", () => renderEvents(state.events));

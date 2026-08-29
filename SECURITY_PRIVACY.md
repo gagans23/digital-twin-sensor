@@ -47,3 +47,19 @@ Data is stored locally by default:
 ```
 
 The dashboard launched by `digital-twin-sensor ui` binds to `127.0.0.1` by default, so it is intended for local inspection on your machine. Do not expose it on a public network unless you first add authentication, transport security, retention controls, and explicit consent workflows.
+
+The Product Doctor and watchdog check operational metadata only: service state, process id, last exit code, sample freshness, configured privacy flags, database presence, and macOS permission posture. They do not inspect screenshots, keystrokes, clipboard content, microphone input, camera input, cookies, credentials, or raw document bodies.
+
+Collection can be paused without uninstalling the background service:
+
+```bash
+digital-twin-sensor pause
+digital-twin-sensor resume
+```
+
+Local deletion is guarded. The CLI requires `--yes`, and the dashboard purge route requires a confirmation token:
+
+```bash
+digital-twin-sensor purge --older-than-days 30 --yes
+digital-twin-sensor purge --all --yes
+```

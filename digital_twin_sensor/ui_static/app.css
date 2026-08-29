@@ -194,6 +194,11 @@ h4 {
   gap: 10px;
 }
 
+.flag-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .toolbar {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -238,6 +243,16 @@ input:focus {
   background: var(--ink);
   border-color: var(--ink);
   color: #ffffff;
+}
+
+.tool-button.danger {
+  border-color: rgba(255, 122, 89, 0.5);
+  color: var(--coral);
+}
+
+.tool-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
 }
 
 .button-icon {
@@ -334,6 +349,35 @@ input:focus {
   width: 11px;
 }
 
+.delete-icon {
+  border: 2px solid currentColor;
+  border-radius: 2px;
+  height: 12px;
+  margin-top: 3px;
+  width: 12px;
+}
+
+.delete-icon::before {
+  background: currentColor;
+  content: "";
+  height: 2px;
+  left: -2px;
+  position: absolute;
+  top: -5px;
+  width: 16px;
+}
+
+.delete-icon::after {
+  border-left: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  content: "";
+  height: 3px;
+  left: 3px;
+  position: absolute;
+  top: -8px;
+  width: 4px;
+}
+
 .tabs {
   background: rgba(8, 10, 15, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -384,7 +428,8 @@ input:focus {
 .fleet-grid,
 .activity-grid,
 .pack-grid,
-.depth-grid {
+.depth-grid,
+.ops-grid {
   display: grid;
   gap: 16px;
 }
@@ -414,7 +459,8 @@ input:focus {
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
 }
 
-.depth-grid {
+.depth-grid,
+.ops-grid {
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
 }
 
@@ -1114,6 +1160,108 @@ input:focus {
   padding: 10px;
 }
 
+.ops-hero {
+  background:
+    linear-gradient(135deg, rgba(102, 229, 207, 0.12), rgba(255, 255, 255, 0.94) 44%),
+    linear-gradient(315deg, rgba(109, 93, 252, 0.1), transparent 38%),
+    var(--surface);
+}
+
+.ops-summary,
+.ops-services,
+.ops-list,
+.ops-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.ops-summary {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.ops-summary-card,
+.service-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+  padding: 12px;
+}
+
+.ops-summary-card {
+  border-top: 4px solid var(--line-strong);
+  min-height: 86px;
+}
+
+.ops-summary-card.ready {
+  border-top-color: var(--green);
+}
+
+.ops-summary-card.attention {
+  border-top-color: var(--amber);
+}
+
+.ops-summary-card.blocked {
+  border-top-color: var(--coral);
+}
+
+.ops-summary-card b {
+  display: block;
+  font-size: 1.25rem;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.ops-summary-card span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 7px;
+}
+
+.ops-actions {
+  justify-content: end;
+  margin-top: 14px;
+}
+
+.service-card {
+  border-left: 4px solid var(--line-strong);
+  display: grid;
+  gap: 8px;
+}
+
+.service-card.ready {
+  border-left-color: var(--green);
+}
+
+.service-card.attention {
+  border-left-color: var(--amber);
+}
+
+.service-card.blocked {
+  border-left-color: var(--coral);
+}
+
+.service-card p,
+.service-card small {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.source-link {
+  align-self: start;
+  color: var(--teal-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
 .panel-head {
   align-items: flex-start;
   display: flex;
@@ -1134,8 +1282,11 @@ input:focus {
   display: inline-flex;
   font-size: 0.78rem;
   font-weight: 700;
+  max-width: 100%;
   min-height: 28px;
+  overflow-wrap: anywhere;
   padding: 5px 10px;
+  white-space: normal;
 }
 
 .status-pill {
@@ -1257,6 +1408,42 @@ input:focus {
 .withheld-list {
   display: grid;
   gap: 10px;
+}
+
+.privacy-control {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.privacy-control-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+  padding: 12px;
+}
+
+.privacy-control-card strong {
+  color: var(--ink);
+  display: block;
+  font-size: 1.2rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.privacy-control-card span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 7px;
+}
+
+.control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .insight {
@@ -2515,6 +2702,10 @@ tbody tr:last-child td {
   align-items: center;
   display: flex;
   gap: 10px;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .privacy-item::before {
@@ -2523,6 +2714,7 @@ tbody tr:last-child td {
   content: "";
   flex: none;
   height: 9px;
+  margin-top: 0.2em;
   width: 9px;
 }
 
@@ -2590,6 +2782,7 @@ tbody tr:last-child td {
   .activity-grid,
   .pack-grid,
   .depth-grid,
+  .ops-grid,
   .twin-experience,
   .twin-hero,
   .simulation-grid,
@@ -2614,7 +2807,9 @@ tbody tr:last-child td {
   }
 
   .depth-summary,
-  .app-attention {
+  .app-attention,
+  .ops-summary,
+  .privacy-control {
     grid-template-columns: 1fr;
   }
 
@@ -2694,7 +2889,9 @@ tbody tr:last-child td {
   .focus-measures,
   .depth-summary,
   .app-attention,
-  .depth-ladder {
+  .depth-ladder,
+  .ops-summary,
+  .privacy-control {
     grid-template-columns: 1fr;
   }
 
@@ -2757,7 +2954,8 @@ tbody tr:last-child td {
   .twin-map-shell,
   .focus-panel,
   .simulation-grid,
-  .depth-grid {
+  .depth-grid,
+  .ops-grid {
     min-width: 0;
     max-width: 100%;
   }

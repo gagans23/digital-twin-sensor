@@ -39,6 +39,7 @@
       <nav class="tabs" aria-label="Dashboard views">
         <button class="tab active" type="button" data-view="overview">Overview</button>
         <button class="tab" type="button" data-view="depth">Signal Depth</button>
+        <button class="tab" type="button" data-view="ops">Product Ops</button>
         <button class="tab" type="button" data-view="fleet">Fleet</button>
         <button class="tab" type="button" data-view="activities">Activities</button>
         <button class="tab" type="button" data-view="packs">Context Packs</button>
@@ -263,6 +264,67 @@
               <p class="kicker">Next Builds</p>
               <h2>Richer twin roadmap</h2>
               <div id="depthRecommendations" class="depth-recommendations"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="ops" class="view" aria-labelledby="opsTitle">
+          <div class="ops-grid">
+            <article class="panel wide ops-hero">
+              <div class="panel-head">
+                <div>
+                  <p class="kicker">Product Operations</p>
+                  <h2 id="opsTitle">Always-on health and research gap control</h2>
+                </div>
+                <span id="opsStatus" class="status-pill">Loading</span>
+              </div>
+              <div id="opsSummary" class="ops-summary"></div>
+              <div class="ops-actions">
+                <button id="selfHealBtn" class="tool-button primary" type="button" title="Run watchdog self-heal">
+                  <span class="button-icon refresh-icon" aria-hidden="true"></span>
+                  <span>Self-heal</span>
+                </button>
+              </div>
+            </article>
+
+            <aside class="panel">
+              <p class="kicker">Services</p>
+              <h2>Availability</h2>
+              <div id="opsServices" class="ops-services"></div>
+            </aside>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Diagnostics</p>
+                  <h2>Live product doctor</h2>
+                </div>
+              </div>
+              <div id="opsDiagnostics" class="ops-list"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Beyond Paper</p>
+              <h2>Implemented extensions</h2>
+              <div id="opsBeyondPaper" class="ops-list"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Paper Deviations</p>
+              <h2>Critical gaps</h2>
+              <div id="opsPaperDeviations" class="ops-list"></div>
+            </article>
+
+            <article class="panel wide">
+              <p class="kicker">Product Gaps</p>
+              <h2>Next hardening pushes</h2>
+              <div id="opsProductGaps" class="ops-list"></div>
+            </article>
+
+            <article class="panel wide">
+              <p class="kicker">Research Backlog</p>
+              <h2>Last-three-year ideas worth building</h2>
+              <div id="opsResearchBacklog" class="ops-list"></div>
             </article>
           </div>
         </section>
@@ -608,6 +670,25 @@
               <h2>Where it lives</h2>
               <p id="dataLocation" class="mono-line"></p>
               <div id="privacyFlags" class="flag-row"></div>
+            </article>
+            <article class="panel wide">
+              <p class="kicker">Collection Control</p>
+              <h2>Pause and retention</h2>
+              <div id="collectionControl" class="privacy-control"></div>
+              <div class="control-actions">
+                <button id="pauseCollectionBtn" class="tool-button" type="button" title="Pause background collection">
+                  <span class="button-icon record-icon" aria-hidden="true"></span>
+                  <span>Pause</span>
+                </button>
+                <button id="resumeCollectionBtn" class="tool-button primary" type="button" title="Resume background collection">
+                  <span class="button-icon refresh-icon" aria-hidden="true"></span>
+                  <span>Resume</span>
+                </button>
+                <button id="purgeRetentionBtn" class="tool-button danger" type="button" title="Delete events older than retention policy">
+                  <span class="button-icon delete-icon" aria-hidden="true"></span>
+                  <span>Purge expired</span>
+                </button>
+              </div>
             </article>
           </div>
         </section>

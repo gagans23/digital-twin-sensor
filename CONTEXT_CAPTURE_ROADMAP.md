@@ -76,17 +76,24 @@ Before any team or workplace use:
 - role-based access
 - connector-specific scopes
 
-Fleet status: Fleet Manager Lite is implemented locally. It exposes one local endpoint, collector/dashboard health, active policy, connector inventory, sync-readiness gates, and a portability checklist. Remote enrollment, SSO, signed installers, encrypted sync, and central audit logs are still future work.
+Fleet status: Fleet Manager Lite is implemented locally. It exposes one local endpoint, collector/dashboard health, watchdog posture, active policy, connector inventory, sync-readiness gates, and a portability checklist. Remote enrollment, SSO, signed installers, encrypted sync, and central audit logs are still future work.
+
+Product Ops status: implemented locally. `digital-twin-sensor doctor`, `/api/health`, and the Product Ops dashboard tab expose service availability, sample freshness, permission posture, privacy gates, paper deviations, product gaps, and a research-to-product backlog.
+
+User control status: implemented locally. `digital-twin-sensor pause`, `digital-twin-sensor resume`, guarded purge commands, and Privacy tab controls let the user stop collection or delete expired rows without uninstalling services.
 
 ## Recommended Next Build
 
-1. Add pause/resume controls.
-2. Add retention/delete commands.
-3. Add optional browser-history connector storing only domain and title.
-4. Add optional git-repo connector for branch, diff stats, and changed files.
-5. Add task-model induction on top of working spheres.
-6. Add graph-backed project/task community summaries.
-7. Add remote context-pack registry with explicit approval and audit trail.
-8. Add remote enrollment and summary-only fleet sync after encryption and signed installers.
+1. Add encrypted storage.
+2. Add a menubar status indicator.
+3. Add feedback labels for context packs and evidence results.
+4. Add evolving context cards with memory-maintenance diagnostics.
+5. Add optional browser-history connector storing only domain and title.
+6. Add optional git-repo connector for branch, diff stats, and changed files.
+7. Add task-model induction on top of working spheres.
+8. Add graph-backed project/task community summaries.
+9. Add remote context-pack registry with explicit approval and audit trail.
+10. Add remote enrollment and summary-only fleet sync after encryption and signed installers.
 
 See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.
+See `CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md` for the last-three-year paper synthesis behind the next build ideas.

@@ -6,6 +6,7 @@ import socket
 import urllib.parse
 import webbrowser
 from collections import Counter, defaultdict
+from datetime import timedelta
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -13,10 +14,11 @@ from pathlib import Path
 from typing import Any
 
 from .collectors.macos_active_window import build_event
-from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
+from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config, write_config
 from .context_graph import build_context_graph
 from .context_pack import build_context_pack
 from .fleet import DASHBOARD_SERVICE, SENSOR_SERVICE, build_fleet_status, service_status
+from .health import build_health_report, run_watchdog
 from .query import retrieve
 from .store import EventStore, parse_dt, utc_now
 from .twin import build_digital_twin_signature
@@ -595,7 +597,14 @@ def _attention_depth_payload(
     }
 
 
-def _privacy_payload(config: dict[str, Any], events: list[dict[str, Any]], db_path: Path) -> dict[str, Any]:
+def _privacy_payload(
+    config: dict[str, Any],
+    events: list[dict[str, Any]],
+    db_path: Path,
+    *,
+    expired_event_count: int = 0,
+    oldest_event: str | None = None,
+) -> dict[str, Any]:
     depth = int(config.get("context_capture_depth", 1))
     browser_depth = int(config.get("browser_tab_detail_min_depth", 2))
     ax_depth = int(config.get("accessibility_surface_min_depth", 3))
@@ -633,6 +642,10 @@ def _privacy_payload(config: dict[str, Any], events: list[dict[str, Any]], db_pa
         "mask_configured_names": bool(config.get("mask_configured_names", True)),
         "mask_ip_addresses": bool(config.get("mask_ip_addresses", True)),
         "redact_url_paths": bool(config.get("redact_url_paths", True)),
+        "collection_paused": bool(config.get("collection_paused", False)),
+        "retention_days": int(config.get("retention_days", 30)),
+        "expired_event_count": int(expired_event_count),
+        "oldest_event": oldest_event,
         "browser_tab_details": bool(config.get("enable_browser_tab_details", True) and depth >= browser_depth),
         "accessibility_surface_details": bool(
             config.get("enable_accessibility_surface_details", True) and depth >= ax_depth
@@ -660,6 +673,10 @@ def build_overview(
     store = EventStore(db_path)
     events = store.fetch_window(subject_id=subject_id, days=days)
     total_count = store.count_events(subject_id=subject_id)
+    retention_days = int(config.get("retention_days", 30))
+    retention_cutoff = utc_now() - timedelta(days=retention_days)
+    expired_event_count = store.count_before(subject_id=subject_id, cutoff=retention_cutoff)
+    oldest_event = store.oldest_event(subject_id=subject_id)
     store.close()
 
     total_dwell = sum(float(event["dwell_seconds"]) for event in events)
@@ -711,6 +728,7 @@ def build_overview(
         last_age_seconds = max(0, round((utc_now() - parse_dt(last_event)).total_seconds()))
 
     collector = _collector_status()
+    collector["collection_paused"] = bool(config.get("collection_paused", False))
     dashboard = service_status(DASHBOARD_SERVICE)
     fleet = build_fleet_status(
         events,
@@ -752,7 +770,43 @@ def build_overview(
         "hourly_heatmap": _hourly_heatmap(events),
         "transitions": _transitions(events),
         "recent_events": [_serialize_event(event) for event in recent_events],
-        "privacy": _privacy_payload(config, events, db_path),
+        "privacy": _privacy_payload(
+            config,
+            events,
+            db_path,
+            expired_event_count=expired_event_count,
+            oldest_event=oldest_event,
+        ),
+    }
+
+
+def _set_collection_paused(config_path: Path, paused: bool) -> dict[str, Any]:
+    ensure_config(config_path)
+    config = load_config(config_path)
+    config["collection_paused"] = paused
+    write_config(config, config_path)
+    return {
+        "collection_paused": paused,
+        "status": "paused" if paused else "collecting",
+    }
+
+
+def _purge_retention(db_path: Path, config_path: Path) -> dict[str, Any]:
+    config = load_config(config_path)
+    subject_id = config["subject_id"]
+    retention_days = int(config.get("retention_days", 30))
+    cutoff = utc_now() - timedelta(days=retention_days)
+    store = EventStore(db_path)
+    try:
+        deleted = store.delete_before(subject_id=subject_id, cutoff=cutoff)
+        remaining = store.count_events(subject_id=subject_id)
+    finally:
+        store.close()
+    return {
+        "deleted": deleted,
+        "remaining": remaining,
+        "retention_days": retention_days,
+        "cutoff": cutoff.isoformat(),
     }
 
 
@@ -927,6 +981,17 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 )
                 return
 
+            if route == "/api/health":
+                stale_after = _safe_int(query.get("stale_after", [None])[0], 180, 30, 3600)
+                self._send_json(
+                    build_health_report(
+                        db_path=self.server.db_path,
+                        config_path=self.server.config_path,
+                        stale_after_seconds=stale_after,
+                    )
+                )
+                return
+
             if route == "/api/query":
                 config = load_config(self.server.config_path)
                 text = query.get("q", [""])[0].strip()
@@ -949,12 +1014,52 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
-        if parsed.path != "/api/collect-once":
+        if parsed.path not in {
+            "/api/collect-once",
+            "/api/admin/watchdog",
+            "/api/admin/pause",
+            "/api/admin/resume",
+            "/api/admin/purge-retention",
+        }:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
         try:
             config = load_config(self.server.config_path)
+            if parsed.path == "/api/admin/watchdog":
+                self._send_json(
+                    run_watchdog(
+                        db_path=self.server.db_path,
+                        config_path=self.server.config_path,
+                        stale_after_seconds=180,
+                        fix=True,
+                    )
+                )
+                return
+
+            if parsed.path == "/api/admin/pause":
+                self._send_json(_set_collection_paused(self.server.config_path, True))
+                return
+
+            if parsed.path == "/api/admin/resume":
+                self._send_json(_set_collection_paused(self.server.config_path, False))
+                return
+
+            if parsed.path == "/api/admin/purge-retention":
+                query = urllib.parse.parse_qs(parsed.query)
+                if query.get("confirm", [""])[0] != "purge-retention":
+                    self._send_json(
+                        {"error": "purge requires confirm=purge-retention"},
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                    return
+                self._send_json(_purge_retention(self.server.db_path, self.server.config_path))
+                return
+
+            if config.get("collection_paused", False):
+                self._send_json({"stored": False, "reason": "collection_paused"})
+                return
+
             event = build_event(config, float(config.get("sample_interval_seconds", 15)))
             if event is None:
                 self._send_json({"stored": False, "reason": "ignored_app"})

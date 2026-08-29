@@ -117,6 +117,9 @@ def scrub_title(title: str, config: dict[str, Any]) -> str:
 
 
 def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] | None:
+    if config.get("collection_paused", False):
+        return None
+
     app, raw_title = active_window()
     ignored = should_ignore(app, config)
     if ignored and not config.get("record_ignored_apps_as_system_events", True):

@@ -31,6 +31,8 @@ This starter implements a single-user version:
 - browser surface details: active-tab metadata for Safari/Chrome at Depth 2+
 - app surface details: allowlisted Accessibility metadata for opaque apps at Depth 3+
 - attention depth: app attention, playback visibility, eye-proxy posture, and next build recommendations
+- product operations: health doctor, watchdog, self-heal endpoint, and research-to-product backlog
+- user control: pause/resume collection and purge events older than the retention policy
 - privacy gates: capture depth, pre-storage redaction, graph minimization, and sensitive-source boundaries
 - filters: proportional, inverse, differential, recurrent, comparative, sequential, collective
 - retrieval: `weight = attention_score * content_score`
@@ -65,6 +67,8 @@ It opens a local-only browser console with:
 - a simulation console for deciding what to continue, export, deepen, or deploy
 - context-fabric lanes from sensing to synthesis to agent handoff
 - a Signal Depth tab for app attention, player visibility, eye-proxy planning, and capture-depth readiness
+- a Product Ops tab for service availability, product doctor checks, paper deviations, product gaps, and research backlog
+- privacy controls for pausing collection, resuming collection, and purging expired local rows
 - collection health
 - attention by domain
 - working spheres and resume packs
@@ -90,6 +94,13 @@ To keep the dashboard available at login:
 ```bash
 chmod +x scripts/install_dashboard_agent.sh scripts/uninstall_dashboard_agent.sh
 scripts/install_dashboard_agent.sh
+```
+
+To keep the collector/dashboard self-healing:
+
+```bash
+chmod +x scripts/install_watchdog_agent.sh scripts/uninstall_watchdog_agent.sh
+scripts/install_watchdog_agent.sh
 ```
 
 For live collection:
@@ -191,6 +202,33 @@ Show local fleet/device management status:
 digital-twin-sensor fleet --days 14
 ```
 
+Run the product doctor:
+
+```bash
+digital-twin-sensor doctor
+digital-twin-sensor doctor --json
+```
+
+Run the watchdog self-heal check:
+
+```bash
+digital-twin-sensor watchdog --fix
+```
+
+Pause or resume collection without uninstalling the background service:
+
+```bash
+digital-twin-sensor pause
+digital-twin-sensor resume
+```
+
+Delete local rows older than the retention policy, or reset the local event ledger:
+
+```bash
+digital-twin-sensor purge --older-than-days 30 --yes
+digital-twin-sensor purge --all --yes
+```
+
 Export a summary-only context pack:
 
 ```bash
@@ -251,13 +289,21 @@ Add a browser-history connector that stores only URL domain and page title, with
 
 Next build steps:
 
-1. add explicit retention and deletion commands
-2. encrypt the SQLite database
-3. add IDE/calendar connectors with opt-in toggles
-4. add per-app Accessibility detail for opaque apps such as media players
-5. add local OCR summaries for explicitly allowlisted apps without storing screenshots
-6. grow working spheres into task models with objectives, steps, and blockers
-7. add graph-backed project/task clustering
+1. add encrypted storage
+2. add a menubar status indicator
+3. add feedback buttons to context packs and evidence results
+4. add evolving context cards and memory-maintenance diagnostics
+5. add IDE/calendar/git connectors with opt-in toggles
+6. add local OCR summaries for explicitly allowlisted apps without storing screenshots
+7. grow working spheres into task models with objectives, steps, and blockers
+8. add GitLab summary sync for approved context packs and health reports
+
+See also:
+
+- `PRODUCT_BUILD_LOG.md`
+- `CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md`
+- `COLLECTION_DEPTH_AND_REDACTION.md`
+- `ENTERPRISE_PORTABILITY.md`
 8. add local embeddings for semantic content scoring
 9. add a small local API for querying the twin
 10. add feedback buttons so good/bad answers can tune filter selection

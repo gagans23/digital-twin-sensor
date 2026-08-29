@@ -94,6 +94,7 @@ def _policy(config: dict[str, Any]) -> dict[str, Any]:
         "name": config.get("fleet_policy_name", "Local Enterprise Baseline"),
         "version": config.get("fleet_policy_version", "local-dev"),
         "capture_depth": depth,
+        "collection_paused": bool(config.get("collection_paused", False)),
         "retention_days": int(config.get("retention_days", 30)),
         "mask_pii": bool(config.get("mask_pii", True)),
         "redact_url_paths": bool(config.get("redact_url_paths", True)),

@@ -4,16 +4,18 @@ import argparse
 import json
 import sys
 import time
+from datetime import timedelta
 from pathlib import Path
 
 from .collectors.macos_active_window import build_event
-from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config
+from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config, write_config
 from .context_pack import PURPOSES, TARGETS, build_context_pack
 from .context_graph import build_context_graph
 from .fleet import build_fleet_status
+from .health import build_health_report, format_health_report, run_watchdog
 from .query import format_retrieval, retrieve
 from .redaction import redact_text
-from .store import EventStore
+from .store import EventStore, utc_now
 from .twin import build_digital_twin_signature
 from .web import run_dashboard
 from .working_spheres import build_working_spheres
@@ -60,9 +62,19 @@ def cmd_run(args: argparse.Namespace) -> int:
     interval = args.interval or int(config.get("sample_interval_seconds", 15))
     store = EventStore(args.db)
     print(f"Collecting active-window attention every {interval}s. Press Ctrl-C to stop.")
+    paused_logged = False
     try:
         while True:
             try:
+                config = load_config(args.config)
+                interval = args.interval or int(config.get("sample_interval_seconds", 15))
+                if config.get("collection_paused", False):
+                    if args.verbose and not paused_logged:
+                        print("collection paused by config")
+                    paused_logged = True
+                    time.sleep(interval)
+                    continue
+                paused_logged = False
                 event = build_event(config, interval)
                 if event is not None:
                     store.insert_event(event)
@@ -78,6 +90,24 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("\nStopped.")
     finally:
         store.close()
+    return 0
+
+
+def cmd_pause(args: argparse.Namespace) -> int:
+    config_path = ensure_config(args.config)
+    config = load_config(config_path)
+    config["collection_paused"] = True
+    write_config(config, config_path)
+    print("Collection paused. Background services stay installed, but no new focus events are stored.")
+    return 0
+
+
+def cmd_resume(args: argparse.Namespace) -> int:
+    config_path = ensure_config(args.config)
+    config = load_config(config_path)
+    config["collection_paused"] = False
+    write_config(config, config_path)
+    print("Collection resumed.")
     return 0
 
 
@@ -179,9 +209,7 @@ def cmd_configure(args: argparse.Namespace) -> int:
     if args.raw_event_upload is not None:
         config["fleet_raw_event_upload"] = args.raw_event_upload
 
-    with config_path.open("w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2)
-        f.write("\n")
+    write_config(config, config_path)
 
     keys = [
         "context_capture_depth",
@@ -219,6 +247,39 @@ def cmd_fleet(args: argparse.Namespace) -> int:
         total_count=total_count,
     )
     print(json.dumps(status, indent=2))
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    report = build_health_report(
+        db_path=args.db,
+        config_path=args.config,
+        stale_after_seconds=args.stale_after,
+    )
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(format_health_report(report))
+    return 0 if report["status"] != "blocked" else 2
+
+
+def cmd_watchdog(args: argparse.Namespace) -> int:
+    result = run_watchdog(
+        db_path=args.db,
+        config_path=args.config,
+        stale_after_seconds=args.stale_after,
+        fix=args.fix,
+    )
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(format_health_report(result["report"]))
+        if result["actions"]:
+            print("")
+            print("Actions:")
+            for action in result["actions"]:
+                detail = f" {action.get('detail', '')}" if action.get("detail") else ""
+                print(f"- {action['status']}: {action['service']}{detail}")
     return 0
 
 
@@ -298,6 +359,30 @@ def cmd_redact_existing(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_purge(args: argparse.Namespace) -> int:
+    if not args.yes:
+        print("Refusing to delete without --yes.")
+        return 2
+
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = EventStore(args.db)
+    try:
+        if args.all:
+            deleted = store.delete_all(subject_id=subject_id)
+            mode = "all local events"
+        else:
+            days = max(0, int(args.older_than_days))
+            cutoff = utc_now() - timedelta(days=days)
+            deleted = store.delete_before(cutoff=cutoff, subject_id=subject_id)
+            mode = f"events older than {days} days"
+    finally:
+        store.close()
+
+    print(json.dumps({"deleted": deleted, "scope": mode, "subject_id": subject_id}, indent=2))
+    return 0
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     run_dashboard(
         db_path=args.db,
@@ -331,6 +416,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--interval", type=int, default=None)
     run.add_argument("--verbose", action="store_true")
     run.set_defaults(func=cmd_run)
+
+    pause = sub.add_parser("pause", help="Pause collection without uninstalling services.")
+    pause.set_defaults(func=cmd_pause)
+
+    resume = sub.add_parser("resume", help="Resume collection after a pause.")
+    resume.set_defaults(func=cmd_resume)
 
     profile = sub.add_parser("profile", help="Print the Digital Twin Signature as JSON.")
     profile.add_argument("--subject-id", default=None)
@@ -382,6 +473,17 @@ def build_parser() -> argparse.ArgumentParser:
     fleet.add_argument("--days", type=int, default=14)
     fleet.set_defaults(func=cmd_fleet)
 
+    doctor = sub.add_parser("doctor", help="Run product health, permission, privacy, and paper-gap diagnostics.")
+    doctor.add_argument("--stale-after", type=int, default=180)
+    doctor.add_argument("--json", action="store_true")
+    doctor.set_defaults(func=cmd_doctor)
+
+    watchdog = sub.add_parser("watchdog", help="Check service freshness and optionally restart stale services.")
+    watchdog.add_argument("--stale-after", type=int, default=180)
+    watchdog.add_argument("--fix", action="store_true")
+    watchdog.add_argument("--json", action="store_true")
+    watchdog.set_defaults(func=cmd_watchdog)
+
     context_pack = sub.add_parser(
         "context-pack",
         help="Export a gated working-sphere context pack for Kiro, Codex, GitLab, or a local file.",
@@ -406,6 +508,14 @@ def build_parser() -> argparse.ArgumentParser:
     redact.add_argument("--days", type=int, default=3650)
     redact.add_argument("--dry-run", action="store_true")
     redact.set_defaults(func=cmd_redact_existing)
+
+    purge = sub.add_parser("purge", help="Delete local events for retention or reset.")
+    purge.add_argument("--subject-id", default=None)
+    purge_mode = purge.add_mutually_exclusive_group(required=True)
+    purge_mode.add_argument("--older-than-days", type=int, default=None)
+    purge_mode.add_argument("--all", action="store_true")
+    purge.add_argument("--yes", action="store_true")
+    purge.set_defaults(func=cmd_purge)
 
     ui = sub.add_parser("ui", help="Launch the local Digital Twin Console.")
     ui.add_argument("--host", default="127.0.0.1")

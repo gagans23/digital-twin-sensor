@@ -134,6 +134,48 @@ class EventStore:
             row = self.conn.execute("SELECT COUNT(*) AS count FROM events").fetchone()
         return int(row["count"])
 
+    def count_before(self, *, cutoff: datetime, subject_id: str | None = None) -> int:
+        if subject_id:
+            row = self.conn.execute(
+                "SELECT COUNT(*) AS count FROM events WHERE subject_id = ? AND ts_start < ?",
+                (subject_id, cutoff.isoformat()),
+            ).fetchone()
+        else:
+            row = self.conn.execute(
+                "SELECT COUNT(*) AS count FROM events WHERE ts_start < ?",
+                (cutoff.isoformat(),),
+            ).fetchone()
+        return int(row["count"])
+
+    def oldest_event(self, *, subject_id: str | None = None) -> str | None:
+        if subject_id:
+            row = self.conn.execute(
+                "SELECT ts_start FROM events WHERE subject_id = ? ORDER BY ts_start ASC LIMIT 1",
+                (subject_id,),
+            ).fetchone()
+        else:
+            row = self.conn.execute("SELECT ts_start FROM events ORDER BY ts_start ASC LIMIT 1").fetchone()
+        return str(row["ts_start"]) if row else None
+
+    def delete_before(self, *, cutoff: datetime, subject_id: str | None = None) -> int:
+        if subject_id:
+            cur = self.conn.execute(
+                "DELETE FROM events WHERE subject_id = ? AND ts_start < ?",
+                (subject_id, cutoff.isoformat()),
+            )
+        else:
+            cur = self.conn.execute("DELETE FROM events WHERE ts_start < ?", (cutoff.isoformat(),))
+        self.conn.commit()
+        return int(cur.rowcount)
+
+    def delete_all(self, *, subject_id: str | None = None) -> int:
+        if subject_id:
+            cur = self.conn.execute("DELETE FROM events WHERE subject_id = ?", (subject_id,))
+        else:
+            cur = self.conn.execute("DELETE FROM events")
+        self.conn.commit()
+        return int(cur.rowcount)
+
     def update_event_text(
         self,
         event_id: int,

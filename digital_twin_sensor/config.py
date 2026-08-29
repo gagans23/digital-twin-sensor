@@ -56,6 +56,7 @@ def _default_device_name() -> str:
 DEFAULT_CONFIG: dict[str, Any] = {
     "subject_id": os.environ.get("USER", "local-user"),
     "sample_interval_seconds": 15,
+    "collection_paused": False,
     "capture_window_title": True,
     "redact_sensitive_titles": True,
     "record_ignored_apps_as_system_events": True,
@@ -180,4 +181,13 @@ def ensure_config(path: Path = DEFAULT_CONFIG_PATH) -> Path:
         with path.open("w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
             f.write("\n")
+    return path
+
+
+def write_config(config: dict[str, Any], path: Path = DEFAULT_CONFIG_PATH) -> Path:
+    path = path.expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+        f.write("\n")
     return path

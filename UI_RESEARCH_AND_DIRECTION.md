@@ -37,6 +37,7 @@ The UI avoids a pure enterprise landing-page feel. It uses:
 - Overview: fast answer to current collection state and attention distribution
 - Twin Cockpit: live user twin, fidelity score, current sphere, attention compass, scenario rehearsal, and governance stack
 - Signal Depth: application attention, playback visibility, capture-depth ladder, and eye-proxy posture
+- Product Ops: always-on service posture, product doctor, self-heal action, implemented extensions, paper deviations, hardening gaps, and research backlog
 - Fleet: endpoint health, policy, connectors, sync-readiness, and portability
 - Activities: inferred working spheres, session returns, resume packs, and grouping explanations
 - Surface Detail: per-app cards showing what is known, what is missing, and how to deepen capture safely
@@ -46,10 +47,10 @@ The UI avoids a pure enterprise landing-page feel. It uses:
 - Evidence: query interface that exposes selected filters and ranked artifacts
 - Events: raw ledger for auditability
 - Privacy: captured/not-captured boundaries and local database path
+- Collection Control: pause/resume state, retention window, expired rows, and guarded local purge
 
 ## Next Product Improvements
 
-- add deletion and retention controls directly in the Privacy tab
 - add a menubar indicator for sensor-on/sensor-off state
 - add local semantic embeddings for better content scoring
 - add feedback buttons to tune filter selection
@@ -57,3 +58,4 @@ The UI avoids a pure enterprise landing-page feel. It uses:
 - add encrypted local storage before any workplace deployment
 - add a cursor/scroll heatmap proxy before considering camera-based gaze
 - add local OCR summaries only after allowlisted Accessibility metadata fails
+- keep a research-to-product backlog visible in Product Ops so the product can evolve without overclaiming the paper
