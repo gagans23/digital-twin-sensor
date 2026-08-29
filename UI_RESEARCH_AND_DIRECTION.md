@@ -36,6 +36,7 @@ The UI avoids a pure enterprise landing-page feel. It uses:
 
 - Overview: fast answer to current collection state and attention distribution
 - Twin Cockpit: live user twin, fidelity score, current sphere, attention compass, scenario rehearsal, and governance stack
+- Signal Depth: application attention, playback visibility, capture-depth ladder, and eye-proxy posture
 - Fleet: endpoint health, policy, connectors, sync-readiness, and portability
 - Activities: inferred working spheres, session returns, resume packs, and grouping explanations
 - Surface Detail: per-app cards showing what is known, what is missing, and how to deepen capture safely
@@ -54,3 +55,5 @@ The UI avoids a pure enterprise landing-page feel. It uses:
 - add feedback buttons to tune filter selection
 - add connector-level toggles for browser, IDE, calendar, and documents
 - add encrypted local storage before any workplace deployment
+- add a cursor/scroll heatmap proxy before considering camera-based gaze
+- add local OCR summaries only after allowlisted Accessibility metadata fails

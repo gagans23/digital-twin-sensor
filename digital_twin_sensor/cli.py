@@ -157,6 +157,17 @@ def cmd_configure(args: argparse.Namespace) -> int:
         config["browser_tab_store_url_path"] = args.browser_url_path
     if args.browser_url_query is not None:
         config["browser_tab_store_query"] = args.browser_url_query
+    if args.accessibility_surface_details is not None:
+        config["enable_accessibility_surface_details"] = args.accessibility_surface_details
+    if args.accessibility_app:
+        existing = [str(item) for item in config.get("accessibility_surface_detail_apps", [])]
+        seen = {item.lower() for item in existing}
+        for app in args.accessibility_app:
+            name = app.strip()
+            if name and name.lower() not in seen:
+                existing.append(name)
+                seen.add(name.lower())
+        config["accessibility_surface_detail_apps"] = existing
     if args.fleet_device_name is not None:
         config["fleet_device_name"] = args.fleet_device_name.strip() or config.get("fleet_device_name")
     if args.fleet_control_plane_url is not None:
@@ -179,6 +190,9 @@ def cmd_configure(args: argparse.Namespace) -> int:
         "browser_tab_detail_apps",
         "browser_tab_store_url_path",
         "browser_tab_store_query",
+        "enable_accessibility_surface_details",
+        "accessibility_surface_min_depth",
+        "accessibility_surface_detail_apps",
         "fleet_device_id",
         "fleet_device_name",
         "fleet_control_plane_url",
@@ -350,6 +364,8 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--browser-tab-details", type=_toggle, default=None, metavar="on|off")
     configure.add_argument("--browser-url-path", type=_toggle, default=None, metavar="on|off")
     configure.add_argument("--browser-url-query", type=_toggle, default=None, metavar="on|off")
+    configure.add_argument("--accessibility-surface-details", type=_toggle, default=None, metavar="on|off")
+    configure.add_argument("--accessibility-app", action="append", default=[], metavar="APP")
     configure.add_argument("--fleet-device-name", default=None)
     configure.add_argument("--fleet-control-plane-url", default=None)
     configure.add_argument("--fleet-sync", type=_toggle, default=None, metavar="on|off")

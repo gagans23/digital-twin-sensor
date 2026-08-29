@@ -129,8 +129,10 @@ def _top_items(events: list[dict[str, Any]], key: str, limit: int = 10) -> list[
 def _surface_details(events: list[dict[str, Any]], config: dict[str, Any], limit: int = 8) -> list[dict[str, Any]]:
     by_app: dict[str, dict[str, Any]] = {}
     browser_apps = {str(item).lower() for item in config.get("browser_tab_detail_apps", [])}
+    accessibility_apps = {str(item).lower() for item in config.get("accessibility_surface_detail_apps", [])}
     depth = int(config.get("context_capture_depth", 1))
     browser_min_depth = int(config.get("browser_tab_detail_min_depth", 2))
+    accessibility_min_depth = int(config.get("accessibility_surface_min_depth", 3))
 
     for event in events:
         if event.get("domain") == "system" or event.get("action") == "system":
@@ -179,13 +181,22 @@ def _surface_details(events: list[dict[str, Any]], config: dict[str, Any], limit
         privacy_boundary = "No screenshots, keystrokes, clipboard, microphone, or document bodies."
 
         if item["surface_detail_events"]:
-            status = "browser detail captured"
-            detail_level = "Depth 2 metadata"
-            known_fields = ["tab title", "URL domain", "sanitized URL", "dwell time", "switch sequence"]
-            domain = latest_detail.get("url_domain") or "unknown domain"
-            what_we_know = f"The active tab metadata is captured for {domain}; URL paths and queries are redacted by default."
-            how_to_deepen = "Optional next step: store URL paths for selected domains only, still stripping query strings and fragments."
-            privacy_boundary = latest_detail.get("privacy", privacy_boundary)
+            if latest_detail.get("kind") == "accessibility_snapshot":
+                status = "in-app surface captured"
+                detail_level = "Depth 3 UI metadata"
+                known_fields = ["UI roles", "redacted visible labels", "dwell time", "switch sequence"]
+                roles = ", ".join(item["role"] for item in latest_detail.get("roles", [])[:3]) or "UI elements"
+                what_we_know = f"Accessibility exposed {latest_detail.get('element_count', 0)} UI elements; strongest roles are {roles}."
+                how_to_deepen = "If playback title/channel is still absent, add an app-specific connector or local OCR summary gate."
+                privacy_boundary = latest_detail.get("privacy", privacy_boundary)
+            else:
+                status = "browser detail captured"
+                detail_level = "Depth 2 metadata"
+                known_fields = ["tab title", "URL domain", "sanitized URL", "dwell time", "switch sequence"]
+                domain = latest_detail.get("url_domain") or "unknown domain"
+                what_we_know = f"The active tab metadata is captured for {domain}; URL paths and queries are redacted by default."
+                how_to_deepen = "Optional next step: store URL paths for selected domains only, still stripping query strings and fragments."
+                privacy_boundary = latest_detail.get("privacy", privacy_boundary)
         elif app_key in browser_apps:
             status = "browser detail available"
             detail_level = f"Depth {browser_min_depth} ready" if depth < browser_min_depth else "waiting for tab sample"
@@ -197,6 +208,17 @@ def _surface_details(events: list[dict[str, Any]], config: dict[str, Any], limit
                 what_we_know = f"{app} is eligible for tab detail. The next frontmost sample should include tab title and sanitized URL metadata."
                 how_to_deepen = "Keep Safari/Chrome frontmost for a sample interval, then refresh this dashboard."
             privacy_boundary = "URL path, query, fragment, usernames, passwords, and PII are redacted before storage."
+        elif app_key in accessibility_apps:
+            status = "in-app detail available"
+            detail_level = f"Depth {accessibility_min_depth} gated" if depth < accessibility_min_depth else "waiting for UI sample"
+            known_fields = ["app", "window title", "dwell time", "domain"]
+            if depth < accessibility_min_depth:
+                what_we_know = f"{app} is allowlisted for Accessibility metadata, but capture depth is {depth}; it activates at Depth {accessibility_min_depth}."
+                how_to_deepen = f"Set context_capture_depth to {accessibility_min_depth} to capture redacted UI labels exposed by this app."
+            else:
+                what_we_know = f"{app} is eligible for an allowlisted Accessibility snapshot. The next frontmost sample may include visible UI labels."
+                how_to_deepen = "Keep the app frontmost for a sample interval. If no labels appear, build an app-specific connector or OCR summary gate."
+            privacy_boundary = "Only redacted UI labels and roles are stored; no screenshots, keystrokes, clipboard, or camera."
         elif "ibo pro player" in app_key:
             status = "opaque app"
             detail_level = "Depth 1 only"
@@ -210,6 +232,7 @@ def _surface_details(events: list[dict[str, Any]], config: dict[str, Any], limit
                 "status": status,
                 "detail_level": detail_level,
                 "events": int(item["events"]),
+                "surface_detail_events": int(item["surface_detail_events"]),
                 "dwell_seconds": round(item["dwell_seconds"], 2),
                 "hours": _seconds_to_hours(item["dwell_seconds"]),
                 "domain": item["domains"].most_common(1)[0][0] if item["domains"] else "other",
@@ -328,9 +351,254 @@ def _interpret(profile: dict[str, Any], events: list[dict[str, Any]]) -> list[di
     return insights
 
 
+def _surface_detail_kind(event: dict[str, Any]) -> str:
+    detail = event.get("metadata", {}).get("surface_detail")
+    if isinstance(detail, dict):
+        return str(detail.get("kind", ""))
+    return ""
+
+
+def _is_media_surface(app: str, title: str, detail: dict[str, Any] | None = None) -> bool:
+    detail = detail or {}
+    haystack = " ".join(
+        [
+            app,
+            title,
+            str(detail.get("url_domain", "")),
+            " ".join(str(item) for item in detail.get("text_hints", [])[:4]),
+        ]
+    ).lower()
+    media_terms = [
+        "player",
+        "music",
+        "spotify",
+        "youtube",
+        "twitch",
+        "netflix",
+        "hulu",
+        "video",
+        "stream",
+        "tv",
+        "podcast",
+        "radio",
+    ]
+    return any(term in haystack for term in media_terms)
+
+
+def _media_focus_payload(events: list[dict[str, Any]]) -> dict[str, Any]:
+    recent = sorted(events, key=lambda item: item["ts_start"], reverse=True)
+    media_events = []
+    for event in recent:
+        detail = event.get("metadata", {}).get("surface_detail")
+        if not isinstance(detail, dict):
+            detail = {}
+        if _is_media_surface(event.get("app", ""), event.get("artifact", ""), detail):
+            media_events.append(event)
+
+    focus = media_events[0] if media_events else (recent[0] if recent else None)
+    if not focus:
+        return {
+            "status": "empty",
+            "current_app": "none",
+            "what_we_know": "No recent media or app-focus signal in this window.",
+            "playback_visibility": "none",
+            "evidence": [],
+            "next_step": "Let the collector run while the player or browser is frontmost.",
+        }
+
+    detail = focus.get("metadata", {}).get("surface_detail")
+    if not isinstance(detail, dict):
+        detail = {}
+    kind = str(detail.get("kind", ""))
+    app = str(focus.get("app", "unknown"))
+    evidence = [
+        {"label": "app", "value": app},
+        {"label": "window", "value": str(focus.get("artifact", ""))[:160]},
+        {"label": "domain", "value": str(focus.get("domain", "other"))},
+    ]
+    if detail.get("url_domain"):
+        evidence.append({"label": "url domain", "value": str(detail.get("url_domain"))})
+    if detail.get("text_hints"):
+        evidence.append({"label": "visible hints", "value": ", ".join(str(item) for item in detail["text_hints"][:3])})
+
+    if kind == "browser_tab":
+        status = "captured"
+        playback_visibility = "browser tab metadata"
+        what_we_know = "The twin can see the active browser tab title, URL domain, dwell time, and switch sequence."
+        next_step = "For richer playback state, add a site-specific connector that stores page-level media metadata without query strings."
+    elif kind == "accessibility_snapshot":
+        status = "captured"
+        playback_visibility = "allowlisted UI metadata"
+        what_we_know = "The twin can see redacted Accessibility labels exposed by the player window, plus dwell time and switch sequence."
+        next_step = "If the program or channel is still missing, add an app-specific connector or a local OCR summary gate."
+    elif _is_media_surface(app, str(focus.get("artifact", "")), detail):
+        status = "opaque"
+        playback_visibility = "app/window only"
+        what_we_know = "The twin can see that this player has attention, but not the exact channel, stream, or playback state yet."
+        next_step = "Enable Depth 3 for an allowlisted Accessibility snapshot of this app before considering OCR."
+    else:
+        status = "watching"
+        playback_visibility = "attention only"
+        what_we_know = "The latest focus is not clearly a media surface; the twin is tracking app attention and dwell."
+        next_step = "Open the player or media tab frontmost and let one sample interval pass."
+
+    return {
+        "status": status,
+        "current_app": app,
+        "current_artifact": str(focus.get("artifact", ""))[:160],
+        "last_seen": focus.get("ts_end"),
+        "playback_visibility": playback_visibility,
+        "what_we_know": what_we_know,
+        "evidence": evidence,
+        "next_step": next_step,
+    }
+
+
+def _attention_depth_payload(
+    events: list[dict[str, Any]],
+    config: dict[str, Any],
+    surface_details: list[dict[str, Any]],
+) -> dict[str, Any]:
+    depth = int(config.get("context_capture_depth", 1))
+    browser_min = int(config.get("browser_tab_detail_min_depth", 2))
+    ax_min = int(config.get("accessibility_surface_min_depth", 3))
+    browser_active = bool(config.get("enable_browser_tab_details", True) and depth >= browser_min)
+    ax_active = bool(config.get("enable_accessibility_surface_details", True) and depth >= ax_min)
+    recent = sorted(events, key=lambda item: item["ts_start"], reverse=True)
+    latest = recent[0] if recent else {}
+
+    app_attention = []
+    for item in surface_details[:8]:
+        events_count = max(int(item.get("events", 0)), 1)
+        detail_events = int(item.get("surface_detail_events", 0))
+        coverage = round(detail_events / events_count, 3)
+        if item.get("status") in {"browser detail captured", "in-app surface captured"}:
+            depth_status = "rich"
+        elif "available" in str(item.get("status", "")):
+            depth_status = "ready"
+        elif item.get("status") == "opaque app":
+            depth_status = "opaque"
+        else:
+            depth_status = "basic"
+        app_attention.append(
+            {
+                "app": item.get("app", "unknown"),
+                "status": depth_status,
+                "detail_level": item.get("detail_level", "Depth 1"),
+                "events": int(item.get("events", 0)),
+                "hours": item.get("hours", 0),
+                "detail_coverage": coverage,
+                "what_we_know": item.get("what_we_know", ""),
+                "next_step": item.get("how_to_deepen", ""),
+            }
+        )
+
+    browser_apps = ", ".join(config.get("browser_tab_detail_apps", []))
+    ax_apps = ", ".join(config.get("accessibility_surface_detail_apps", []))
+    ladder = [
+        {
+            "level": "Depth 1",
+            "name": "Foreground attention",
+            "status": "active" if depth >= 1 else "off",
+            "captures": "front app, redacted title, dwell, sequence, domain",
+            "privacy_gate": "no keystrokes, screenshots, clipboard, microphone, or camera",
+        },
+        {
+            "level": "Depth 2",
+            "name": "Browser and media metadata",
+            "status": "active" if browser_active else "ready" if config.get("enable_browser_tab_details", True) else "off",
+            "captures": f"redacted tab title and URL domain for {browser_apps or 'configured browsers'}",
+            "privacy_gate": "URL path, query, fragment, usernames, and passwords redacted by default",
+        },
+        {
+            "level": "Depth 3",
+            "name": "Allowlisted in-app surface",
+            "status": "active" if ax_active else "gated",
+            "captures": f"redacted Accessibility labels for {ax_apps or 'allowlisted apps'}",
+            "privacy_gate": "metadata only; no raw screenshots or document bodies",
+        },
+        {
+            "level": "Depth 4",
+            "name": "Local OCR summaries",
+            "status": "planned",
+            "captures": "short on-device summaries when Accessibility exposes nothing",
+            "privacy_gate": "no image storage; summaries pass through the same PII mask",
+        },
+        {
+            "level": "Depth 5",
+            "name": "Cursor and scroll attention proxy",
+            "status": "planned" if not config.get("eye_proxy_collect_cursor", False) else "active",
+            "captures": "aggregate regions, hover dwell, scroll velocity, idle/return moments",
+            "privacy_gate": "zones and timing only; no typed text or clipboard",
+        },
+        {
+            "level": "Depth 6",
+            "name": "Explicit gaze instrumentation",
+            "status": "off" if not config.get("eye_proxy_collect_camera_gaze", False) else "active",
+            "captures": "calibrated gaze heatmaps from webcam or eye tracker",
+            "privacy_gate": "explicit opt-in; local-only derived heatmap; no raw camera frames",
+        },
+    ]
+
+    media_focus = _media_focus_payload(events)
+    recommendations = []
+    opaque_apps = [item for item in app_attention if item["status"] == "opaque"]
+    if opaque_apps or media_focus.get("status") == "opaque":
+        app_name = opaque_apps[0]["app"] if opaque_apps else media_focus.get("current_app", "this app")
+        recommendations.append(
+            {
+                "name": "Deepen opaque player apps",
+                "status": "next",
+                "detail": f"Start with {app_name}: enable Depth 3 Accessibility before local OCR.",
+                "command": f"digital-twin-sensor configure --depth 3 --accessibility-surface-details on --accessibility-app \"{app_name}\"",
+            }
+        )
+    if not browser_active:
+        recommendations.append(
+            {
+                "name": "Turn on browser context",
+                "status": "ready",
+                "detail": "Depth 2 gives Safari/Chrome tab titles and URL domains while keeping paths and queries redacted.",
+                "command": "digital-twin-sensor configure --depth 2 --browser-tab-details on --browser-url-path off --browser-url-query off",
+            }
+        )
+    recommendations.append(
+        {
+            "name": "Use eye proxies before gaze",
+            "status": "planned",
+            "detail": "Model eye attention from foreground dwell, cursor zones, scroll velocity, and returns before collecting camera-based gaze.",
+            "command": "future: enable local cursor-zone heatmaps with no raw pointer trail export",
+        }
+    )
+
+    return {
+        "current_depth": depth,
+        "latest_app": latest.get("app", "none"),
+        "latest_artifact": latest.get("artifact", "none"),
+        "latest_detail_kind": _surface_detail_kind(latest) if latest else "",
+        "application_attention": app_attention,
+        "media_focus": media_focus,
+        "eye_model": {
+            "status": "proxy-first",
+            "current_position": "camera/gaze is not collected; use frontmost dwell and future cursor/scroll zones first",
+            "signals": [
+                {"name": "foreground dwell", "status": "active", "detail": "what app/window held attention and for how long"},
+                {"name": "switch path", "status": "active", "detail": "what you returned to after interruption"},
+                {"name": "browser tab metadata", "status": "active" if browser_active else "ready", "detail": "site/title context without URL path/query by default"},
+                {"name": "in-app UI labels", "status": "active" if ax_active else "gated", "detail": "only allowlisted apps at Depth 3"},
+                {"name": "cursor and scroll zones", "status": "planned", "detail": "aggregate heatmap, no text capture"},
+                {"name": "webcam gaze", "status": "off", "detail": "only explicit local opt-in; no raw frames"},
+            ],
+        },
+        "depth_ladder": ladder,
+        "recommendations": recommendations,
+    }
+
+
 def _privacy_payload(config: dict[str, Any], events: list[dict[str, Any]], db_path: Path) -> dict[str, Any]:
     depth = int(config.get("context_capture_depth", 1))
     browser_depth = int(config.get("browser_tab_detail_min_depth", 2))
+    ax_depth = int(config.get("accessibility_surface_min_depth", 3))
     captured = [
         "active app",
         "window title or redacted title",
@@ -354,6 +622,9 @@ def _privacy_payload(config: dict[str, Any], events: list[dict[str, Any]], db_pa
     if config.get("enable_browser_tab_details", True) and depth >= browser_depth:
         apps = ", ".join(config.get("browser_tab_detail_apps", []))
         captured.append(f"browser tab title and sanitized URL domain for: {apps}")
+    if config.get("enable_accessibility_surface_details", True) and depth >= ax_depth:
+        apps = ", ".join(config.get("accessibility_surface_detail_apps", []))
+        captured.append(f"allowlisted Accessibility UI labels for: {apps}")
 
     return {
         "capture_window_title": bool(config.get("capture_window_title", True)),
@@ -363,6 +634,9 @@ def _privacy_payload(config: dict[str, Any], events: list[dict[str, Any]], db_pa
         "mask_ip_addresses": bool(config.get("mask_ip_addresses", True)),
         "redact_url_paths": bool(config.get("redact_url_paths", True)),
         "browser_tab_details": bool(config.get("enable_browser_tab_details", True) and depth >= browser_depth),
+        "accessibility_surface_details": bool(
+            config.get("enable_accessibility_surface_details", True) and depth >= ax_depth
+        ),
         "data_location": str(db_path.expanduser()),
         "redaction_summary": _redaction_summary(events),
         "captured": captured,
@@ -427,6 +701,7 @@ def build_overview(
         max_events=8,
         activities=working_spheres,
     )
+    surface_details = _surface_details(events, config)
     recent_events = sorted(events, key=lambda item: item["ts_start"], reverse=True)[:limit]
 
     first_event = events[0]["ts_start"] if events else None
@@ -471,7 +746,8 @@ def build_overview(
         "domains": _domain_summary(events),
         "top_apps": _top_items(events, "app"),
         "top_artifacts": _top_items(events, "artifact"),
-        "surface_details": _surface_details(events, config),
+        "surface_details": surface_details,
+        "attention_depth": _attention_depth_payload(events, config, surface_details),
         "daily_activity": _daily_activity(events),
         "hourly_heatmap": _hourly_heatmap(events),
         "transitions": _transitions(events),

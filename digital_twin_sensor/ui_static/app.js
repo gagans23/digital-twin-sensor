@@ -347,6 +347,173 @@ function renderGovernanceStack(overview) {
     .join("");
 }
 
+function renderAttentionDepth(depth) {
+  if (!$("depthStatus")) return;
+  if (!depth) {
+    $("depthStatus").textContent = "No depth data";
+    $("depthSummary").innerHTML = `<div class="empty">No attention-depth model yet.</div>`;
+    renderDepthList("appAttention", [], "app-attention-card");
+    renderMediaFocus(null);
+    renderEyeModel(null);
+    renderDepthLadder([]);
+    renderDepthRecommendations([]);
+    return;
+  }
+
+  $("depthStatus").textContent = `Depth ${depth.current_depth}`;
+  $("depthStatus").classList.toggle("ready", Number(depth.current_depth || 0) >= 2);
+  $("depthSummary").innerHTML = `
+    <div class="depth-summary-card">
+      <span>Latest app</span>
+      <b>${escapeHtml(depth.latest_app || "none")}</b>
+      <p>${escapeHtml(depth.latest_artifact || "No current artifact")}</p>
+    </div>
+    <div class="depth-summary-card">
+      <span>Detail kind</span>
+      <b>${escapeHtml(depth.latest_detail_kind || "app/window")}</b>
+      <p>${escapeHtml(depth.media_focus?.playback_visibility || "attention only")}</p>
+    </div>
+    <div class="depth-summary-card">
+      <span>Eye stance</span>
+      <b>${escapeHtml(depth.eye_model?.status || "proxy-first")}</b>
+      <p>${escapeHtml(depth.eye_model?.current_position || "No gaze collection")}</p>
+    </div>
+  `;
+
+  renderAppAttention(depth.application_attention || []);
+  renderMediaFocus(depth.media_focus);
+  renderEyeModel(depth.eye_model);
+  renderDepthLadder(depth.depth_ladder || []);
+  renderDepthRecommendations(depth.recommendations || []);
+}
+
+function renderAppAttention(items) {
+  const root = $("appAttention");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No app attention signal in this window.</div>`;
+    return;
+  }
+  root.innerHTML = items
+    .map((item) => `
+      <article class="app-attention-card ${fleetTone(item.status)}">
+        <div class="app-attention-head">
+          <div>
+            <h3>${escapeHtml(item.app)}</h3>
+            <p>${escapeHtml(item.detail_level)} · ${fmtHours(item.hours)}h · ${fmtCompact(item.events)} events</p>
+          </div>
+          <span class="status-badge ${fleetTone(item.status)}">${escapeHtml(item.status)}</span>
+        </div>
+        <div class="detail-meter" aria-label="${escapeHtml(item.app)} detail coverage">
+          <div style="width:${Math.round(Number(item.detail_coverage || 0) * 100)}%"></div>
+        </div>
+        <p>${escapeHtml(item.what_we_know)}</p>
+        <small>${escapeHtml(item.next_step)}</small>
+      </article>
+    `)
+    .join("");
+}
+
+function renderMediaFocus(media) {
+  const root = $("mediaFocus");
+  if (!root) return;
+  if (!media) {
+    root.innerHTML = `<div class="empty">No playback model yet.</div>`;
+    return;
+  }
+  const evidence = (media.evidence || [])
+    .map((item) => `<div class="evidence-line"><span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.value)}</b></div>`)
+    .join("");
+  root.innerHTML = `
+    <article class="media-card ${fleetTone(media.status)}">
+      <div class="media-head">
+        <div>
+          <h3>${escapeHtml(media.current_app || "none")}</h3>
+          <p>${escapeHtml(media.playback_visibility || "unknown")}</p>
+        </div>
+        <span class="status-badge ${fleetTone(media.status)}">${escapeHtml(media.status || "unknown")}</span>
+      </div>
+      <p>${escapeHtml(media.what_we_know || "")}</p>
+      <div class="media-evidence">${evidence || `<div class="empty">No playback evidence yet.</div>`}</div>
+      <small>${escapeHtml(media.next_step || "")}</small>
+    </article>
+  `;
+}
+
+function renderEyeModel(model) {
+  const root = $("eyeModel");
+  if (!root) return;
+  if (!model) {
+    root.innerHTML = `<div class="empty">No eye model yet.</div>`;
+    return;
+  }
+  root.innerHTML = `
+    <div class="eye-stance">${escapeHtml(model.current_position || "")}</div>
+    ${(model.signals || []).map((item) => `
+      <article class="eye-signal ${fleetTone(item.status)}">
+        <div>
+          <h3>${escapeHtml(item.name)}</h3>
+          <p>${escapeHtml(item.detail)}</p>
+        </div>
+        <span class="status-badge ${fleetTone(item.status)}">${escapeHtml(item.status)}</span>
+      </article>
+    `).join("")}
+  `;
+}
+
+function renderDepthLadder(items) {
+  const root = $("depthLadder");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No depth ladder yet.</div>`;
+    return;
+  }
+  root.innerHTML = items
+    .map((item) => `
+      <article class="depth-step ${fleetTone(item.status)}">
+        <span>${escapeHtml(item.level)}</span>
+        <h3>${escapeHtml(item.name)}</h3>
+        <p>${escapeHtml(item.captures)}</p>
+        <small>${escapeHtml(item.privacy_gate)}</small>
+        <b>${escapeHtml(item.status)}</b>
+      </article>
+    `)
+    .join("");
+}
+
+function renderDepthRecommendations(items) {
+  const root = $("depthRecommendations");
+  if (!root) return;
+  if (!items.length) {
+    root.innerHTML = `<div class="empty">No recommendations yet.</div>`;
+    return;
+  }
+  root.innerHTML = items
+    .map((item) => `
+      <article class="depth-recommendation ${fleetTone(item.status)}">
+        <div class="status-card-head">
+          <h3>${escapeHtml(item.name)}</h3>
+          <span class="status-badge ${fleetTone(item.status)}">${escapeHtml(item.status)}</span>
+        </div>
+        <p>${escapeHtml(item.detail)}</p>
+        <code>${escapeHtml(item.command)}</code>
+      </article>
+    `)
+    .join("");
+}
+
+function renderDepthList(id, items, className) {
+  const root = $(id);
+  if (!root) return;
+  root.innerHTML = items.length ? "" : `<div class="empty">No items yet.</div>`;
+  items.forEach((item) => {
+    const node = document.createElement("article");
+    node.className = className;
+    node.textContent = item.name || item.app || "item";
+    root.appendChild(node);
+  });
+}
+
 function drawTwinMap(overview) {
   const canvas = $("twinMapCanvas");
   if (!canvas) return;
@@ -604,9 +771,9 @@ function renderTransitions(items) {
 
 function fleetTone(status) {
   const value = String(status || "").toLowerCase();
-  if (["ready", "online", "implemented", "enabled", "local", "enrolled", "active", "steady"].includes(value)) return "ready";
-  if (["blocked", "offline"].includes(value)) return "blocked";
-  if (["planned", "next", "not enrolled", "waiting", "stale", "attention", "collector-only"].includes(value)) return "attention";
+  if (["ready", "online", "implemented", "enabled", "local", "enrolled", "active", "steady", "rich", "captured", "watching"].includes(value)) return "ready";
+  if (["blocked", "offline", "off"].includes(value)) return "blocked";
+  if (["planned", "next", "not enrolled", "waiting", "stale", "attention", "collector-only", "opaque", "gated", "basic"].includes(value)) return "attention";
   return "neutral";
 }
 
@@ -1804,6 +1971,7 @@ async function refresh() {
   renderRankList("topArtifacts", overview.top_artifacts);
   renderRankList("topApps", overview.top_apps);
   renderTransitions(overview.transitions);
+  renderAttentionDepth(overview.attention_depth);
   renderFleet(overview.fleet);
   renderActivities(overview.working_spheres);
   renderContextPack(overview.context_pack);

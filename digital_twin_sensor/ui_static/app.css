@@ -383,7 +383,8 @@ input:focus {
 .graph-grid,
 .fleet-grid,
 .activity-grid,
-.pack-grid {
+.pack-grid,
+.depth-grid {
   display: grid;
   gap: 16px;
 }
@@ -410,6 +411,10 @@ input:focus {
 }
 
 .pack-grid {
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+}
+
+.depth-grid {
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
 }
 
@@ -878,6 +883,235 @@ input:focus {
 .governance-item p {
   margin-top: 5px;
   overflow-wrap: anywhere;
+}
+
+.depth-hero {
+  background:
+    linear-gradient(135deg, rgba(0, 166, 166, 0.1), rgba(255, 255, 255, 0.93) 42%),
+    var(--surface);
+}
+
+.depth-summary,
+.app-attention,
+.eye-model,
+.depth-ladder,
+.depth-recommendations,
+.media-focus,
+.media-evidence {
+  display: grid;
+  gap: 10px;
+}
+
+.depth-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.depth-summary-card,
+.app-attention-card,
+.media-card,
+.eye-signal,
+.depth-step,
+.depth-recommendation {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+  padding: 12px;
+}
+
+.depth-summary-card {
+  min-height: 126px;
+}
+
+.depth-summary-card span,
+.depth-step span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.depth-summary-card b {
+  display: block;
+  font-size: 1.2rem;
+  line-height: 1.12;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+
+.depth-summary-card p,
+.app-attention-card p,
+.app-attention-card small,
+.media-card p,
+.media-card small,
+.eye-signal p,
+.depth-step p,
+.depth-step small,
+.depth-recommendation p {
+  color: var(--muted);
+  display: block;
+  font-size: 0.84rem;
+  line-height: 1.42;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+
+.app-attention {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.app-attention-card,
+.media-card,
+.depth-recommendation {
+  border-left: 4px solid var(--line-strong);
+  display: grid;
+  gap: 10px;
+}
+
+.app-attention-card.ready,
+.media-card.ready,
+.depth-recommendation.ready,
+.eye-signal.ready,
+.depth-step.ready {
+  border-left-color: var(--green);
+}
+
+.app-attention-card.attention,
+.media-card.attention,
+.depth-recommendation.attention,
+.eye-signal.attention,
+.depth-step.attention {
+  border-left-color: var(--amber);
+}
+
+.app-attention-card.blocked,
+.media-card.blocked,
+.depth-recommendation.blocked,
+.eye-signal.blocked,
+.depth-step.blocked {
+  border-left-color: var(--coral);
+}
+
+.app-attention-head,
+.media-head,
+.eye-signal {
+  align-items: start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.app-attention-head h3,
+.media-head h3,
+.eye-signal h3,
+.depth-step h3,
+.depth-recommendation h3 {
+  overflow-wrap: anywhere;
+}
+
+.detail-meter {
+  background: var(--surface-2);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.detail-meter div {
+  background: linear-gradient(90deg, var(--teal), var(--violet));
+  border-radius: inherit;
+  height: 100%;
+  min-width: 5px;
+}
+
+.media-panel {
+  background:
+    linear-gradient(180deg, rgba(21, 25, 34, 0.04), rgba(255, 255, 255, 0.94)),
+    var(--surface);
+}
+
+.media-evidence {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+}
+
+.evidence-line {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 88px minmax(0, 1fr);
+  min-height: 30px;
+}
+
+.evidence-line span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.evidence-line b {
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.eye-stance {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  line-height: 1.42;
+  padding: 12px;
+}
+
+.eye-signal {
+  border-left: 4px solid var(--line-strong);
+}
+
+.depth-ladder {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.depth-step {
+  border-top: 4px solid var(--line-strong);
+  display: grid;
+  min-height: 224px;
+}
+
+.depth-step.ready {
+  border-top-color: var(--green);
+}
+
+.depth-step.attention {
+  border-top-color: var(--amber);
+}
+
+.depth-step.blocked {
+  border-top-color: var(--coral);
+}
+
+.depth-step h3 {
+  font-size: 0.98rem;
+  margin-top: 10px;
+}
+
+.depth-step b {
+  align-self: end;
+  color: var(--ink);
+  font-size: 0.74rem;
+  margin-top: 12px;
+  text-transform: uppercase;
+}
+
+.depth-recommendation code {
+  background: var(--ink-2);
+  border-radius: 6px;
+  color: var(--paper);
+  display: block;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  padding: 10px;
 }
 
 .panel-head {
@@ -2355,6 +2589,7 @@ tbody tr:last-child td {
   .fleet-grid,
   .activity-grid,
   .pack-grid,
+  .depth-grid,
   .twin-experience,
   .twin-hero,
   .simulation-grid,
@@ -2373,8 +2608,14 @@ tbody tr:last-child td {
   .activity-pipeline,
   .pack-pipeline,
   .fabric-lanes,
-  .simulation-cards {
+  .simulation-cards,
+  .depth-ladder {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .depth-summary,
+  .app-attention {
+    grid-template-columns: 1fr;
   }
 
   .pack-controls {
@@ -2450,7 +2691,10 @@ tbody tr:last-child td {
   .twin-badges,
   .fabric-lanes,
   .simulation-cards,
-  .focus-measures {
+  .focus-measures,
+  .depth-summary,
+  .app-attention,
+  .depth-ladder {
     grid-template-columns: 1fr;
   }
 
@@ -2512,9 +2756,27 @@ tbody tr:last-child td {
   .twin-hero,
   .twin-map-shell,
   .focus-panel,
-  .simulation-grid {
+  .simulation-grid,
+  .depth-grid {
     min-width: 0;
     max-width: 100%;
+  }
+
+  .app-attention-head,
+  .media-head,
+  .eye-signal,
+  .status-card-head {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .status-badge,
+  .device-health {
+    justify-self: start;
+  }
+
+  .evidence-line {
+    grid-template-columns: 1fr;
   }
 
   .twin-map-shell {

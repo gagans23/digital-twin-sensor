@@ -121,13 +121,39 @@ Recommended escalation order:
 
 Do not enable keystrokes, clipboard capture, microphone, raw screenshots, or cloud upload for opaque-app detail.
 
-## Depth 3: Semantic Summaries
+Current Depth 3 status:
+
+- `Ibo Pro Player` is allowlisted by default for Accessibility metadata, but the layer activates only when capture depth is set to 3+
+- collected fields are UI roles, redacted label/value hints, element counts, dwell, and switch sequence
+- raw screenshots, raw frames, keystrokes, clipboard, microphone, and camera remain outside the boundary
+
+Enable:
+
+```bash
+digital-twin-sensor configure --depth 3 --accessibility-surface-details on --accessibility-app "Ibo Pro Player"
+```
+
+## Eye Attention Model
+
+Eye attention should be built as a ladder, not as immediate camera capture.
+
+1. foreground dwell: live now
+2. switch-return sequence: live now
+3. browser tab context: live at Depth 2+
+4. allowlisted UI labels: live at Depth 3+ when the app exposes Accessibility metadata
+5. cursor/scroll proxy: next safe build; store aggregate regions and timing only
+6. gaze tracking: explicit opt-in only; store local heatmap features, never raw camera frames
+
+The product should use eye proxies first because they explain attention well enough for most digital-twin context tasks while avoiding biometric collection.
+
+## Depth 4: Semantic Summaries And OCR Gates
 
 Purpose: create richer agent context packs.
 
 Collect:
 
 - local summaries of active documents
+- local OCR summaries for explicitly allowlisted apps when Accessibility exposes no useful metadata
 - local embeddings of titles/artifacts
 - topic clusters
 - decision trails
@@ -137,10 +163,11 @@ Default rule:
 
 - summarize locally when possible
 - store summary, not raw source text
+- discard temporary OCR images after summarization
 - expose citations back to local artifacts
 - allow per-artifact delete
 
-## Depth 4: Full Content
+## Depth 5: Full Content
 
 Purpose: deep agent grounding.
 

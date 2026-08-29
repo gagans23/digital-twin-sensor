@@ -38,6 +38,7 @@
 
       <nav class="tabs" aria-label="Dashboard views">
         <button class="tab active" type="button" data-view="overview">Overview</button>
+        <button class="tab" type="button" data-view="depth">Signal Depth</button>
         <button class="tab" type="button" data-view="fleet">Fleet</button>
         <button class="tab" type="button" data-view="activities">Activities</button>
         <button class="tab" type="button" data-view="packs">Context Packs</button>
@@ -209,6 +210,59 @@
                 </div>
               </div>
               <div id="transitions" class="transition-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="depth" class="view" aria-labelledby="depthTitle">
+          <div class="depth-grid">
+            <article class="panel wide depth-hero">
+              <div class="panel-head">
+                <div>
+                  <p class="kicker">Attention Depth</p>
+                  <h2 id="depthTitle">How deep the twin can understand the screen</h2>
+                </div>
+                <span id="depthStatus" class="status-pill">Loading</span>
+              </div>
+              <div id="depthSummary" class="depth-summary"></div>
+            </article>
+
+            <aside class="panel media-panel">
+              <p class="kicker">Playback Lens</p>
+              <h2>What is being played</h2>
+              <div id="mediaFocus" class="media-focus"></div>
+            </aside>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Application Attention</p>
+                  <h2>Which apps are pulling the human</h2>
+                </div>
+              </div>
+              <div id="appAttention" class="app-attention"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Eye Model</p>
+              <h2>Proxy before gaze</h2>
+              <div id="eyeModel" class="eye-model"></div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Capture Ladder</p>
+                  <h2>From app focus to gaze heatmaps</h2>
+                </div>
+              </div>
+              <div id="depthLadder" class="depth-ladder"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Next Builds</p>
+              <h2>Richer twin roadmap</h2>
+              <div id="depthRecommendations" class="depth-recommendations"></div>
             </article>
           </div>
         </section>

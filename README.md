@@ -10,6 +10,8 @@ PII masking is enabled by default before data is written to SQLite. It masks ema
 
 At Depth 2, configured browsers such as Safari and Google Chrome can also record active-tab metadata: redacted tab title, URL domain, sanitized URL, and URL path/query policy. Raw browser paths, queries, fragments, usernames, and passwords are not stored by default.
 
+At Depth 3, allowlisted apps such as Ibo Pro Player can attempt a macOS Accessibility metadata snapshot. This stores redacted UI labels and roles only, not screenshots, keystrokes, clipboard, microphone, camera, or raw video.
+
 ## What It Implements
 
 The paper describes a four-stage pipeline:
@@ -27,6 +29,8 @@ This starter implements a single-user version:
 - working spheres: inferred activities, session returns, transition paths, and resume packs
 - context packs: gated Kiro/Codex/GitLab-ready Markdown or JSON from selected working spheres
 - browser surface details: active-tab metadata for Safari/Chrome at Depth 2+
+- app surface details: allowlisted Accessibility metadata for opaque apps at Depth 3+
+- attention depth: app attention, playback visibility, eye-proxy posture, and next build recommendations
 - privacy gates: capture depth, pre-storage redaction, graph minimization, and sensitive-source boundaries
 - filters: proportional, inverse, differential, recurrent, comparative, sequential, collective
 - retrieval: `weight = attention_score * content_score`
@@ -60,6 +64,7 @@ It opens a local-only browser console with:
 - a digital twin map of active contexts, memory spheres, and gated signals
 - a simulation console for deciding what to continue, export, deepen, or deploy
 - context-fabric lanes from sensing to synthesis to agent handoff
+- a Signal Depth tab for app attention, player visibility, eye-proxy planning, and capture-depth readiness
 - collection health
 - attention by domain
 - working spheres and resume packs
@@ -153,6 +158,14 @@ Enable Depth 2 browser-tab metadata:
 ```bash
 digital-twin-sensor configure --depth 2 --browser-tab-details on --browser-url-path off --browser-url-query off
 ```
+
+Enable Depth 3 allowlisted app metadata for a player:
+
+```bash
+digital-twin-sensor configure --depth 3 --accessibility-surface-details on --accessibility-app "Ibo Pro Player"
+```
+
+Depth 3 depends on macOS Accessibility permission and on whether the target app exposes useful labels. If it exposes nothing, the next product step is a local OCR summary gate that discards images and stores only redacted summaries.
 
 Print your Digital Twin Signature:
 
@@ -249,6 +262,8 @@ Next build steps:
 9. add a small local API for querying the twin
 10. add feedback buttons so good/bad answers can tune filter selection
 11. add a visible menubar indicator so collection is never hidden
+12. add a cursor/scroll attention proxy that stores only aggregate zones and timing
+13. add explicit local gaze tracking only as an opt-in derived heatmap with no raw camera frames
 
 ## Product Design Notes
 

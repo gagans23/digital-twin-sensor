@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import timedelta
 from typing import Any
 
+from .accessibility_surface import active_accessibility_surface_detail
 from .browser_tab import active_browser_tab_detail
 from ..redaction import redact_text
 from ..store import utc_now
@@ -121,7 +122,11 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
     if ignored and not config.get("record_ignored_apps_as_system_events", True):
         return None
 
-    surface_detail = None if ignored else active_browser_tab_detail(app, config)
+    surface_detail = None
+    if not ignored:
+        surface_detail = active_browser_tab_detail(app, config)
+        if surface_detail is None:
+            surface_detail = active_accessibility_surface_detail(app, config)
     if surface_detail and surface_detail.get("title"):
         raw_title = str(surface_detail["title"])
 
@@ -130,7 +135,8 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
     start = now - timedelta(seconds=max(dwell_seconds, 0.1))
     domain_hint = ""
     if surface_detail:
-        domain_hint = f"{surface_detail.get('url_domain', '')} {surface_detail.get('title', '')}"
+        text_hints = " ".join(str(item) for item in surface_detail.get("text_hints", [])[:4])
+        domain_hint = f"{surface_detail.get('url_domain', '')} {surface_detail.get('title', '')} {text_hints}"
     domain = "system" if ignored else classify_domain(app, f"{raw_safe_title} {domain_hint}", config)
     redacted_title = redact_text(raw_safe_title, config)
     title = redacted_title.text
