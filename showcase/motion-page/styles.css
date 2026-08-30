@@ -141,12 +141,15 @@ nav a:hover {
 
 .hero {
   align-items: end;
-  background: var(--ink-2);
-  color: var(--cream);
+  background:
+    radial-gradient(circle at 73% 34%, rgba(111, 134, 117, 0.16), transparent 28%),
+    radial-gradient(circle at 16% 82%, rgba(181, 92, 65, 0.09), transparent 26%),
+    linear-gradient(180deg, #f7f0e4 0%, #eee7da 100%);
+  color: var(--ink);
   display: grid;
   min-height: 92svh;
   overflow: hidden;
-  padding: clamp(110px, 15vh, 128px) clamp(22px, 6vw, 84px) 30px;
+  padding: clamp(104px, 13vh, 122px) clamp(22px, 6vw, 84px) 30px;
   position: relative;
 }
 
@@ -158,23 +161,121 @@ nav a:hover {
 
 #contextCanvas {
   height: 100%;
+  opacity: 0.28;
   width: 100%;
 }
 
 .hero-shade {
   background:
-    linear-gradient(90deg, rgba(13, 17, 16, 0.95), rgba(13, 17, 16, 0.48) 54%, rgba(13, 17, 16, 0.86)),
-    linear-gradient(0deg, rgba(13, 17, 16, 0.95), transparent 52%);
+    linear-gradient(90deg, rgba(247, 240, 228, 0.98), rgba(247, 240, 228, 0.62) 50%, rgba(247, 240, 228, 0.9)),
+    linear-gradient(0deg, rgba(238, 231, 218, 1), transparent 56%);
 }
 
-.hero-copy {
-  max-width: 980px;
-  position: relative;
+.hero::after {
+  background-image:
+    linear-gradient(rgba(24, 22, 20, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24, 22, 20, 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.field-artifact {
+  height: clamp(320px, 44vw, 610px);
+  opacity: 0.88;
+  pointer-events: none;
+  position: absolute;
+  right: clamp(-44px, 5vw, 80px);
+  top: clamp(132px, 18vh, 180px);
+  width: clamp(280px, 42vw, 610px);
   z-index: 1;
 }
 
+.artifact-ring {
+  animation: artifactBreathe 7s ease-in-out infinite;
+  border: 5px solid rgba(24, 22, 20, 0.66);
+  border-radius: 48% 52% 45% 55% / 54% 43% 57% 46%;
+  height: 54%;
+  left: 27%;
+  position: absolute;
+  top: 2%;
+  transform: rotate(-8deg);
+  width: 48%;
+}
+
+.artifact-ring::before,
+.artifact-ring::after {
+  border: 2px solid rgba(24, 22, 20, 0.32);
+  border-radius: 50% 46% 54% 44% / 42% 55% 45% 58%;
+  content: "";
+  inset: 10px 7px 9px 11px;
+  position: absolute;
+  transform: rotate(12deg);
+}
+
+.artifact-ring::after {
+  border-color: rgba(181, 92, 65, 0.48);
+  inset: 22% -12% 18% 14%;
+  transform: rotate(56deg);
+}
+
+.orbit-dot {
+  border-radius: 999px;
+  height: 8px;
+  position: absolute;
+  width: 8px;
+}
+
+.dot-a {
+  background: var(--sage);
+  left: 8%;
+  top: 24%;
+}
+
+.dot-b {
+  background: var(--clay);
+  right: 18%;
+  top: 14%;
+}
+
+.dot-c {
+  background: var(--brass);
+  bottom: 18%;
+  left: 48%;
+}
+
+.artifact-line {
+  background: linear-gradient(180deg, rgba(163, 125, 63, 0.78), rgba(163, 125, 63, 0));
+  height: 58%;
+  left: 51%;
+  position: absolute;
+  top: 36%;
+  transform: rotate(-12deg);
+  width: 2px;
+}
+
+.artifact-caption {
+  bottom: 13%;
+  color: rgba(24, 22, 20, 0.54);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  left: 18%;
+  letter-spacing: 0.08em;
+  position: absolute;
+  text-transform: uppercase;
+}
+
+.hero-copy {
+  max-width: 920px;
+  position: relative;
+  z-index: 2;
+}
+
 .eyebrow {
-  color: #e28a6d;
+  color: var(--clay-dark);
 }
 
 .kicker {
@@ -198,17 +299,17 @@ p {
 }
 
 h1 {
-  font-size: clamp(4rem, 11vw, 10.5rem);
+  font-size: clamp(4.4rem, 11vw, 10.1rem);
   letter-spacing: 0;
-  line-height: 0.85;
-  max-width: 12ch;
+  line-height: 0.84;
+  max-width: 9ch;
 }
 
 .hero-lede {
-  color: rgba(255, 250, 242, 0.78);
+  color: rgba(24, 22, 20, 0.68);
   font-size: clamp(1.12rem, 2vw, 1.45rem);
   line-height: 1.52;
-  margin-top: 28px;
+  margin-top: 22px;
   max-width: 760px;
 }
 
@@ -217,12 +318,12 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 30px;
+  margin-top: 24px;
 }
 
 .button {
   align-items: center;
-  border: 1px solid rgba(255, 250, 242, 0.26);
+  border: 1px solid rgba(24, 22, 20, 0.2);
   border-radius: var(--radius);
   color: inherit;
   display: inline-flex;
@@ -239,9 +340,9 @@ h1 {
 }
 
 .button.primary {
-  background: var(--cream);
-  border-color: var(--cream);
-  color: var(--ink-2);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--cream);
 }
 
 .hero-metrics {
@@ -249,14 +350,14 @@ h1 {
   display: grid;
   gap: 10px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 44px;
+  margin-top: 32px;
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .hero-metrics div {
-  background: rgba(251, 246, 236, 0.08);
-  border: 1px solid rgba(251, 246, 236, 0.16);
+  background: rgba(251, 246, 236, 0.46);
+  border: 1px solid rgba(24, 22, 20, 0.14);
   border-radius: var(--radius);
   min-height: 84px;
   padding: 14px;
@@ -268,12 +369,12 @@ h1 {
 }
 
 .hero-metrics strong {
-  color: #b8cfbd;
+  color: var(--sage-dark);
   font-size: 1.05rem;
 }
 
 .hero-metrics span {
-  color: rgba(255, 250, 242, 0.72);
+  color: rgba(24, 22, 20, 0.62);
   font-size: 0.9rem;
   line-height: 1.4;
   margin-top: 7px;
@@ -284,7 +385,9 @@ h1 {
 .motion-panel,
 .product-grid,
 .research-section,
-.essay-link {
+.essay-link,
+.field-notes,
+.design-attachment {
   margin: 0 auto;
   max-width: 1120px;
   padding: clamp(74px, 10vw, 130px) 22px;
@@ -294,7 +397,9 @@ h1 {
 .section-head h2,
 .motion-copy h2,
 .paper-card h2,
-.essay-link h2 {
+.essay-link h2,
+.note-row h2,
+.design-attachment h2 {
   font-size: clamp(2.4rem, 6vw, 5.8rem);
   letter-spacing: 0;
   line-height: 0.94;
@@ -303,12 +408,50 @@ h1 {
 
 .intro p:last-child,
 .motion-copy p,
-.paper-card p {
+.paper-card p,
+.note-row p,
+.design-attachment p {
   color: var(--muted);
   font-size: 1.07rem;
   line-height: 1.65;
   margin-top: 24px;
   max-width: 720px;
+}
+
+.field-notes {
+  display: grid;
+  gap: 0;
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.note-row {
+  align-items: start;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(82px, 0.18fr) minmax(0, 1fr) minmax(260px, 0.72fr);
+  padding: clamp(28px, 5vw, 52px) max(22px, calc((100vw - 1120px) / 2));
+}
+
+.note-row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.note-row span {
+  color: var(--brass);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.note-row h2 {
+  font-size: clamp(2.2rem, 5vw, 5.1rem);
+}
+
+.note-row p {
+  margin-top: 0;
 }
 
 .pipeline {
@@ -328,7 +471,7 @@ h1 {
 }
 
 .pipe-card {
-  min-height: 250px;
+  min-height: 230px;
   overflow: hidden;
   padding: 18px;
   position: relative;
@@ -377,6 +520,35 @@ h1 {
   display: grid;
   gap: clamp(32px, 8vw, 90px);
   grid-template-columns: minmax(0, 0.88fr) minmax(420px, 1fr);
+}
+
+.design-attachment {
+  background: var(--ink);
+  border-radius: 0;
+  color: var(--cream);
+  max-width: none;
+  padding-left: max(22px, calc((100vw - 1120px) / 2));
+  padding-right: max(22px, calc((100vw - 1120px) / 2));
+}
+
+.design-attachment .kicker {
+  color: #d89a73;
+}
+
+.attachment-grid {
+  align-items: end;
+  display: grid;
+  gap: clamp(24px, 8vw, 84px);
+  grid-template-columns: minmax(0, 0.9fr) minmax(280px, 0.55fr);
+}
+
+.design-attachment h2 {
+  color: var(--cream);
+}
+
+.design-attachment p {
+  color: rgba(251, 246, 236, 0.7);
+  margin-top: 0;
 }
 
 .twin-stage {
@@ -638,6 +810,17 @@ footer a {
   }
 }
 
+@keyframes artifactBreathe {
+  0%,
+  100% {
+    transform: rotate(-8deg) scale(1);
+  }
+
+  50% {
+    transform: rotate(-4deg) scale(1.035);
+  }
+}
+
 @keyframes driftOne {
   50% {
     transform: translate(26px, 44px);
@@ -670,8 +853,17 @@ footer a {
   .pipeline,
   .motion-panel,
   .product-grid,
-  .quote-strip {
+  .quote-strip,
+  .attachment-grid {
     grid-template-columns: 1fr;
+  }
+
+  .note-row {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .note-row p {
+    grid-column: 2;
   }
 
   .essay-link {
@@ -784,7 +976,8 @@ footer a {
   .motion-panel,
   .product-grid,
   .research-section,
-  .essay-link {
+  .essay-link,
+  .design-attachment {
     padding-left: 18px;
     padding-right: 18px;
   }
@@ -793,8 +986,22 @@ footer a {
   .section-head h2,
   .motion-copy h2,
   .paper-card h2,
-  .essay-link h2 {
+  .essay-link h2,
+  .note-row h2,
+  .design-attachment h2 {
     font-size: clamp(2.05rem, 12vw, 3.4rem);
+  }
+
+  .field-artifact {
+    height: 240px;
+    opacity: 0.22;
+    right: 0;
+    top: 330px;
+    width: 220px;
+  }
+
+  .artifact-caption {
+    display: none;
   }
 
   .pipe-card,

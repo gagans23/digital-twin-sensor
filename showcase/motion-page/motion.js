@@ -41,8 +41,8 @@ function buildPoints() {
 
 function drawGrid(time) {
   ctx.save();
-  ctx.globalAlpha = 0.12;
-  ctx.strokeStyle = "#ffffff";
+  ctx.globalAlpha = 0.16;
+  ctx.strokeStyle = "#181614";
   ctx.lineWidth = 1;
   const offset = (time * 0.006) % 44;
   for (let x = -44 + offset; x < width + 44; x += 44) {
@@ -136,43 +136,9 @@ function draw(time = 0) {
     }
   }
 
-  if (width >= 720) {
-    drawLabel(cx, cy, "Living context graph", "#ffffff");
-  drawLabel(width * 0.78, height * 0.66, "memory gate", "#9fb49f");
-  drawLabel(width * 0.53, height * 0.25, "attention trace", "#c06a4d");
-  }
-
   if (!prefersReduced) {
     window.requestAnimationFrame(draw);
   }
-}
-
-function drawLabel(x, y, text, color) {
-  ctx.save();
-  ctx.font = "800 13px Inter, system-ui, sans-serif";
-  const paddingX = 12;
-  const metrics = ctx.measureText(text);
-  ctx.fillStyle = "rgba(8, 10, 15, 0.62)";
-  roundedRect(x - metrics.width / 2 - paddingX, y - 18, metrics.width + paddingX * 2, 34, 8);
-  ctx.fill();
-  ctx.fillStyle = color;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, x, y);
-  ctx.restore();
-}
-
-function roundedRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
 }
 
 const revealNodes = Array.from(document.querySelectorAll(".reveal"));
