@@ -531,6 +531,7 @@ Reference: [docs/API.md](docs/API.md)
 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | installation and first run |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | system architecture and data flow |
 | [docs/UNDER_THE_HOOD.md](docs/UNDER_THE_HOOD.md) | how attention is defined, what joins the layers, and the known gaps |
+| [PRODUCT.md](PRODUCT.md) | the open-core product plan: wedge, build milestones, pilot design, kill risks |
 | [docs/API.md](docs/API.md) | local dashboard API |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | local and enterprise deployment path |
 | [docs/RESEARCH_AND_EVALUATION.md](docs/RESEARCH_AND_EVALUATION.md) | study design and metrics |
