@@ -57,6 +57,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "subject_id": os.environ.get("USER", "local-user"),
     "sample_interval_seconds": 15,
     "collection_paused": False,
+    "encrypt_at_rest": False,
     "capture_window_title": True,
     "redact_sensitive_titles": True,
     "record_ignored_apps_as_system_events": True,

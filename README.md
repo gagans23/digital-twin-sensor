@@ -312,6 +312,7 @@ Honest accounting. The endpoint half is built; the control plane is specified, n
 | Collective synthesis with aggregation floor | ✅ built |
 | Deep-agent judgement harness (optional extra) | ✅ built |
 | Rolling-window enforcement in all builders | ✅ built |
+| Field-level encryption at rest (optional extra) | ✅ built |
 | Trust-calibration surfacing (confidence, evidence age) | 🟡 partial |
 | Memory maintenance diagnostics | 🟡 partial |
 | Evolving context cards | ⬜ designed |
@@ -472,6 +473,10 @@ digital-twin-sensor context-pack --days 14 --target gitlab --purpose gitlab --ou
 # measure and synthesise
 digital-twin-sensor harness --fail-under 0.8
 digital-twin-sensor synthesize --min-subjects 5
+
+# encrypt the local ledger (optional extra)
+pip install -e ".[encrypted]"
+digital-twin-sensor encrypt-store
 
 # operate safely
 digital-twin-sensor doctor

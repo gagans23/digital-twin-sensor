@@ -18,6 +18,9 @@ dependencies = []
 # Needs Python >=3.11 (deepagents), while the sensor supports >=3.9.
 [project.optional-dependencies]
 deep-eval = ["deepagents>=0.7.11"]
+# Encryption at rest for the local ledger. Optional so the default install
+# stays dependency-free; opting in is an explicit, reversible choice.
+encrypted = ["cryptography>=42", "keyring>=24"]
 
 [project.scripts]
 digital-twin-sensor = "digital_twin_sensor.cli:main"

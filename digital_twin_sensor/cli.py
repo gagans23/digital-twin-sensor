@@ -454,6 +454,64 @@ def cmd_deep_harness(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def cmd_encrypt_store(args: argparse.Namespace) -> int:
+    """Enable encryption at rest and migrate existing rows in place."""
+    from .crypto import (  # noqa: PLC0415
+        CryptoUnavailable,
+        FieldCipher,
+        encrypt_event,
+        key_file_path,
+        load_or_create_key,
+    )
+
+    config = load_config(args.config)
+    try:
+        key, origin = load_or_create_key(args.db)
+    except CryptoUnavailable as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    cipher = FieldCipher(key)
+    store = EventStore(args.db, cipher=cipher)
+    try:
+        total = store.count_events()
+        if args.status:
+            print(json.dumps({
+                "encrypt_at_rest": bool(config.get("encrypt_at_rest", False)),
+                "key_source": origin,
+                "key_file": str(key_file_path(args.db)),
+                "events": total,
+                "encrypted_fields": ["title", "artifact", "metadata"],
+                "not_encrypted": ["ts_start", "ts_end", "dwell_seconds", "domain", "app", "subject_id"],
+            }, indent=2))
+            return 0
+
+        if origin.endswith("key file") or origin.endswith("key file (created)"):
+            print(
+                f"WARNING: the key is in {key_file_path(args.db)}, not the OS keychain. "
+                "Any process running as you can read it.",
+                file=sys.stderr,
+            )
+
+        migrated = 0
+        for event in store.fetch_events():
+            enc = encrypt_event(event, cipher)
+            if enc.get("title") != event.get("title"):
+                store.update_event_text(
+                    event["id"], title=enc["title"], artifact=enc["artifact"]
+                )
+                migrated += 1
+        config["encrypt_at_rest"] = True
+        write_config(config, args.config)
+        print(f"encryption enabled · key from {origin} · {migrated}/{total} rows migrated")
+        print("Reads stay correct during a partial migration: rows written before "
+              "encryption decrypt to themselves.")
+        return 0
+    finally:
+        store.close()
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     run_dashboard(
         db_path=args.db,
@@ -617,6 +675,13 @@ def build_parser() -> argparse.ArgumentParser:
     deep.add_argument("--prompt", default=None, help="Override the evaluation task.")
     deep.add_argument("--output", type=_path, default=None)
     deep.set_defaults(func=cmd_deep_harness)
+
+    encrypt = sub.add_parser(
+        "encrypt-store",
+        help="Enable encryption at rest and migrate existing rows (needs the [encrypted] extra).",
+    )
+    encrypt.add_argument("--status", action="store_true", help="Report state without changing anything.")
+    encrypt.set_defaults(func=cmd_encrypt_store)
 
     ui = sub.add_parser("ui", help="Launch the local Digital Twin Console.")
     ui.add_argument("--host", default="127.0.0.1")

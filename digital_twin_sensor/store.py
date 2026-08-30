@@ -66,11 +66,17 @@ def filter_window(events: list[dict[str, Any]], days: int) -> list[dict[str, Any
 
 
 class EventStore:
-    def __init__(self, db_path: Path = DEFAULT_DB_PATH):
+    def __init__(self, db_path: Path = DEFAULT_DB_PATH, *, cipher: Any = None):
+        """`cipher` is a crypto.FieldCipher, or None for a plaintext store.
+
+        Rows written before encryption was enabled decrypt to themselves, so a
+        store can be half-migrated without breaking reads. That is what makes
+        `encrypt-store --enable` resumable rather than all-or-nothing."""
         self.db_path = Path(db_path).expanduser()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
+        self.cipher = cipher
         self.init_db()
 
     def init_db(self) -> None:
@@ -81,6 +87,10 @@ class EventStore:
         self.conn.close()
 
     def insert_event(self, event: dict[str, Any]) -> int:
+        if self.cipher is not None:
+            from .crypto import encrypt_event  # noqa: PLC0415
+
+            event = encrypt_event(event, self.cipher)
         metadata = event.get("metadata", {})
         cur = self.conn.execute(
             """
@@ -101,7 +111,10 @@ class EventStore:
                 event["ts_start"],
                 event["ts_end"],
                 float(event["dwell_seconds"]),
-                json.dumps(metadata, sort_keys=True),
+                # Already an encrypted string when a cipher is active; dumping
+                # it again would wrap it in quotes and defeat the prefix check
+                # that tells a reader whether a row is encrypted.
+                metadata if isinstance(metadata, str) else json.dumps(metadata, sort_keys=True),
             ),
         )
         self.conn.commit()
@@ -128,10 +141,25 @@ class EventStore:
             params.append(limit)
 
         rows = self.conn.execute(query, params).fetchall()
+        decrypt = None
+        if self.cipher is not None:
+            from .crypto import decrypt_event  # noqa: PLC0415
+
+            decrypt = decrypt_event
         events = []
         for row in rows:
             item = dict(row)
-            item["metadata"] = json.loads(item.pop("metadata_json") or "{}")
+            raw_metadata = item.pop("metadata_json") or "{}"
+            item["metadata"] = raw_metadata
+            if decrypt is not None:
+                item = decrypt(item, self.cipher)
+            metadata = item.get("metadata") or "{}"
+            try:
+                item["metadata"] = json.loads(metadata) if isinstance(metadata, str) else metadata
+            except json.JSONDecodeError:
+                # An undecryptable metadata blob means the wrong key, not a
+                # corrupt row. Surface it rather than silently emptying it.
+                item["metadata"] = {"error": "metadata could not be read with the current key"}
             events.append(item)
         return events
 

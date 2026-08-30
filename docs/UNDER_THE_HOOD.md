@@ -234,6 +234,41 @@ whose dependency tree a security team cannot read end to end is not a privacy to
 
 ---
 
+## 5c. Encryption at rest
+
+"Local-first" and "plaintext SQLite on disk" in one README is a contradiction, and it
+is the first one a security review finds. The threat model here is a laptop at rest:
+lost, stolen, backed up somewhere unexpected, or readable by any process running as
+the same user. Redaction reduces what is *in* the file. It does not protect the file.
+
+```bash
+pip install -e ".[encrypted]"
+digital-twin-sensor encrypt-store            # enable and migrate in place
+digital-twin-sensor encrypt-store --status   # report without changing anything
+```
+
+**What is encrypted:** `title`, `artifact` and `metadata` — the three columns that
+carry meaning. AES-256-GCM via `cryptography`, a vetted implementation of a standard
+AEAD. Nothing here invents a primitive.
+
+**What is not, and why it matters:** `ts_start`, `ts_end`, `dwell_seconds`, `domain`,
+`app` and `subject_id` stay readable, because the store queries and sorts on them. So
+an attacker holding the file still learns your working rhythm, your app mix and your
+domain distribution. That is real signal, and calling this "encrypted at rest" without
+saying so would be the kind of half-claim this project exists to avoid. Whole-database
+encryption (SQLCipher) is the answer, and it needs a C extension this project does not
+currently take. There is a test asserting the boundary so it cannot be quietly forgotten.
+
+**Keys** live in the OS keychain where one is available. Failing that they go to a
+0600 file beside the database, which is weaker — a process running as you can read it —
+and the CLI says so out loud rather than degrading quietly.
+
+**Migration is resumable.** Rows written before encryption decrypt to themselves, so a
+half-migrated store stays readable and an interrupted migration can simply be re-run.
+Encryption is idempotent in both directions for the same reason.
+
+---
+
 ## 6. Known gaps
 
 Honest list. These are the things that stand between this prototype and an enterprise
@@ -241,7 +276,7 @@ deployment, roughly in the order they would bite.
 
 | Gap | Why it matters | Status |
 | --- | --- | --- |
-| **Store is unencrypted SQLite** | a laptop at rest is the whole threat model | ⬜ designed |
+| **Store encryption is field-level, not whole-database** | timing, domain and app columns stay readable so the store can query them — an attacker with the file still learns rhythm and app mix. SQLCipher is the real answer | 🟡 partial |
 | **Redaction is regex-only** | 120 lines catch patterns, not unlisted human names; needs NER | 🟡 partial |
 | **No event-schema versioning** | a field rename orphans existing local history | ⬜ designed |
 | **Retrieval is lexical** | token overlap misses synonymy; needs embeddings + a learned router | ⬜ designed |
