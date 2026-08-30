@@ -8,6 +8,7 @@
 ![Storage local SQLite](https://img.shields.io/badge/storage-local%20SQLite-5C6672)
 ![Cloud upload none](https://img.shields.io/badge/cloud%20upload-none-A2432F)
 ![Status prototype](https://img.shields.io/badge/status-working%20prototype-8F6A1C)
+![Dependencies none](https://img.shields.io/badge/runtime%20dependencies-none-2F7E6D)
 
 Enterprise context does not live in documents. It lives in how work actually happens — what people attend to, in what order, what they abandon and return to. Documents are the residue of that process, not the process itself.
 
@@ -182,6 +183,11 @@ hashes. Below-floor themes are withheld **and counted**, so an operator sees tha
 suppression happened rather than quietly getting a thinner answer. Confidence is
 `0.65 × breadth + 0.35 × depth`, weighting corroboration across people above volume from
 any one person, so a single prolific subject cannot manufacture a theme alone.
+
+Those weights are a hand-chosen prior, not a result — not from a paper, and never fitted
+against labelled data, because none exists yet. Only the direction is defensible. The
+aggregation floor underneath is standard count-based k-anonymity; see
+[docs/UNDER_THE_HOOD.md](docs/UNDER_THE_HOOD.md) for what that does and does not buy.
 
 ```bash
 digital-twin-sensor synthesize --min-subjects 5

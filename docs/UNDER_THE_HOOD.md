@@ -140,6 +140,16 @@ suppression happened rather than quietly receiving a thinner answer. Confidence 
 volume. Weighting breadth higher is what stops one prolific person from manufacturing
 a theme on their own; there is a test for exactly that.
 
+> **Where that equation comes from: me.** The 0.65/0.35 split is a hand-chosen prior,
+> not a result from any paper, and it has not been fitted against labelled data —
+> because no labelled data exists yet. Only the *direction* is defensible (breadth
+> above depth, and there is a test for it). The magnitudes are a placeholder awaiting
+> calibration and should not be cited as a finding. The aggregation floor underneath
+> is different: count-based k-anonymity is standard practice ([Sweeney,
+> 2002](https://dataprivacylab.org/dataprivacy/projects/kanonymity/kanonymity.pdf)) —
+> though a count floor is a floor, not a proof, and it does not defend against
+> differencing across repeated queries.
+
 This is the layer that makes anything above a single team defensible. It is also the
 layer that must exist *before* deployment widens, not after — an aggregation floor is
 cheap at ten endpoints and impossible to retrofit at ten thousand.
@@ -195,7 +205,8 @@ deployment, roughly in the order they would bite.
 | **Retrieval is lexical** | token overlap misses synonymy; needs embeddings + a learned router | ⬜ designed |
 | **No feedback capture** | H1–H5 stay untestable without labelled outcomes | ⬜ designed |
 | **Sphere weights are hand-tuned** | the seven weights above are judgement, not fitted | 🟡 partial |
-| **Synthesis floor is count-based** | k-anonymity only; no differential privacy on aggregates | 🟡 partial |
+| **Synthesis floor is count-based** | k-anonymity only; no differential privacy, no defence against differencing across repeated queries | 🟡 partial |
+| **Confidence weights are unvalidated** | 0.65/0.35 is a hand-chosen prior, never fitted — direction defensible, magnitude is a placeholder | ⬜ designed |
 | **No pack provenance signature** | a receiving agent cannot verify a pack was gated | ⬜ designed |
 | **No control plane** | enrolment, policy distribution, audit log all unbuilt | ⬜ designed |
 | **macOS only** | Windows and Linux collectors unwritten | ⬜ designed |

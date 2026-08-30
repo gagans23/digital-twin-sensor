@@ -68,7 +68,20 @@ def _readable(theme_key: str) -> str:
 
 
 def _confidence(subjects: int, events: int, min_subjects: int) -> float:
-    """Rises with corroboration across people, not with volume from one person."""
+    """Rises with corroboration across people, not with volume from one person.
+
+    PROVENANCE: the 0.65/0.35 split is a hand-chosen prior, not a result. It is
+    not taken from any paper and it has not been fitted against labelled data,
+    because no labelled data exists yet — that is what the feedback-capture gap
+    in docs/UNDER_THE_HOOD.md is about. The only defensible claim is directional:
+    breadth is weighted above depth so that one prolific subject cannot
+    manufacture a theme alone (see tests/test_synthesis.py). Treat the number as
+    a placeholder awaiting calibration, and do not cite it as a finding.
+
+    The aggregation floor it sits behind is a different matter: count-based
+    k-anonymity is standard (Sweeney, 2002), though a count floor is a floor,
+    not a proof, and it does not defend against repeated differencing attacks.
+    """
     breadth = min(1.0, subjects / max(min_subjects * 2, 1))
     depth = min(1.0, events / 40.0)
     return round(0.65 * breadth + 0.35 * depth, 3)
