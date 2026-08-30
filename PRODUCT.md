@@ -29,7 +29,7 @@ slide, and they are looking for the reason. This names the reason.
 
 ### The wedge function
 
-Start with **trade finance document checking**. It is the sharpest instance of the
+Start with **trade finance document checking on the UAE–India corridor**, one of the busiest documentary trade routes in the world and, since a comprehensive economic partnership agreement came into force in 2022, one where origin documentation carries real tariff consequence. It is the sharpest instance of the
 argument and it is a function Gagan can speak to credibly:
 
 - the rules are fully codified (UCP 600), so rule automation is already deployed
@@ -37,10 +37,15 @@ argument and it is a function Gagan can speak to credibly:
   word that is not a decision three times in four
 - everything after that word — will this issuing bank refuse, will this applicant
   waive, is it faster to have the beneficiary re-present — is undocumented judgement
+- under a preferential trade agreement the certificate of origin determines duty treatment, so an origin discrepancy is a customs exposure rather than a clerical one
 - the value is measurable in days of working capital, not in "productivity"
 
 A pilot that shows resume-time and discrepancy-handling improvement in that function
 is a reference the rest of the bank understands.
+
+> **Boundary on all public material.** Examples in the writing, the case study and this plan are drawn
+> from public rulebooks, published trade agreements and general market structure. Nothing describes any
+> employer's systems, clients or live problems, and nothing here depends on non-public information.
 
 ---
 
