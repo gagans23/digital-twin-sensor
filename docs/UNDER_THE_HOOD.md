@@ -192,6 +192,48 @@ breaks the build exactly like a failing test.
 
 ---
 
+## 5b. The deep harness — where determinism runs out
+
+The harness above is deterministic, dependency-free and fast, and it stays the CI gate
+for exactly those reasons: a build must not depend on a model API being reachable or on
+a judge that gives a different answer twice.
+
+But a regex canary can only prove that a *known string* did not escape. It cannot answer
+the questions that actually decide whether this system is good:
+
+- could a person resume this work from this pack, or is it merely tidy?
+- what can be **inferred** about someone from a pack that leaked no literal PII?
+- do synthesis themes describe real work, or token soup that reads like English?
+- what is the golden set failing to test?
+
+Those are judgements. `deep_harness.py` makes them with a planner and four sub-agents,
+each with an isolated context window, running over the real pipeline:
+
+| Sub-agent | Question it owns |
+| --- | --- |
+| `resumability-judge` | given only this pack, what would I do next, and what would I get wrong? |
+| `leakage-adversary` | red team — infer employer, client, role, hours, personal life from a pack that passed the canaries |
+| `synthesis-critic` | are themes actionable, and does the floor hold as supporters approach it? |
+| `gap-analyst` | which untested scenario is most likely to fail *silently* in production? |
+
+Context quarantine matters here. The adversary must not be softened by having read the
+relevance judge's praise, which is why these are sub-agents with separate windows rather
+than sections of one prompt.
+
+```bash
+pip install -e ".[deep-eval]"     # optional extra, Python >=3.11
+export ANTHROPIC_API_KEY=...
+digital-twin-sensor deep-harness
+```
+
+**Data boundary.** It runs against synthetic fixtures from `harness/scenarios.json`. It
+does not read the local event store, because sending real captured attention to a model
+API is the exact thing this product exists to avoid. The extra is developer-time only —
+`dependencies = []` in `pyproject.toml` is deliberate and stays that way. A privacy tool
+whose dependency tree a security team cannot read end to end is not a privacy tool.
+
+---
+
 ## 6. Known gaps
 
 Honest list. These are the things that stand between this prototype and an enterprise
@@ -207,6 +249,7 @@ deployment, roughly in the order they would bite.
 | **Sphere weights are hand-tuned** | the seven weights above are judgement, not fitted | 🟡 partial |
 | **Synthesis floor is count-based** | k-anonymity only; no differential privacy, no defence against differencing across repeated queries | 🟡 partial |
 | **Confidence weights are unvalidated** | 0.65/0.35 is a hand-chosen prior, never fitted — direction defensible, magnitude is a placeholder | ⬜ designed |
+| **Deep-harness judgements are non-deterministic** | an LLM judge is a smoke alarm, not a proof; it informs review, it does not gate CI | 🟡 partial |
 | **No pack provenance signature** | a receiving agent cannot verify a pack was gated | ⬜ designed |
 | **No control plane** | enrolment, policy distribution, audit log all unbuilt | ⬜ designed |
 | **macOS only** | Windows and Linux collectors unwritten | ⬜ designed |

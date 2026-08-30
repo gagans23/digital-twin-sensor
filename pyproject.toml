@@ -12,6 +12,13 @@ license = { text = "MIT" }
 authors = [{ name = "Local prototype" }]
 dependencies = []
 
+# Judgement-based evaluation only. Developer-time, never required at runtime:
+# the sensor itself must stay installable with zero dependencies, because a
+# privacy tool a security team cannot read end to end is not a privacy tool.
+# Needs Python >=3.11 (deepagents), while the sensor supports >=3.9.
+[project.optional-dependencies]
+deep-eval = ["deepagents>=0.7.11"]
+
 [project.scripts]
 digital-twin-sensor = "digital_twin_sensor.cli:main"
 

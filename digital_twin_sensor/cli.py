@@ -434,6 +434,26 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def cmd_deep_harness(args: argparse.Namespace) -> int:
+    """Judgement-based evaluation with deep agents. Optional extra; the
+    deterministic harness remains the CI gate."""
+    from .deep_harness import DeepEvalUnavailable, run_deep_harness  # noqa: PLC0415
+
+    try:
+        report = run_deep_harness(model=args.model, prompt=args.prompt)
+    except DeepEvalUnavailable as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    except Exception as exc:  # a judge failing must not look like a clean pass
+        print(f"deep harness failed: {exc}", file=sys.stderr)
+        return 3
+    print(report)
+    if args.output:
+        args.output.write_text(report, encoding="utf-8")
+    return 0
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     run_dashboard(
         db_path=args.db,
@@ -588,6 +608,15 @@ def build_parser() -> argparse.ArgumentParser:
     synthesize.add_argument("--min-subjects", type=int, default=5)
     synthesize.add_argument("--format", choices=["markdown", "json"], default="markdown")
     synthesize.set_defaults(func=cmd_synthesize)
+
+    deep = sub.add_parser(
+        "deep-harness",
+        help="Judgement-based evaluation with deep agents (optional extra, needs an API key).",
+    )
+    deep.add_argument("--model", default="anthropic:claude-sonnet-4-5")
+    deep.add_argument("--prompt", default=None, help="Override the evaluation task.")
+    deep.add_argument("--output", type=_path, default=None)
+    deep.set_defaults(func=cmd_deep_harness)
 
     ui = sub.add_parser("ui", help="Launch the local Digital Twin Console.")
     ui.add_argument("--host", default="127.0.0.1")

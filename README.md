@@ -225,6 +225,24 @@ digital-twin-sensor harness --fail-under 0.8 # tighten the recall floor
 Non-zero exit on any leak or recall miss, wired into CI, so a context regression breaks
 the build exactly like a failing test.
 
+### Where determinism runs out
+
+A canary proves a known string did not escape. It cannot tell you whether someone could
+*resume the work* from a pack, or what an adversary could **infer** from one that leaked
+no literal PII. `deep_harness.py` answers those with a planner and four sub-agents in
+isolated context windows — `resumability-judge`, `leakage-adversary`, `synthesis-critic`,
+`gap-analyst` — running over the real pipeline via read-only tools.
+
+```bash
+pip install -e ".[deep-eval]"     # optional extra, Python >=3.11
+digital-twin-sensor deep-harness
+```
+
+It runs on synthetic fixtures and never touches the local event store: sending real
+captured attention to a model API is precisely what this product exists to avoid. It is
+a review aid, not a gate — the deterministic harness stays in CI, and `dependencies = []`
+stays true for the sensor itself.
+
 > **It paid for itself on the first run.** The harness failed `stale_evidence`: events
 > 60 days old exported inside a 3-day window. `days` was threaded through the builders as
 > *metadata* and enforced only by `EventStore.fetch_window` — so any caller passing events
@@ -292,6 +310,7 @@ Honest accounting. The endpoint half is built; the control plane is specified, n
 | Eleven-tab local dashboard | ✅ built |
 | Context-pack evaluation harness + golden set | ✅ built |
 | Collective synthesis with aggregation floor | ✅ built |
+| Deep-agent judgement harness (optional extra) | ✅ built |
 | Rolling-window enforcement in all builders | ✅ built |
 | Trust-calibration surfacing (confidence, evidence age) | 🟡 partial |
 | Memory maintenance diagnostics | 🟡 partial |
@@ -405,6 +424,7 @@ flowchart TB
   health --> fleet["fleet.py<br/>device posture"]
   pack --> synth["synthesis.py<br/>cross-subject, floor-gated"]
   pack --> harness["harness.py<br/>golden set + metrics"]
+  harness --> deep["deep_harness.py<br/>4 judge subagents"]
   pack --> web["web.py + ui_static/<br/>local dashboard + API"]
   query --> web
   fleet --> web
