@@ -134,6 +134,100 @@ flowchart TD
 Every pack records what was withheld and why. An agent that cannot tell you what it did not have cannot be trusted with what it did.
 ---
 
+## How attention is defined
+
+Attention is not time on screen. Dwell alone rewards the window you left open while you
+went to lunch. The Digital Twin Signature models it as a distribution with a shape:
+
+| Vector | Measures | How |
+| --- | --- | --- |
+| `v_dom` | where attention goes | dwell distribution across work domains |
+| `v_rhythm` | when it goes there | hour-of-day histogram |
+| `v_base` | what normal looks like | short window (5d) vs long window (14d) |
+| `v_resp` | how attention moves | domain-to-domain transition counts |
+| `v_div` | concentration and drift | Shannon entropy + KL divergence, short vs long |
+
+`KL(short ‖ long) > 0.2` means the recent week does not look like the fortnight. The system
+treats that as a trigger, not a statistic — retrieval automatically adds a `differential`
+filter when it fires.
+
+Retrieval then picks an **attention filter** from cues in the question itself and weights
+evidence by it: `proportional` (default), `inverse` (what was *neglected* — absence as
+signal), `differential` (what changed), `recurrent` (returned to), `comparative`,
+`sequential`, `collective`. Final rank is `attention × content`. Content alone finds the
+document; attention decides whether the person was actually working on it.
+
+Working spheres then reconnect interrupted work by scoring each event against every open
+sphere — same artifact **0.46**, token overlap up to **0.48**, same domain 0.18, same task
+0.13, same app 0.12. Artifact identity dominates on purpose: a browser is a browser, but
+returning to *the same thing* is strong evidence. That is what lets the system say "you
+were interrupted here, three times" instead of "you used Chrome for four hours".
+
+Full walkthrough: [docs/UNDER_THE_HOOD.md](docs/UNDER_THE_HOOD.md)
+
+---
+
+## The synthesis layer
+
+One sensor answers *what was this person doing*. The layer an institution needs answers
+*what is the work here* — without letting any individual trace be reconstructed from the
+output. So the floor comes first:
+
+```
+a theme is emitted only when N distinct subjects independently support it
+```
+
+`synthesis.py` reads gated working spheres — never raw events — keyed by opaque subject
+hashes. Below-floor themes are withheld **and counted**, so an operator sees that
+suppression happened rather than quietly getting a thinner answer. Confidence is
+`0.65 × breadth + 0.35 × depth`, weighting corroboration across people above volume from
+any one person, so a single prolific subject cannot manufacture a theme alone.
+
+```bash
+digital-twin-sensor synthesize --min-subjects 5
+```
+
+```
+| theme                             | subjects | events | hours | confidence |
+| coding — gateway logic payments   |        7 |     70 |   7.0 |      0.805 |
+
+## Withheld
+- finance — filing personal return — below aggregation floor (2/5 subjects)
+```
+
+This is what makes anything above a single team defensible, and it has to exist *before*
+deployment widens — an aggregation floor is cheap at ten endpoints and impossible to
+retrofit at ten thousand.
+
+---
+
+## The evaluation harness
+
+Unit tests prove a function returns what it was told to. They cannot tell you whether the
+context handed to an agent is good — relevant enough to be useful, tight enough to be safe.
+
+`harness.py` runs a golden set end to end and scores **recall**, **noise ratio**,
+**leaks**, **evidence age**, **pack size** and **gate decisions**. A leakage canary
+reaching an export is a hard failure whatever the recall score.
+
+```bash
+digital-twin-sensor harness                  # markdown report
+digital-twin-sensor harness --format json    # machine-readable
+digital-twin-sensor harness --fail-under 0.8 # tighten the recall floor
+```
+
+Non-zero exit on any leak or recall miss, wired into CI, so a context regression breaks
+the build exactly like a failing test.
+
+> **It paid for itself on the first run.** The harness failed `stale_evidence`: events
+> 60 days old exported inside a 3-day window. `days` was threaded through the builders as
+> *metadata* and enforced only by `EventStore.fetch_window` — so any caller passing events
+> directly got stale evidence stamped with a fresh window. Fixed in `store.filter_window`,
+> enforced in all three builders, regression test added. Twenty-two unit tests had not
+> found it.
+
+---
+
 ## Memory as an operable service
 
 Agent memory degrades silently unless someone maintains it. This treats memory quality as an operations problem with visible health checks, not as a hidden backend detail.
@@ -190,10 +284,17 @@ Honest accounting. The endpoint half is built; the control plane is specified, n
 | Product Doctor, watchdog, health API | ✅ built |
 | Fleet posture: identity, policy, connectors, sync-readiness | ✅ built |
 | Eleven-tab local dashboard | ✅ built |
+| Context-pack evaluation harness + golden set | ✅ built |
+| Collective synthesis with aggregation floor | ✅ built |
+| Rolling-window enforcement in all builders | ✅ built |
 | Trust-calibration surfacing (confidence, evidence age) | 🟡 partial |
 | Memory maintenance diagnostics | 🟡 partial |
 | Evolving context cards | ⬜ designed |
 | Feedback-labelled pack evaluation | ⬜ designed |
+| Semantic retrieval + learned Query × Signature router | ⬜ designed |
+| NER-backed redaction beyond regex | ⬜ designed |
+| Event-schema versioning and migration | ⬜ designed |
+| Signed pack provenance | ⬜ designed |
 | Encrypted local store, signed installers | ⬜ designed |
 | Remote control plane, enrollment, audit log | ⬜ designed |
 | Windows / Linux endpoints | ⬜ designed |
@@ -296,6 +397,8 @@ flowchart TB
   store --> query["query.py<br/>evidence retrieval"]
   store --> health["health.py<br/>doctor"]
   health --> fleet["fleet.py<br/>device posture"]
+  pack --> synth["synthesis.py<br/>cross-subject, floor-gated"]
+  pack --> harness["harness.py<br/>golden set + metrics"]
   pack --> web["web.py + ui_static/<br/>local dashboard + API"]
   query --> web
   fleet --> web
@@ -339,6 +442,10 @@ digital-twin-sensor graph --days 14
 digital-twin-sensor activities --days 14
 digital-twin-sensor context-pack --days 14 --target kiro --format markdown
 digital-twin-sensor context-pack --days 14 --target gitlab --purpose gitlab --output work/context-pack.md
+
+# measure and synthesise
+digital-twin-sensor harness --fail-under 0.8
+digital-twin-sensor synthesize --min-subjects 5
 
 # operate safely
 digital-twin-sensor doctor
@@ -392,6 +499,7 @@ Reference: [docs/API.md](docs/API.md)
 | --- | --- |
 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | installation and first run |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | system architecture and data flow |
+| [docs/UNDER_THE_HOOD.md](docs/UNDER_THE_HOOD.md) | how attention is defined, what joins the layers, and the known gaps |
 | [docs/API.md](docs/API.md) | local dashboard API |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | local and enterprise deployment path |
 | [docs/RESEARCH_AND_EVALUATION.md](docs/RESEARCH_AND_EVALUATION.md) | study design and metrics |
@@ -416,7 +524,7 @@ python3 -m compileall digital_twin_sensor
 node --check digital_twin_sensor/ui_static/app.js
 ```
 
-Ten suites cover redaction, admission, attention depth, browser capture, accessibility surface, context graph, working spheres, packs, controls, fleet and health. CI config in `.gitlab-ci.yml`.
+Twelve suites, 34 tests, covering redaction, admission, attention depth, browser capture, accessibility surface, context graph, working spheres, packs, controls, fleet, health, window enforcement and synthesis floors. Plus the context harness above. CI in `.gitlab-ci.yml` and `.github/workflows/ci.yml` — both run the harness as a gating step.
 
 ---
 

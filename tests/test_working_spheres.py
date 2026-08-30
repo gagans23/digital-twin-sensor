@@ -3,6 +3,18 @@ import unittest
 
 from digital_twin_sensor.working_spheres import build_working_spheres
 
+from datetime import timedelta
+
+from digital_twin_sensor.store import utc_now
+
+# Fixtures are anchored to "now" rather than a fixed calendar date. The builders
+# enforce their own rolling window, so a hardcoded date silently ages out of it.
+_BASE = utc_now() - timedelta(hours=2)
+
+
+def ts(offset_seconds: int) -> str:
+    return (_BASE + timedelta(seconds=offset_seconds)).isoformat()
+
 
 def event(
     event_id,
@@ -40,24 +52,24 @@ class WorkingSphereTests(unittest.TestCase):
                 app="Google Chrome",
                 artifact="Task Model Induction arxiv paper",
                 domain="browser-research",
-                start="2026-08-28T08:00:00+00:00",
-                end="2026-08-28T08:00:15+00:00",
+                start=ts(0),
+                end=ts(15),
             ),
             event(
                 2,
                 app="Mail",
                 artifact="Inbox update",
                 domain="communication",
-                start="2026-08-28T08:00:15+00:00",
-                end="2026-08-28T08:00:30+00:00",
+                start=ts(15),
+                end=ts(30),
             ),
             event(
                 3,
                 app="Google Chrome",
                 artifact="Task Model Induction arxiv paper",
                 domain="browser-research",
-                start="2026-08-28T08:00:30+00:00",
-                end="2026-08-28T08:00:45+00:00",
+                start=ts(30),
+                end=ts(45),
             ),
         ]
 
@@ -82,16 +94,16 @@ class WorkingSphereTests(unittest.TestCase):
                 artifact="system state",
                 domain="system",
                 action="system",
-                start="2026-08-28T08:00:00+00:00",
-                end="2026-08-28T08:00:15+00:00",
+                start=ts(0),
+                end=ts(15),
             ),
             event(
                 2,
                 app="Google Chrome",
                 artifact="[name] checkout [credit-card]",
                 domain="browser-research",
-                start="2026-08-28T08:00:15+00:00",
-                end="2026-08-28T08:00:30+00:00",
+                start=ts(15),
+                end=ts(30),
                 findings={"name": 1, "credit_card": 1},
             ),
         ]

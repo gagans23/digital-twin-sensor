@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "notes": "Golden set for the context-pack harness. must_not_surface entries are leakage canaries: if one reaches an export the scenario fails outright, whatever the recall score.",
+  "scenarios": [
+    {
+      "name": "coding_resume",
+      "description": "Ordinary interrupted coding work. The pack should carry enough to resume the task.",
+      "purpose": "coding",
+      "target": "kiro",
+      "expected_recall": 0.75,
+      "must_surface": ["payments gateway retry"],
+      "expected_artifacts": ["payments gateway retry logic"],
+      "query": "what did I keep coming back to?",
+      "query_expects": "payments gateway retry logic",
+      "events": [
+        { "title": "payments gateway retry logic", "app": "Kiro", "domain": "coding", "repeat": 6, "dwell_seconds": 240 },
+        { "title": "retry backoff design notes", "app": "Notes", "domain": "docs", "repeat": 2, "dwell_seconds": 120 }
+      ]
+    },
+    {
+      "name": "leak_canary_collected",
+      "description": "PII in window titles, masked at collection time as the real pipeline does. Nothing raw may reach an export.",
+      "purpose": "coding",
+      "target": "kiro",
+      "apply_collection_redaction": true,
+      "expected_recall": 0.5,
+      "must_surface": ["invoice"],
+      "must_not_surface": ["4111111111111111", "gagan.test@example.com", "123-45-6789"],
+      "events": [
+        { "title": "invoice reconciliation card 4111111111111111", "app": "Numbers", "domain": "data", "repeat": 4, "dwell_seconds": 180 },
+        { "title": "invoice email to gagan.test@example.com", "app": "Mail", "domain": "email", "repeat": 3, "dwell_seconds": 90 },
+        { "title": "invoice payer ssn 123-45-6789", "app": "Numbers", "domain": "data", "repeat": 2, "dwell_seconds": 60 }
+      ]
+    },
+    {
+      "name": "leak_canary_export_gate_only",
+      "description": "Defence in depth. Collection masking deliberately switched off, so only the export gate stands between raw PII and the target.",
+      "purpose": "coding",
+      "target": "kiro",
+      "apply_collection_redaction": false,
+      "expected_recall": 0.0,
+      "must_not_surface": ["4111111111111111", "gagan.test@example.com"],
+      "events": [
+        { "title": "ledger fix card 4111111111111111", "app": "Numbers", "domain": "data", "repeat": 4, "dwell_seconds": 200 },
+        { "title": "ledger note gagan.test@example.com", "app": "Mail", "domain": "email", "repeat": 3, "dwell_seconds": 80 }
+      ]
+    },
+    {
+      "name": "policy_denied_target",
+      "description": "Fleet policy removes gitlab from allowed targets. The pack must refuse rather than degrade quietly.",
+      "purpose": "gitlab",
+      "target": "gitlab",
+      "expected_recall": 0.0,
+      "config_overrides": { "fleet_allowed_export_targets": ["local_file"] },
+      "must_not_surface": ["migration runbook step three"],
+      "events": [
+        { "title": "migration runbook step three", "app": "Kiro", "domain": "coding", "repeat": 5, "dwell_seconds": 150 }
+      ]
+    },
+    {
+      "name": "stale_evidence",
+      "description": "All attention is well outside the requested window. The pack should come back empty rather than reach for old evidence.",
+      "purpose": "coding",
+      "target": "kiro",
+      "days": 3,
+      "age_minutes": 86400,
+      "expected_recall": 0.0,
+      "must_not_surface": ["quarter end close checklist"],
+      "events": [
+        { "title": "quarter end close checklist", "app": "Numbers", "domain": "data", "repeat": 5, "dwell_seconds": 300 }
+      ]
+    }
+  ]
+}

@@ -9,6 +9,8 @@ from pathlib import Path
 
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config, write_config
+from .harness import format_report_markdown, load_scenarios, run_harness
+from .synthesis import format_synthesis_markdown, subject_key, synthesize_collective
 from .context_pack import PURPOSES, TARGETS, build_context_pack
 from .context_graph import build_context_graph
 from .fleet import build_fleet_status
@@ -383,6 +385,55 @@ def cmd_purge(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def cmd_harness(args: argparse.Namespace) -> int:
+    """Score context packs against the golden set. Non-zero exit on any leak."""
+    config = load_config(args.config) if args.config.exists() else None
+    scenarios = load_scenarios(args.scenarios) if args.scenarios else None
+    report = run_harness(scenarios, config, fail_under=args.fail_under)
+    if args.format == "json":
+        print(json.dumps(report, indent=2))
+    else:
+        print(format_report_markdown(report), end="")
+    if args.output:
+        args.output.write_text(
+            json.dumps(report, indent=2) if args.format == "json" else format_report_markdown(report),
+            encoding="utf-8",
+        )
+    return 0 if report["ok"] else 1
+
+
+def cmd_synthesize(args: argparse.Namespace) -> int:
+    """Fold per-subject working spheres into themes that clear an aggregation floor."""
+    if args.input:
+        payload = json.loads(args.input.read_text(encoding="utf-8"))
+        bundles = payload if isinstance(payload, list) else payload.get("bundles", [])
+    else:
+        config = load_config(args.config)
+        store = EventStore(args.db)
+        try:
+            events = store.fetch_window(
+                subject_id=args.subject_id or config["subject_id"], days=args.days
+            )
+        finally:
+            store.close()
+        bundles = [
+            {
+                "subject_key": subject_key(config.get("device_id", "local")),
+                "activities": build_working_spheres(events, config, days=args.days),
+            }
+        ]
+
+    result = synthesize_collective(
+        bundles, min_subjects=args.min_subjects, days=args.days
+    )
+    if args.format == "json":
+        print(json.dumps(result, indent=2))
+    else:
+        print(format_synthesis_markdown(result), end="")
+    return 0
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     run_dashboard(
         db_path=args.db,
@@ -516,6 +567,27 @@ def build_parser() -> argparse.ArgumentParser:
     purge_mode.add_argument("--all", action="store_true")
     purge.add_argument("--yes", action="store_true")
     purge.set_defaults(func=cmd_purge)
+
+    harness = sub.add_parser(
+        "harness",
+        help="Score context packs against the golden set. Exits non-zero on any leak.",
+    )
+    harness.add_argument("--scenarios", type=_path, default=None)
+    harness.add_argument("--fail-under", type=float, default=0.75)
+    harness.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    harness.add_argument("--output", type=_path, default=None)
+    harness.set_defaults(func=cmd_harness)
+
+    synthesize = sub.add_parser(
+        "synthesize",
+        help="Fold working spheres into themes above an aggregation floor.",
+    )
+    synthesize.add_argument("--input", type=_path, default=None, help="JSON bundles from many subjects")
+    synthesize.add_argument("--subject-id", default=None)
+    synthesize.add_argument("--days", type=int, default=14)
+    synthesize.add_argument("--min-subjects", type=int, default=5)
+    synthesize.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    synthesize.set_defaults(func=cmd_synthesize)
 
     ui = sub.add_parser("ui", help="Launch the local Digital Twin Console.")
     ui.add_argument("--host", default="127.0.0.1")

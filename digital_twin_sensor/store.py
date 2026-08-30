@@ -44,6 +44,27 @@ def parse_dt(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def filter_window(events: list[dict[str, Any]], days: int) -> list[dict[str, Any]]:
+    """Keep only events inside a rolling window.
+
+    EventStore.fetch_window already does this on the way out of SQLite, but the
+    derivation builders accept a `days` argument and stamp it on their output.
+    A caller that hands in a wider list would otherwise get stale evidence
+    labelled as a fresh window. Enforce it where it is claimed.
+    """
+    if days is None or days <= 0:
+        return list(events)
+    cutoff = utc_now() - timedelta(days=days)
+    kept = []
+    for event in events:
+        try:
+            if parse_dt(event["ts_start"]) >= cutoff:
+                kept.append(event)
+        except (KeyError, TypeError, ValueError):
+            kept.append(event)  # undateable events are a store problem, not a window problem
+    return kept
+
+
 class EventStore:
     def __init__(self, db_path: Path = DEFAULT_DB_PATH):
         self.db_path = Path(db_path).expanduser()

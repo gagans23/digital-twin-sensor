@@ -3,6 +3,18 @@ import unittest
 
 from digital_twin_sensor.context_graph import build_context_graph
 
+from datetime import timedelta
+
+from digital_twin_sensor.store import utc_now
+
+# Fixtures are anchored to "now" rather than a fixed calendar date. The builders
+# enforce their own rolling window, so a hardcoded date silently ages out of it.
+_BASE = utc_now() - timedelta(hours=2)
+
+
+def ts(offset_seconds: int) -> str:
+    return (_BASE + timedelta(seconds=offset_seconds)).isoformat()
+
 
 class ContextGraphTests(unittest.TestCase):
     def test_builds_privacy_gated_graph(self):
@@ -16,8 +28,8 @@ class ContextGraphTests(unittest.TestCase):
                 "artifact": "X-SYNTH paper - arxiv",
                 "domain": "browser-research",
                 "action": "focus",
-                "ts_start": "2026-08-28T08:00:00+00:00",
-                "ts_end": "2026-08-28T08:00:15+00:00",
+                "ts_start": ts(0),
+                "ts_end": ts(15),
                 "dwell_seconds": 15.0,
                 "metadata": {"redaction_findings": {}},
             },
@@ -30,8 +42,8 @@ class ContextGraphTests(unittest.TestCase):
                 "artifact": "[name] checkout [credit-card]",
                 "domain": "browser-research",
                 "action": "focus",
-                "ts_start": "2026-08-28T08:00:15+00:00",
-                "ts_end": "2026-08-28T08:00:30+00:00",
+                "ts_start": ts(15),
+                "ts_end": ts(30),
                 "dwell_seconds": 15.0,
                 "metadata": {"redaction_findings": {"name": 1, "credit_card": 1}},
             },

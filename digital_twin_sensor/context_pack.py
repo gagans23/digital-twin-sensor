@@ -5,7 +5,7 @@ from collections import Counter
 from typing import Any
 
 from .redaction import redact_text
-from .store import utc_now
+from .store import filter_window, utc_now
 from .working_spheres import build_working_spheres
 
 
@@ -224,6 +224,7 @@ def build_context_pack(
     max_events: int = 8,
     activities: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    events = filter_window(events, days)
     purpose_key = purpose if purpose in PURPOSES else "agent_prompt"
     target_key = target if target in TARGETS else target
     target_ok, target_reason = _target_allowed(target_key, config)

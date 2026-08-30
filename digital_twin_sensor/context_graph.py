@@ -4,7 +4,7 @@ import hashlib
 from collections import Counter
 from typing import Any
 
-from .store import parse_dt
+from .store import filter_window, parse_dt
 
 
 TYPE_PRIORITY = {
@@ -377,6 +377,7 @@ class ContextGraphBuilder:
             self.add_edge(artifact, private_signal, "redacted_from", dwell_seconds=0.0, gate_mode="masked")
 
     def build(self, events: list[dict[str, Any]], *, days: int, max_nodes: int, max_edges: int) -> dict[str, Any]:
+        events = filter_window(events, days)
         source_event_count = len(events)
         excluded_system_events = 0
         if not self.config.get("context_graph_include_system_events", False):

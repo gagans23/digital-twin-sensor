@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-from .store import parse_dt, utc_now
+from .store import filter_window, parse_dt, utc_now
 
 
 STOPWORDS = {
@@ -599,6 +599,7 @@ def build_working_spheres(
     days: int = 14,
     max_spheres: int | None = None,
 ) -> dict[str, Any]:
+    events = filter_window(events, days)
     source_event_count = len(events)
     excluded_system_events = 0
     if not config.get("working_spheres_include_system_events", False):

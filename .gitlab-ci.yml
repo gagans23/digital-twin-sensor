@@ -21,3 +21,19 @@ package_smoke:
     paths:
       - dist/
     expire_in: 7 days
+
+context_harness:
+  image: python:3.11-slim
+  stage: test
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e .
+    # Exits non-zero on any leakage canary reaching an export, or if mean
+    # recall drops below the floor. A context regression should break the
+    # build the same way a failing unit test does.
+    - digital-twin-sensor harness --format markdown --output harness-report.md
+  artifacts:
+    when: always
+    paths:
+      - harness-report.md
+    expire_in: 30 days
