@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local.digital-twin-learning</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__VENV_BIN__/digital-twin-sensor</string>
+    <string>maintain-learning</string>
+    <string>--days</string>
+    <string>14</string>
+    <string>--max-cards</string>
+    <string>20</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__INSTALL_DIR__</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StartInterval</key>
+  <integer>900</integer>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/.digital-twin-sensor/learning.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.digital-twin-sensor/learning.err.log</string>
+</dict>
+</plist>

@@ -109,15 +109,16 @@ Hard default exclusions:
 
 ## Availability Model
 
-macOS production-like local availability uses three user LaunchAgents:
+macOS production-like local availability uses four user LaunchAgents:
 
 ```text
 com.local.digital-twin-sensor     -> continuous collector
 com.local.digital-twin-dashboard  -> local dashboard at 127.0.0.1:8765
 com.local.digital-twin-watchdog   -> scheduled self-heal check every 60 seconds
+com.local.digital-twin-learning   -> scheduled context-card refresh every 15 minutes
 ```
 
-The watchdog is scheduled. It may show as `not running` between checks with last exit code `0`; that is healthy.
+The watchdog and learning maintenance jobs are scheduled. They may show as `not running` between checks with last exit code `0`; that is healthy.
 
 ## UI Architecture
 

@@ -392,6 +392,33 @@ def cmd_learning(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_maintain_learning(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = EventStore(args.db)
+    events = store.fetch_window(subject_id=subject_id, days=args.days)
+    store.close()
+    state = build_learning_state(
+        events,
+        config,
+        subject_id=subject_id,
+        db_path=args.db,
+        days=args.days,
+        max_cards=args.max_cards,
+    )
+    result = {
+        "status": "maintained",
+        "generated_at": utc_now().isoformat(),
+        "subject_id": subject_id,
+        "days": args.days,
+        "stats": state["stats"],
+        "maintenance": state["maintenance"],
+    }
+    if not args.quiet:
+        print(json.dumps(result, indent=2 if args.pretty else None))
+    return 0
+
+
 def cmd_redact_existing(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
@@ -718,6 +745,17 @@ def build_parser() -> argparse.ArgumentParser:
     learning.add_argument("--max-cards", type=int, default=12)
     learning.add_argument("--format", choices=["markdown", "json"], default="markdown")
     learning.set_defaults(func=cmd_learning)
+
+    maintain_learning = sub.add_parser(
+        "maintain-learning",
+        help="Refresh local context cards from redacted traces and feedback labels.",
+    )
+    maintain_learning.add_argument("--subject-id", default=None)
+    maintain_learning.add_argument("--days", type=int, default=14)
+    maintain_learning.add_argument("--max-cards", type=int, default=20)
+    maintain_learning.add_argument("--quiet", action="store_true")
+    maintain_learning.add_argument("--pretty", action="store_true")
+    maintain_learning.set_defaults(func=cmd_maintain_learning)
 
     export = sub.add_parser("export", help="Export recent raw events as JSON.")
     export.add_argument("--subject-id", default=None)

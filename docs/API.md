@@ -59,6 +59,35 @@ Example:
 curl 'http://127.0.0.1:8765/api/context-pack?target=gitlab&purpose=gitlab'
 ```
 
+## GET /api/learning
+
+Returns local feedback labels, evolving context cards, and maintenance state.
+
+Query parameters:
+
+| Name | Default | Description |
+| --- | --- | --- |
+| `days` | `14` | Event window used to refresh cards |
+| `max_cards` | `12` | Maximum context cards to return |
+
+Example:
+
+```bash
+curl 'http://127.0.0.1:8765/api/learning?days=14'
+```
+
+## POST /api/feedback
+
+Stores a redacted local feedback label for a pack, sphere, or evidence item.
+
+Example:
+
+```bash
+curl -X POST 'http://127.0.0.1:8765/api/feedback' \
+  -H 'Content-Type: application/json' \
+  -d '{"pack_id":"pack_xxx","sphere_id":"sphere_xxx","scope":"pack","label":"useful"}'
+```
+
 ## GET /api/query
 
 Runs attention-weighted evidence retrieval.

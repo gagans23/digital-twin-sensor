@@ -67,10 +67,11 @@ Stop with `Ctrl-C`.
 ## Install Background Services
 
 ```bash
-chmod +x scripts/install_launch_agent.sh scripts/install_dashboard_agent.sh scripts/install_watchdog_agent.sh
+chmod +x scripts/install_launch_agent.sh scripts/install_dashboard_agent.sh scripts/install_watchdog_agent.sh scripts/install_learning_agent.sh
 scripts/install_launch_agent.sh
 scripts/install_dashboard_agent.sh
 scripts/install_watchdog_agent.sh
+scripts/install_learning_agent.sh
 ```
 
 This installs:
@@ -78,6 +79,7 @@ This installs:
 - collector LaunchAgent
 - dashboard LaunchAgent
 - scheduled watchdog LaunchAgent
+- scheduled learning-maintenance LaunchAgent
 
 Check health:
 

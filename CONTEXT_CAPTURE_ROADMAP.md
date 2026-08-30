@@ -76,7 +76,7 @@ Before any team or workplace use:
 - role-based access
 - connector-specific scopes
 
-Fleet status: Fleet Manager Lite is implemented locally. It exposes one local endpoint, collector/dashboard health, watchdog posture, active policy, connector inventory, sync-readiness gates, and a portability checklist. Remote enrollment, SSO, signed installers, encrypted sync, and central audit logs are still future work.
+Fleet status: Fleet Manager Lite is implemented locally. It exposes one local endpoint, collector/dashboard health, watchdog posture, learning-maintenance posture, active policy, connector inventory, sync-readiness gates, and a portability checklist. Remote enrollment, SSO, signed installers, encrypted sync, and central audit logs are still future work.
 
 Product Ops status: implemented locally. `digital-twin-sensor doctor`, `/api/health`, and the Product Ops dashboard tab expose service availability, sample freshness, permission posture, privacy gates, paper deviations, product gaps, and a research-to-product backlog.
 

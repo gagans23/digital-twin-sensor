@@ -447,7 +447,8 @@ function renderOpsServices(services) {
   }
   root.innerHTML = Object.entries(services)
     .map(([name, item]) => {
-      const displayState = name === "watchdog" && item.installed && item.state === "not running" ? "scheduled" : item.state;
+      const scheduledService = ["watchdog", "learning"].includes(name);
+      const displayState = scheduledService && item.installed && item.state === "not running" ? "scheduled" : item.state;
       const tone = fleetTone(displayState);
       return `
       <article class="service-card ${tone}">

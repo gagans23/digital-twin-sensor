@@ -128,10 +128,10 @@ Keep raw events local until encryption, signed installers, retention controls, a
 
 ## Availability Model
 
-Local availability now has three layers:
+Local availability now has four layers:
 
 ```text
-Collector LaunchAgent -> Dashboard LaunchAgent -> Watchdog LaunchAgent
+Collector LaunchAgent -> Dashboard LaunchAgent -> Watchdog LaunchAgent -> Learning Maintenance LaunchAgent
 ```
 
-The watchdog is scheduled rather than permanently running. A healthy macOS `launchctl print` may therefore show the watchdog as `not running` with a recent zero exit code. The dashboard treats that state as scheduled if the LaunchAgent is installed.
+The watchdog and learning maintenance jobs are scheduled rather than permanently running. A healthy macOS `launchctl print` may therefore show either one as `not running` with a recent zero exit code.

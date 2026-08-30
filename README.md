@@ -305,7 +305,7 @@ Honest accounting. The endpoint half is built; the control plane is specified, n
 | Digital Twin Signature | ✅ built |
 | Context graph and working spheres | ✅ built |
 | Memory Admission Gate + context packs | ✅ built |
-| Product Doctor, watchdog, health API | ✅ built |
+| Product Doctor, watchdog, learning maintenance, health API | ✅ built |
 | Fleet posture: identity, policy, connectors, sync-readiness | ✅ built |
 | Eleven-tab local dashboard | ✅ built |
 | Context-pack evaluation harness + golden set | ✅ built |
@@ -411,22 +411,24 @@ The active-window collector uses macOS Accessibility APIs through a native helpe
 ### Install as a background sensor
 
 ```bash
-chmod +x scripts/install_launch_agent.sh scripts/install_dashboard_agent.sh scripts/install_watchdog_agent.sh
+chmod +x scripts/install_launch_agent.sh scripts/install_dashboard_agent.sh scripts/install_watchdog_agent.sh scripts/install_learning_agent.sh
 scripts/install_launch_agent.sh
 scripts/install_dashboard_agent.sh
 scripts/install_watchdog_agent.sh
+scripts/install_learning_agent.sh
 digital-twin-sensor doctor
 ```
 
-Three LaunchAgents, three jobs:
+Four LaunchAgents, four jobs:
 
 | Service | Role |
 | --- | --- |
 | `com.local.digital-twin-sensor` | continuous collector |
 | `com.local.digital-twin-dashboard` | local dashboard on `127.0.0.1:8765` |
 | `com.local.digital-twin-watchdog` | scheduled self-heal check every 60 seconds |
+| `com.local.digital-twin-learning` | scheduled context-card refresh every 15 minutes |
 
-The watchdog is scheduled rather than resident, so a healthy `launchctl print` may show it as `not running` with a recent zero exit code. That is correct.
+The watchdog and learning maintenance jobs are scheduled rather than resident, so a healthy `launchctl print` may show them as `not running` with a recent zero exit code. That is correct.
 
 ---
 
@@ -518,9 +520,11 @@ digital-twin-sensor purge --older-than-days 30 --yes
 | `GET /api/overview` | twin cockpit state |
 | `GET /api/health` | doctor output, service and connector health |
 | `GET /api/context-pack` | gated pack for a declared purpose |
+| `GET /api/learning` | feedback labels, context cards, and maintenance state |
 | `GET /api/query` | evidence retrieval with filters |
 | `GET /api/fleet` | device identity, policy, sync-readiness |
 | `POST /api/collect-once` | single collection cycle |
+| `POST /api/feedback` | store a local redacted learning label |
 | `POST /api/admin/watchdog` | run self-heal |
 | `POST /api/admin/pause` · `/resume` | collection controls |
 | `POST /api/admin/purge-retention?confirm=purge-retention` | retention deletion |

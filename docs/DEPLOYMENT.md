@@ -17,10 +17,11 @@ digital-twin-sensor ui
 Install all LaunchAgents:
 
 ```bash
-chmod +x scripts/install_launch_agent.sh scripts/install_dashboard_agent.sh scripts/install_watchdog_agent.sh
+chmod +x scripts/install_launch_agent.sh scripts/install_dashboard_agent.sh scripts/install_watchdog_agent.sh scripts/install_learning_agent.sh
 scripts/install_launch_agent.sh
 scripts/install_dashboard_agent.sh
 scripts/install_watchdog_agent.sh
+scripts/install_learning_agent.sh
 ```
 
 Verify:
@@ -30,6 +31,7 @@ digital-twin-sensor doctor
 launchctl print gui/$(id -u)/com.local.digital-twin-sensor
 launchctl print gui/$(id -u)/com.local.digital-twin-dashboard
 launchctl print gui/$(id -u)/com.local.digital-twin-watchdog
+launchctl print gui/$(id -u)/com.local.digital-twin-learning
 ```
 
 Open:
@@ -41,6 +43,7 @@ http://127.0.0.1:8765/
 ## Uninstall Services
 
 ```bash
+scripts/uninstall_learning_agent.sh
 scripts/uninstall_watchdog_agent.sh
 scripts/uninstall_dashboard_agent.sh
 scripts/uninstall_launch_agent.sh
@@ -67,6 +70,8 @@ tail -f ~/.digital-twin-sensor/dashboard.log
 tail -f ~/.digital-twin-sensor/dashboard.err.log
 tail -f ~/.digital-twin-sensor/watchdog.log
 tail -f ~/.digital-twin-sensor/watchdog.err.log
+tail -f ~/.digital-twin-sensor/learning.log
+tail -f ~/.digital-twin-sensor/learning.err.log
 ```
 
 ## Enterprise Readiness Checklist

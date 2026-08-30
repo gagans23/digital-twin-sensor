@@ -30,3 +30,4 @@ Initial local-first product prototype.
 - stable context pack IDs and opaque evidence keys
 - evolving context cards for working-sphere maintenance
 - `/api/learning`, `/api/feedback`, `learning`, and `feedback` commands
+- scheduled learning maintenance LaunchAgent and `maintain-learning` command

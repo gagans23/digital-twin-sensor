@@ -66,6 +66,13 @@ The product must stay useful without becoming silent surveillance. The design ta
    - Added dashboard feedback buttons and a Learning Mode tab.
    - Kept learned router updates offline-only until labelled evaluation data exists.
 
+9. Added scheduled learning maintenance.
+   - Added `digital-twin-sensor maintain-learning`.
+   - Added `com.local.digital-twin-learning` LaunchAgent template.
+   - Added install/uninstall scripts for the learning maintenance job.
+   - Added Product Doctor visibility for learning maintenance posture.
+   - Documented four-service local deployment.
+
 ## Current Live Product Posture
 
 Implemented:
@@ -73,6 +80,7 @@ Implemented:
 - local background collector
 - local dashboard
 - watchdog self-heal check
+- scheduled learning maintenance
 - product doctor CLI
 - product health API
 - Product Ops UI
@@ -169,8 +177,8 @@ notes:
 
 1. Add encrypted storage.
 2. Add menubar status/pause indicator.
-3. Add a scheduled context-card maintenance job.
-4. Add local OCR summaries only for explicitly allowlisted opaque apps.
-5. Add GitLab summary sync for approved context packs and health reports.
-6. Add offline replay for learned Query x Digital Twin Signature router policies.
-7. Add paper metrics: task-resume time, context precision, leakage rate, freshness, and failure attribution.
+3. Add local OCR summaries only for explicitly allowlisted opaque apps.
+4. Add GitLab summary sync for approved context packs and health reports.
+5. Add offline replay for learned Query x Digital Twin Signature router policies.
+6. Add paper metrics: task-resume time, context precision, leakage rate, freshness, and failure attribution.
+7. Add conflict resolution and forgetting policies for context cards.

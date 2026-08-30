@@ -1,17 +1,23 @@
 import tempfile
 import unittest
+import json
+from argparse import Namespace
+from contextlib import redirect_stdout
 from datetime import timedelta
+from io import StringIO
 from pathlib import Path
 
+from digital_twin_sensor.cli import cmd_maintain_learning
 from digital_twin_sensor.config import DEFAULT_CONFIG
 from digital_twin_sensor.context_pack import build_context_pack
 from digital_twin_sensor.learning import LearningStore, build_learning_state
-from digital_twin_sensor.store import utc_now
+from digital_twin_sensor.store import EventStore, utc_now
 
 
 def event(
     event_id,
     *,
+    subject_id="Gagan Sachdeva",
     app="Kiro",
     artifact="Digital twin learning mode implementation",
     domain="coding",
@@ -22,7 +28,7 @@ def event(
     end = start + timedelta(seconds=dwell)
     return {
         "id": event_id,
-        "subject_id": "Gagan Sachdeva",
+        "subject_id": subject_id,
         "source": "macos_active_window",
         "app": app,
         "title": artifact,
@@ -49,6 +55,10 @@ def config():
         }
     )
     return value
+
+
+def write_config(path: Path, cfg: dict):
+    path.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
 
 
 class LearningModeTests(unittest.TestCase):
@@ -115,6 +125,38 @@ class LearningModeTests(unittest.TestCase):
                     )
             finally:
                 store.close()
+
+    def test_maintain_learning_cli_refreshes_cards(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            db_path = root / "events.sqlite"
+            config_path = root / "config.json"
+            cfg = config()
+            write_config(config_path, cfg)
+            store = EventStore(db_path)
+            try:
+                store.insert_event(event(1, subject_id=cfg["subject_id"]))
+                store.insert_event(event(2, subject_id=cfg["subject_id"]))
+            finally:
+                store.close()
+
+            out = StringIO()
+            with redirect_stdout(out):
+                code = cmd_maintain_learning(
+                    Namespace(
+                        db=db_path,
+                        config=config_path,
+                        subject_id=None,
+                        days=1,
+                        max_cards=5,
+                        quiet=False,
+                        pretty=False,
+                    )
+                )
+
+            self.assertEqual(code, 0)
+            self.assertIn('"status": "maintained"', out.getvalue())
+            self.assertIn('"context_cards": 1', out.getvalue())
 
 
 if __name__ == "__main__":

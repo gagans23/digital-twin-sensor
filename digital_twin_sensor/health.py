@@ -13,6 +13,7 @@ from .store import EventStore, parse_dt, utc_now
 
 
 WATCHDOG_SERVICE = "com.local.digital-twin-watchdog"
+LEARNING_SERVICE = "com.local.digital-twin-learning"
 
 
 def _db_status(db_path: Path) -> dict[str, Any]:
@@ -116,6 +117,7 @@ def _diagnostics(
     collector: dict[str, Any],
     dashboard: dict[str, Any],
     watchdog: dict[str, Any],
+    learning: dict[str, Any],
     last_event: dict[str, Any],
     stale_after_seconds: int,
 ) -> list[dict[str, Any]]:
@@ -123,6 +125,7 @@ def _diagnostics(
     sensor_ready = _is_running(collector)
     dashboard_ready = _is_running(dashboard)
     watchdog_ready = _is_running(watchdog) or watchdog.get("installed")
+    learning_ready = _is_running(learning) or learning.get("installed")
     paused = bool(config.get("collection_paused", False))
     fresh = paused or (last_age is not None and int(last_age) <= stale_after_seconds)
     raw_upload = bool(config.get("fleet_raw_event_upload", False))
@@ -148,6 +151,11 @@ def _diagnostics(
             "name": "Watchdog service",
             "status": "ready" if watchdog_ready else "attention",
             "detail": "installed" if watchdog_ready else "not installed yet",
+        },
+        {
+            "name": "Learning maintenance",
+            "status": "ready" if learning_ready else "attention",
+            "detail": "installed" if learning_ready else "not installed yet",
         },
         {
             "name": "Sample freshness",
@@ -219,8 +227,8 @@ def _paper_deviations() -> list[dict[str, str]]:
         },
         {
             "name": "Feedback attribution",
-            "status": "gap",
-            "detail": "the paper decomposes failures across modality, retrieval, and synthesis; this prototype has no feedback labels yet",
+            "status": "partial",
+            "detail": "the paper decomposes failures across modality, retrieval, and synthesis; this prototype captures local labels but does not yet separate router, retrieval, and synthesis failures",
         },
         {
             "name": "Collective signal",
@@ -269,8 +277,8 @@ def _product_gaps() -> list[dict[str, str]]:
         },
         {
             "name": "Feedback learning",
-            "status": "partial",
-            "detail": "local pack/evidence labels and context-card maintenance are implemented; automatic routing changes stay offline-only next",
+            "status": "implemented",
+            "detail": "local pack/evidence labels and scheduled context-card maintenance are implemented; automatic routing changes stay offline-only next",
         },
         {
             "name": "GitLab summary sync",
@@ -343,6 +351,7 @@ def build_health_report(
     collector = service_status(SENSOR_SERVICE)
     dashboard = service_status(DASHBOARD_SERVICE)
     watchdog = service_status(WATCHDOG_SERVICE)
+    learning = service_status(LEARNING_SERVICE)
     last_event = _last_event_summary(db_path, config["subject_id"])
     diagnostics = _diagnostics(
         config=config,
@@ -350,6 +359,7 @@ def build_health_report(
         collector=collector,
         dashboard=dashboard,
         watchdog=watchdog,
+        learning=learning,
         last_event=last_event,
         stale_after_seconds=stale_after_seconds,
     )
@@ -378,6 +388,7 @@ def build_health_report(
             "collector": collector,
             "dashboard": dashboard,
             "watchdog": watchdog,
+            "learning": learning,
         },
         "last_event": last_event,
         "diagnostics": diagnostics,
