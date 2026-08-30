@@ -26,3 +26,7 @@ Initial local-first product prototype.
 - pause/resume collection
 - retention purge controls
 - research synthesis and paper build log
+- Learning Mode with local pack, sphere, and evidence feedback
+- stable context pack IDs and opaque evidence keys
+- evolving context cards for working-sphere maintenance
+- `/api/learning`, `/api/feedback`, `learning`, and `feedback` commands

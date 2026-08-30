@@ -19,6 +19,8 @@ Observed digital attention can improve agent handoff when transformed into priva
 - resume packs
 - Memory Admission Gate
 - Kiro/Codex/GitLab context-pack export
+- local feedback labels for packs, spheres, and evidence
+- evolving context cards over working spheres
 - product doctor and watchdog
 - pause/resume and retention controls
 - research backlog in the dashboard
@@ -28,7 +30,7 @@ Observed digital attention can improve agent handoff when transformed into priva
 | Area | X-SYNTH | Current prototype |
 | --- | --- | --- |
 | Router | Learned Query x DTS modality router | Heuristic rule cues plus DTS weights |
-| Feedback | Failure attribution across modality, retrieval, synthesis | No feedback label store yet |
+| Feedback | Failure attribution across modality, retrieval, synthesis | Local pack/sphere/evidence labels; failure attribution metrics still need study protocol |
 | Collective signal | Collective filters across enterprise traces | Single-user local traces only |
 | Evaluation | TLR/FLR metrics | Needs task-resume and answer-quality evaluation |
 | Causality | Attention used as contextual evidence | Current product should not claim causal proof |
@@ -79,10 +81,10 @@ notes:
 
 | Idea | Build status | Why it matters |
 | --- | --- | --- |
-| Evolving context cards | Next | Turns repeated observations into maintainable memory |
-| Memory maintenance doctor | Next | Detects stale, duplicate, or unsupported memories |
+| Evolving context cards | Implemented | Turns repeated observations into maintainable memory |
+| Memory maintenance doctor | Partial | Detects stale, duplicate, or unsupported memories |
 | Dynamic graph evolution | Next | Explains why relationships change over time |
-| Feedback-labeled context packs | Next | Creates train/evaluate data for routing policies |
+| Feedback-labeled context packs | Partial | Creates train/evaluate data for routing policies |
 | Offline policy rehearsal | Research | Tests context policies before live use |
 | Trust calibration UI | Next | Prevents overclaiming and false confidence |
 | Anti-overclaim benchmark | Research | Measures bias, distortion, and individuation |

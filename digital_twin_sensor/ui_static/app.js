@@ -3,6 +3,7 @@ const state = {
   health: null,
   events: [],
   contextPack: null,
+  learning: null,
   days: 14,
 };
 
@@ -71,6 +72,14 @@ async function getJson(url, options = {}) {
     throw new Error(data.error || `Request failed: ${response.status}`);
   }
   return data;
+}
+
+async function postJson(url, payload = {}) {
+  return getJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 }
 
 function pct(value, digits = 0) {
@@ -1036,6 +1045,7 @@ function renderContextPack(pack) {
     renderPackPrivacy({});
     renderPackSummary(null);
     renderPackEvidence(null);
+    renderPackFeedback(null);
     renderPackRecentPath([]);
     renderAdmissionDecisions([]);
     renderWithheld([]);
@@ -1052,6 +1062,7 @@ function renderContextPack(pack) {
   renderPackPrivacy(pack.privacy || {});
   renderPackSummary(pack);
   renderPackEvidence(pack);
+  renderPackFeedback(pack);
   renderPackRecentPath(pack.context?.recent_path || []);
   renderAdmissionDecisions(pack.admission?.decisions || []);
   renderWithheld(pack.admission?.withheld || []);
@@ -1158,7 +1169,17 @@ function renderPackEvidence(pack) {
     .map((item) => `<span class="chip">${escapeHtml(item.name)} · ${item.events}</span>`)
     .join("");
   const artifactRows = artifacts
-    .map((item) => `<div class="pack-artifact"><span>${escapeHtml(item.name)}</span><b>${fmtSeconds(item.dwell_seconds)}</b></div>`)
+    .map((item) => `
+      <div class="pack-artifact">
+        <span>${escapeHtml(item.name)}</span>
+        <b>${fmtSeconds(item.dwell_seconds)}</b>
+        <div class="mini-feedback" data-scope="evidence" data-evidence-key="${escapeHtml(item.evidence_key || "")}">
+          <button type="button" data-label="useful">Useful</button>
+          <button type="button" data-label="wrong">Wrong</button>
+          <button type="button" data-label="stale">Stale</button>
+        </div>
+      </div>
+    `)
     .join("");
   root.innerHTML = `
     <div class="pack-evidence-section">
@@ -1174,6 +1195,144 @@ function renderPackEvidence(pack) {
       <p>${escapeHtml(keywords.length ? keywords.join(", ") : "none")}</p>
     </div>
   `;
+}
+
+function renderPackFeedback(pack) {
+  const root = $("packFeedback");
+  if (!root) return;
+  if (!pack || pack.status !== "ready") {
+    root.innerHTML = `<div class="empty">Build a ready context pack before adding learning labels.</div>`;
+    return;
+  }
+  root.innerHTML = `
+    <div class="feedback-actions" data-scope="pack">
+      <button type="button" data-label="useful">Useful</button>
+      <button type="button" data-label="wrong">Wrong</button>
+      <button type="button" data-label="stale">Stale</button>
+      <button type="button" data-label="too_broad">Too broad</button>
+      <button type="button" data-label="too_private">Too private</button>
+      <button type="button" data-label="missing_context">Missing</button>
+    </div>
+    <p class="learning-note">Labels stay local and train the memory gate separately from raw event capture.</p>
+  `;
+}
+
+function learningTone(status) {
+  if (status === "validated") return "ready";
+  if (["needs_evidence", "privacy_review", "stale", "weak"].includes(status)) return "blocked";
+  if (["aging", "learning"].includes(status)) return "attention";
+  return "neutral";
+}
+
+function renderLearning(learning) {
+  state.learning = learning || null;
+  const status = $("learningStatus");
+  if (!status) return;
+  const stats = learning?.stats || {};
+  status.textContent = learning?.status === "active" ? "Learning" : "Ready";
+  status.classList.toggle("ready", learning?.status === "active");
+  status.classList.toggle("blocked", false);
+
+  const statsRoot = $("learningStats");
+  if (statsRoot) {
+    statsRoot.innerHTML = `
+      <div class="learning-stat"><strong>${fmtCompact(stats.feedback_count || 0)}</strong><span>labels</span></div>
+      <div class="learning-stat"><strong>${fmtCompact(stats.context_cards || 0)}</strong><span>cards</span></div>
+      <div class="learning-stat"><strong>${fmtCompact(stats.validated_cards || 0)}</strong><span>validated</span></div>
+      <div class="learning-stat"><strong>${fmtCompact(stats.needs_review || 0)}</strong><span>review</span></div>
+    `;
+  }
+
+  const maintenanceRoot = $("learningMaintenance");
+  if (maintenanceRoot) {
+    const items = learning?.maintenance || [];
+    maintenanceRoot.innerHTML = items.length
+      ? items.map((item) => `
+          <article class="maintenance-item ${escapeHtml(item.status)}">
+            <b>${escapeHtml(item.name)}</b>
+            <span>${escapeHtml(item.status)}</span>
+            <p>${escapeHtml(item.detail)}</p>
+          </article>
+        `).join("")
+      : `<div class="empty">No maintenance cycle yet.</div>`;
+  }
+
+  const feedbackRoot = $("recentFeedback");
+  if (feedbackRoot) {
+    const rows = learning?.recent_feedback || [];
+    feedbackRoot.innerHTML = rows.length
+      ? rows.map((item) => `
+          <article class="feedback-row">
+            <div>
+              <b>${escapeHtml(item.label_text || item.label)}</b>
+              <span>${escapeHtml(item.scope)} · ${escapeHtml(item.target)} · ${fmtTime(item.created_at)}</span>
+            </div>
+            <p>${escapeHtml(item.note || item.pack_id)}</p>
+          </article>
+        `).join("")
+      : `<div class="empty">No labels yet. Use the Context Packs tab to teach the gate.</div>`;
+  }
+
+  const cardsRoot = $("contextCards");
+  if (cardsRoot) {
+    const cards = learning?.cards || [];
+    cardsRoot.innerHTML = cards.length
+      ? cards.map((card) => {
+          const evidence = (card.evidence || [])
+            .slice(0, 4)
+            .map((item) => `<span class="chip">${escapeHtml(item.name)} · ${item.events}</span>`)
+            .join("");
+          const actions = (card.next_actions || [])
+            .map((item) => `<li>${escapeHtml(item)}</li>`)
+            .join("");
+          const questions = (card.open_questions || [])
+            .map((item) => `<li>${escapeHtml(item)}</li>`)
+            .join("");
+          return `
+            <article class="context-card ${learningTone(card.status)}">
+              <div class="context-card-head">
+                <div>
+                  <h3>${escapeHtml(card.title)}</h3>
+                  <p>${escapeHtml(card.summary)}</p>
+                </div>
+                <span class="status-badge ${learningTone(card.status)}">${escapeHtml(card.status)}</span>
+              </div>
+              <div class="context-card-metrics">
+                <div><b>${Math.round((card.confidence || 0) * 100)}%</b><span>confidence</span></div>
+                <div><b>${fmtCompact(card.evidence_count || 0)}</b><span>events</span></div>
+                <div><b>${fmtCompact(card.useful_count || 0)}</b><span>useful</span></div>
+                <div><b>${fmtCompact(card.issue_count || 0)}</b><span>issues</span></div>
+              </div>
+              <div class="sphere-chip-row">${evidence || `<span class="muted-text">No evidence yet</span>`}</div>
+              <div class="context-card-columns">
+                <div><h4>Next actions</h4><ul>${actions}</ul></div>
+                <div><h4>Open questions</h4><ul>${questions}</ul></div>
+              </div>
+            </article>
+          `;
+        }).join("")
+      : `<div class="empty">No context cards yet. Collect work events and build a pack.</div>`;
+  }
+}
+
+async function submitLearningFeedback(label, scope = "pack", evidenceKey = null) {
+  const pack = state.contextPack;
+  if (!pack || !pack.pack_id || pack.status !== "ready") {
+    showToast("Build a ready context pack first");
+    return;
+  }
+  await postJson("/api/feedback", {
+    pack_id: pack.pack_id,
+    sphere_id: pack.selected_sphere_id,
+    evidence_key: evidenceKey,
+    scope,
+    label,
+    purpose: $("packPurpose")?.value || pack.purpose?.key || "coding",
+    target: $("packTarget")?.value || pack.target?.key || "kiro",
+  });
+  state.learning = await getJson(`/api/learning?days=${state.days}`);
+  renderLearning(state.learning);
+  showToast(`Learning label stored: ${label.replaceAll("_", " ")}`);
 }
 
 function renderPackRecentPath(items) {
@@ -2064,6 +2223,7 @@ async function refresh() {
   state.overview = overview;
   state.health = health;
   state.events = overview.recent_events;
+  state.learning = overview.learning;
   renderMetrics(overview);
   renderTwinExperience(overview);
   renderInsights(overview.insights);
@@ -2077,6 +2237,7 @@ async function refresh() {
   renderFleet(overview.fleet);
   renderActivities(overview.working_spheres);
   renderContextPack(overview.context_pack);
+  renderLearning(overview.learning);
   renderContextGraph(overview.context_graph);
   renderSignature(overview.profile);
   renderEvents(state.events);
@@ -2143,6 +2304,33 @@ function bindUi() {
   });
 
   $("copyPackBtn").addEventListener("click", copyContextPack);
+
+  const packFeedback = $("packFeedback");
+  if (packFeedback) {
+    packFeedback.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-label]");
+      if (!button) return;
+      try {
+        await submitLearningFeedback(button.dataset.label, "pack");
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+  }
+
+  const packEvidence = $("packEvidence");
+  if (packEvidence) {
+    packEvidence.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-label]");
+      const group = event.target.closest("[data-scope='evidence']");
+      if (!button || !group) return;
+      try {
+        await submitLearningFeedback(button.dataset.label, "evidence", group.dataset.evidenceKey);
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+  }
 
   $("selfHealBtn").addEventListener("click", async () => {
     try {

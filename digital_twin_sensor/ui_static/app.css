@@ -1563,7 +1563,11 @@ input:focus {
 .pack-summary-card,
 .pack-path-item,
 .admission-decision,
-.withheld-item {
+.withheld-item,
+.learning-stat,
+.maintenance-item,
+.feedback-row,
+.context-card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -1969,6 +1973,207 @@ input:focus {
 .pack-artifact b {
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.feedback-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.feedback-actions,
+.mini-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.feedback-actions button,
+.mini-feedback button {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 840;
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.feedback-actions button:hover,
+.mini-feedback button:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.mini-feedback {
+  grid-column: 1 / -1;
+}
+
+.learning-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.learning-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+}
+
+.learning-grid .wide {
+  grid-column: span 2;
+}
+
+.learning-stats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 14px 0;
+}
+
+.learning-stat {
+  min-height: 78px;
+}
+
+.learning-stat strong {
+  display: block;
+  font-size: 1.5rem;
+  line-height: 1.05;
+}
+
+.learning-stat span,
+.feedback-row span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 5px;
+}
+
+.maintenance-list,
+.feedback-list,
+.context-cards {
+  display: grid;
+  gap: 10px;
+}
+
+.maintenance-item {
+  border-left: 4px solid var(--line-strong);
+  display: grid;
+  gap: 6px;
+}
+
+.maintenance-item.complete {
+  border-left-color: var(--green);
+}
+
+.maintenance-item.ready,
+.maintenance-item.designed {
+  border-left-color: var(--amber);
+}
+
+.maintenance-item b,
+.maintenance-item span,
+.feedback-row b {
+  display: block;
+}
+
+.maintenance-item span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.maintenance-item p,
+.feedback-row p,
+.context-card p,
+.context-card li {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.42;
+  margin: 0;
+}
+
+.feedback-row {
+  display: grid;
+  gap: 8px;
+}
+
+.context-card {
+  border-top: 4px solid var(--line-strong);
+  display: grid;
+  gap: 14px;
+}
+
+.context-card.ready {
+  border-top-color: var(--green);
+}
+
+.context-card.attention {
+  border-top-color: var(--amber);
+}
+
+.context-card.blocked {
+  border-top-color: var(--coral);
+}
+
+.context-card-head {
+  align-items: start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.context-card-head h3 {
+  overflow-wrap: anywhere;
+}
+
+.context-card-metrics {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.context-card-metrics div {
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  padding: 10px 8px;
+}
+
+.context-card-metrics div + div {
+  border-left: 1px solid var(--line);
+}
+
+.context-card-metrics b {
+  font-size: 1rem;
+}
+
+.context-card-metrics span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.context-card-columns {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.context-card h4 {
+  margin-bottom: 8px;
+}
+
+.context-card ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
 }
 
 .pack-path-item {
@@ -2883,6 +3088,10 @@ tbody tr:last-child td {
   .pack-pipeline,
   .admission-counts,
   .pack-measures,
+  .learning-grid,
+  .learning-stats,
+  .context-card-metrics,
+  .context-card-columns,
   .twin-badges,
   .fabric-lanes,
   .simulation-cards,
@@ -2998,5 +3207,14 @@ tbody tr:last-child td {
 
   .pack-path-item {
     grid-template-columns: 1fr;
+  }
+
+  .learning-grid .wide {
+    grid-column: span 1;
+  }
+
+  .context-card-metrics div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
   }
 }

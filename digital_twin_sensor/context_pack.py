@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from collections import Counter
 from typing import Any
@@ -51,6 +53,12 @@ WITHHELD_DEFAULTS = [
     ("clipboard", "clipboard content is outside the collection boundary"),
     ("credentials", "passwords, tokens, and secrets are denied"),
 ]
+
+
+def _stable_key(prefix: str, *parts: Any, limit: int = 16) -> str:
+    payload = json.dumps(parts, sort_keys=True, default=str, separators=(",", ":"))
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:limit]
+    return f"{prefix}_{digest}"
 
 
 def _shorten(value: Any, limit: int = 120) -> str:
@@ -131,6 +139,13 @@ def _safe_artifacts(
     for item in sphere.get("artifacts", [])[:limit]:
         artifacts.append(
             {
+                "evidence_key": _stable_key(
+                    "ev",
+                    sphere.get("id"),
+                    item.get("name"),
+                    item.get("events"),
+                    item.get("dwell_seconds"),
+                ),
                 "name": safe_text(item.get("name"), 120),
                 "events": int(item.get("events", 0)),
                 "dwell_seconds": round(float(item.get("dwell_seconds", 0.0)), 2),
@@ -161,6 +176,13 @@ def _safe_recent_path(
     for item in recent[:max_events]:
         result.append(
             {
+                "evidence_key": _stable_key(
+                    "path",
+                    sphere.get("id"),
+                    item.get("ts_start"),
+                    item.get("app"),
+                    item.get("artifact"),
+                ),
                 "time": item.get("ts_start"),
                 "app": safe_text(item.get("app"), 72),
                 "artifact": safe_text(item.get("artifact"), 120),
@@ -213,6 +235,27 @@ def _pack_pipeline(event_count: int, status: str) -> list[dict[str, str]]:
     ]
 
 
+def _assign_pack_id(pack: dict[str, Any]) -> dict[str, Any]:
+    summary = pack.get("summary", {})
+    context = pack.get("context", {})
+    artifacts = context.get("top_artifacts", [])
+    recent_path = context.get("recent_path", [])
+    pack["pack_id"] = _stable_key(
+        "pack",
+        pack.get("selected_sphere_id"),
+        pack.get("purpose", {}).get("key"),
+        pack.get("target", {}).get("key"),
+        pack.get("days"),
+        summary.get("title"),
+        summary.get("domain"),
+        summary.get("task"),
+        summary.get("last_seen"),
+        [item.get("evidence_key") for item in artifacts],
+        [item.get("evidence_key") for item in recent_path[:3]],
+    )
+    return pack
+
+
 def build_context_pack(
     events: list[dict[str, Any]],
     config: dict[str, Any],
@@ -256,6 +299,7 @@ def build_context_pack(
             "privacy": _privacy_summary(config),
             "pipeline": _pack_pipeline(0, "empty"),
         }
+        _assign_pack_id(pack)
         pack["export"] = {"format": "markdown", "markdown": format_context_pack_markdown(pack)}
         return pack
 
@@ -282,6 +326,7 @@ def build_context_pack(
             "privacy": _privacy_summary(config),
             "pipeline": _pack_pipeline(int(activities.get("stats", {}).get("events", 0)), "blocked"),
         }
+        _assign_pack_id(pack)
         pack["export"] = {"format": "markdown", "markdown": format_context_pack_markdown(pack)}
         return pack
 
@@ -379,6 +424,7 @@ def build_context_pack(
         "privacy": _privacy_summary(config),
         "pipeline": _pack_pipeline(int(activities.get("stats", {}).get("events", 0)), status),
     }
+    _assign_pack_id(pack)
     pack["export"] = {"format": "markdown", "markdown": format_context_pack_markdown(pack)}
     return pack
 
@@ -426,6 +472,7 @@ def format_context_pack_markdown(pack: dict[str, Any]) -> str:
         _bullet("Purpose", purpose.get("label", "unknown")),
         _bullet("Target", target.get("label", target.get("key", "unknown"))),
         _bullet("Generated", pack.get("generated_at", "unknown")),
+        _bullet("Pack ID", pack.get("pack_id", "unknown")),
         _bullet("Window", f"{pack.get('days', 14)} days"),
         "",
         "## Summary",

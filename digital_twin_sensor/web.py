@@ -19,6 +19,7 @@ from .context_graph import build_context_graph
 from .context_pack import build_context_pack
 from .fleet import DASHBOARD_SERVICE, SENSOR_SERVICE, build_fleet_status, service_status
 from .health import build_health_report, run_watchdog
+from .learning import LearningStore, build_learning_state
 from .query import retrieve
 from .store import EventStore, parse_dt, utc_now
 from .twin import build_digital_twin_signature
@@ -718,6 +719,13 @@ def build_overview(
         max_events=8,
         activities=working_spheres,
     )
+    learning = build_learning_state(
+        events,
+        config,
+        subject_id=subject_id,
+        db_path=db_path,
+        days=days,
+    )
     surface_details = _surface_details(events, config)
     recent_events = sorted(events, key=lambda item: item["ts_start"], reverse=True)[:limit]
 
@@ -760,6 +768,7 @@ def build_overview(
         "context_graph": context_graph,
         "working_spheres": working_spheres,
         "context_pack": context_pack,
+        "learning": learning,
         "insights": _interpret(profile, events),
         "domains": _domain_summary(events),
         "top_apps": _top_items(events, "app"),
@@ -829,6 +838,18 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _read_json_body(self) -> dict[str, Any]:
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length <= 0:
+            return {}
+        if length > 16_384:
+            raise ValueError("request body is too large")
+        raw = self.rfile.read(length).decode("utf-8")
+        value = json.loads(raw)
+        if not isinstance(value, dict):
+            raise ValueError("JSON body must be an object")
+        return value
 
     def _send_static(self, route: str) -> None:
         name = "index.html" if route in {"", "/"} else route.removeprefix("/").removeprefix("assets/")
@@ -963,6 +984,23 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 )
                 return
 
+            if route == "/api/learning":
+                config = load_config(self.server.config_path)
+                days = _safe_int(query.get("days", [None])[0], 14)
+                store = EventStore(self.server.db_path)
+                events = store.fetch_window(subject_id=config["subject_id"], days=days)
+                store.close()
+                self._send_json(
+                    build_learning_state(
+                        events,
+                        config,
+                        subject_id=config["subject_id"],
+                        db_path=self.server.db_path,
+                        days=days,
+                    )
+                )
+                return
+
             if route == "/api/fleet":
                 config = load_config(self.server.config_path)
                 days = _safe_int(query.get("days", [None])[0], 14)
@@ -1016,6 +1054,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path not in {
             "/api/collect-once",
+            "/api/feedback",
             "/api/admin/watchdog",
             "/api/admin/pause",
             "/api/admin/resume",
@@ -1026,6 +1065,32 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
 
         try:
             config = load_config(self.server.config_path)
+            if parsed.path == "/api/feedback":
+                payload = self._read_json_body()
+                store = LearningStore(self.server.db_path)
+                try:
+                    try:
+                        feedback = store.add_feedback(
+                            subject_id=config["subject_id"],
+                            pack_id=str(payload.get("pack_id", "")).strip(),
+                            sphere_id=str(payload.get("sphere_id") or "").strip() or None,
+                            evidence_key=str(payload.get("evidence_key") or "").strip() or None,
+                            scope=str(payload.get("scope") or "pack"),
+                            label=str(payload.get("label") or ""),
+                            purpose=str(payload.get("purpose") or "coding"),
+                            target=str(payload.get("target") or "kiro"),
+                            note=str(payload.get("note") or ""),
+                            metadata={"source": "dashboard"},
+                            config=config,
+                        )
+                    except ValueError as exc:
+                        self._send_json({"stored": False, "error": str(exc)}, HTTPStatus.BAD_REQUEST)
+                        return
+                finally:
+                    store.close()
+                self._send_json({"stored": True, "feedback": feedback})
+                return
+
             if parsed.path == "/api/admin/watchdog":
                 self._send_json(
                     run_watchdog(

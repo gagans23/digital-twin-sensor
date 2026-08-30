@@ -269,8 +269,8 @@ def _product_gaps() -> list[dict[str, str]]:
         },
         {
             "name": "Feedback learning",
-            "status": "next",
-            "detail": "collect good/bad labels and update filter routing separately from retrieval/synthesis failures",
+            "status": "partial",
+            "detail": "local pack/evidence labels and context-card maintenance are implemented; automatic routing changes stay offline-only next",
         },
         {
             "name": "GitLab summary sync",
@@ -284,14 +284,14 @@ def _research_backlog() -> list[dict[str, str]]:
     return [
         {
             "name": "Evolving context cards",
-            "status": "next",
+            "status": "implemented",
             "detail": "turn repeated working-sphere evidence into living notes with summary, open questions, next actions, sensitivity, expiry, and evidence ids",
             "source": "https://arxiv.org/abs/2510.04618",
         },
         {
             "name": "Memory maintenance loop",
-            "status": "next",
-            "detail": "add explicit extract, retrieve-route, update, consolidate, forget, and stale-memory diagnostics instead of append-only accumulation",
+            "status": "partial",
+            "detail": "context cards are refreshed from working spheres and labels; consolidation, conflict resolution, and automatic forgetting remain next",
             "source": "https://arxiv.org/html/2606.24775v1",
         },
         {
@@ -302,8 +302,8 @@ def _research_backlog() -> list[dict[str, str]]:
         },
         {
             "name": "Feedback-labeled evaluation",
-            "status": "next",
-            "detail": "collect explicit useful/not-useful labels and separate modality-routing, retrieval, and synthesis failures for paper-grade metrics",
+            "status": "partial",
+            "detail": "explicit useful/wrong/stale/too broad/too private/missing context labels are captured locally; paper-grade routing metrics remain next",
             "source": "https://arxiv.org/abs/2605.15505",
         },
         {

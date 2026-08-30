@@ -89,10 +89,12 @@ flowchart TB
   L3["<b>3 · Context graph</b><br/>typed nodes + edges"]
   L4["<b>4 · Working spheres</b><br/>temporal clustering"]
   L5["<b>5 · Admission gate</b><br/>purpose, sensitivity, freshness"]
-  L6["<b>6 · Synthesis</b><br/>cross-subject, floor-gated"]
-  L1 --> L2 --> L3 --> L4 --> L5 --> L6
+  L6["<b>6 · Learning loop</b><br/>labels + context cards"]
+  L7["<b>7 · Synthesis</b><br/>cross-subject, floor-gated"]
+  L1 --> L2 --> L3 --> L4 --> L5 --> L6 --> L7
   L4 -.->|scored against| L2
   L5 -.->|measured by| H["<b>Harness</b><br/>recall · noise · leaks"]
+  L6 -.->|maintains| L4
 ```
 
 **Layer 3 — the graph** types everything: `domain`, `app`, `artifact`, `task`, `time`.
@@ -121,6 +123,18 @@ and it is what lets the system say "you were interrupted here, three times" rath
 **Layer 5 — the admission gate** is the only exit. Purpose must be declared, sensitivity
 decides keep/mask/deny, freshness drops stale evidence and notes the gap, and the export
 is re-redacted as defence in depth. Every pack carries what was withheld and why.
+
+**Layer 6 — Learning Mode** is the return path. Every ready context pack gets a stable
+`pack_id`, and every top artifact or recent-path item gets an opaque `evidence_key`.
+The dashboard and CLI can label pack, sphere, or evidence quality as `useful`, `wrong`,
+`stale`, `too_broad`, `too_private`, or `missing_context`. Notes are redacted before
+storage, then folded into `context_cards` that track confidence, sensitivity, open
+questions, and maintenance actions for each working sphere.
+
+This is a local product loop, not a trained router yet. Labels are available for
+evaluation and future routing-policy calibration, but automatic Query x Signature
+weight changes stay offline until the product has enough labelled evidence to justify
+them.
 
 ---
 

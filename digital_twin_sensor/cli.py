@@ -15,6 +15,7 @@ from .context_pack import PURPOSES, TARGETS, build_context_pack
 from .context_graph import build_context_graph
 from .fleet import build_fleet_status
 from .health import build_health_report, format_health_report, run_watchdog
+from .learning import FEEDBACK_LABELS, LearningStore, build_learning_state
 from .query import format_retrieval, retrieve
 from .redaction import redact_text
 from .store import EventStore, utc_now
@@ -325,6 +326,72 @@ def cmd_context_pack(args: argparse.Namespace) -> int:
     return 0 if pack.get("status") != "blocked" else 1
 
 
+def cmd_feedback(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = LearningStore(args.db)
+    try:
+        if args.feedback_command == "add":
+            feedback = store.add_feedback(
+                subject_id=subject_id,
+                pack_id=args.pack_id,
+                sphere_id=args.sphere_id,
+                evidence_key=args.evidence_key,
+                scope=args.scope,
+                label=args.label,
+                purpose=args.purpose,
+                target=args.target,
+                note=args.note or "",
+                metadata={"source": "cli"},
+                config=config,
+            )
+            print(json.dumps(feedback, indent=2))
+            return 0
+
+        rows = store.list_feedback(subject_id=subject_id, limit=args.limit)
+        print(json.dumps({"feedback": rows}, indent=2))
+        return 0
+    finally:
+        store.close()
+
+
+def cmd_learning(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    subject_id = args.subject_id or config["subject_id"]
+    store = EventStore(args.db)
+    events = store.fetch_window(subject_id=subject_id, days=args.days)
+    store.close()
+    state = build_learning_state(
+        events,
+        config,
+        subject_id=subject_id,
+        db_path=args.db,
+        days=args.days,
+        max_cards=args.max_cards,
+    )
+    if args.format == "json":
+        print(json.dumps(state, indent=2))
+        return 0
+
+    stats = state["stats"]
+    print("# Learning Mode")
+    print("")
+    print(f"- Policy: {state['policy']}")
+    print(f"- Feedback labels: {stats['feedback_count']}")
+    print(f"- Context cards: {stats['context_cards']}")
+    print(f"- Needs review: {stats['needs_review']}")
+    print("")
+    for card in state["cards"]:
+        print(f"## {card['title']}")
+        print(f"- Status: {card['status']}")
+        print(f"- Confidence: {round(float(card['confidence']) * 100)}%")
+        print(f"- Evidence: {card['evidence_count']} events")
+        print(f"- Feedback: {card['useful_count']} useful, {card['issue_count']} issues, {card['privacy_count']} privacy")
+        print(f"- Next: {card['next_actions'][0] if card['next_actions'] else 'label the next pack'}")
+        print("")
+    return 0
+
+
 def cmd_redact_existing(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
@@ -626,6 +693,31 @@ def build_parser() -> argparse.ArgumentParser:
     context_pack.add_argument("--format", choices=["markdown", "json"], default="markdown")
     context_pack.add_argument("--output", type=_path, default=None)
     context_pack.set_defaults(func=cmd_context_pack)
+
+    feedback = sub.add_parser("feedback", help="Capture or list local learning labels for context packs.")
+    feedback_sub = feedback.add_subparsers(dest="feedback_command", required=True)
+    feedback_add = feedback_sub.add_parser("add", help="Add a redacted feedback label.")
+    feedback_add.add_argument("--subject-id", default=None)
+    feedback_add.add_argument("--pack-id", required=True)
+    feedback_add.add_argument("--sphere-id", default=None)
+    feedback_add.add_argument("--evidence-key", default=None)
+    feedback_add.add_argument("--scope", choices=["pack", "sphere", "evidence"], default="pack")
+    feedback_add.add_argument("--label", choices=sorted(FEEDBACK_LABELS), required=True)
+    feedback_add.add_argument("--purpose", choices=sorted(PURPOSES), default="coding")
+    feedback_add.add_argument("--target", choices=sorted(TARGETS), default="kiro")
+    feedback_add.add_argument("--note", default="")
+    feedback_add.set_defaults(func=cmd_feedback)
+    feedback_list = feedback_sub.add_parser("list", help="List local learning labels.")
+    feedback_list.add_argument("--subject-id", default=None)
+    feedback_list.add_argument("--limit", type=int, default=50)
+    feedback_list.set_defaults(func=cmd_feedback)
+
+    learning = sub.add_parser("learning", help="Show evolving context cards and feedback-learning state.")
+    learning.add_argument("--subject-id", default=None)
+    learning.add_argument("--days", type=int, default=14)
+    learning.add_argument("--max-cards", type=int, default=12)
+    learning.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    learning.set_defaults(func=cmd_learning)
 
     export = sub.add_parser("export", help="Export recent raw events as JSON.")
     export.add_argument("--subject-id", default=None)

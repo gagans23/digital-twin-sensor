@@ -315,8 +315,8 @@ Honest accounting. The endpoint half is built; the control plane is specified, n
 | Field-level encryption at rest (optional extra) | ✅ built |
 | Trust-calibration surfacing (confidence, evidence age) | 🟡 partial |
 | Memory maintenance diagnostics | 🟡 partial |
-| Evolving context cards | ⬜ designed |
-| Feedback-labelled pack evaluation | ⬜ designed |
+| Evolving context cards | ✅ built |
+| Feedback-labelled pack evaluation | 🟡 partial |
 | Semantic retrieval + learned Query × Signature router | ⬜ designed |
 | NER-backed redaction beyond regex | ⬜ designed |
 | Event-schema versioning and migration | ⬜ designed |
@@ -324,6 +324,28 @@ Honest accounting. The endpoint half is built; the control plane is specified, n
 | Encrypted local store, signed installers | ⬜ designed |
 | Remote control plane, enrollment, audit log | ⬜ designed |
 | Windows / Linux endpoints | ⬜ designed |
+
+---
+
+## Learning Mode
+
+Learning Mode turns context packs from one-way exports into a local teaching loop. Every ready pack now has a stable `pack_id`, every artifact and recent-path item has an opaque `evidence_key`, and the dashboard can label a pack or evidence item as useful, wrong, stale, too broad, too private, or missing context.
+
+Those labels are stored locally in `context_feedback` with redacted notes, then folded into evolving `context_cards`. A card represents a working sphere plus its latest confidence, evidence count, sensitivity, open questions, and next maintenance actions. This is deliberately local-first: labels improve the product's maintenance view today, while learned routing is still future work until enough labelled data exists to calibrate it honestly.
+
+CLI:
+
+```bash
+digital-twin-sensor learning --format markdown
+digital-twin-sensor feedback add --pack-id pack_xxx --sphere-id sphere_xxx --label useful
+```
+
+API:
+
+```text
+GET  /api/learning
+POST /api/feedback
+```
 
 ---
 

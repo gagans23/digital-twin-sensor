@@ -54,11 +54,19 @@ class ContextPackTests(unittest.TestCase):
         )
 
         self.assertEqual(pack["status"], "ready")
+        self.assertTrue(pack["pack_id"].startswith("pack_"))
         self.assertFalse(pack["privacy"]["raw_events_included"])
         self.assertFalse(pack["privacy"]["subject_id_included"])
         self.assertIn("Privacy Gate", pack["export"]["markdown"])
+        self.assertIn("Pack ID", pack["export"]["markdown"])
         self.assertGreater(pack["admission"]["counts"]["deny"], 0)
         self.assertTrue(all("id" not in item for item in pack["context"]["recent_path"]))
+        self.assertTrue(
+            all(item["evidence_key"].startswith("ev_") for item in pack["context"]["top_artifacts"])
+        )
+        self.assertTrue(
+            all(item["evidence_key"].startswith("path_") for item in pack["context"]["recent_path"])
+        )
         payload = json.dumps(pack)
         self.assertNotIn("Gagan", payload)
         self.assertNotIn("Sachdeva", payload)

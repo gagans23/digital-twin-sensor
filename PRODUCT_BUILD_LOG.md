@@ -56,6 +56,16 @@ The product must stay useful without becoming silent surveillance. The design ta
    - Added guarded purge commands for all events or rows older than a retention threshold.
    - Added dashboard pause/resume and purge-expired controls in the Privacy tab.
 
+8. Added Learning Mode v1.
+   - Added stable `pack_id` values to context packs.
+   - Added opaque `evidence_key` values for top artifacts and recent-path evidence.
+   - Added `context_feedback` for local useful/wrong/stale/too-broad/too-private/missing-context labels.
+   - Added `context_cards` that consolidate working spheres into maintainable memory cards.
+   - Added `/api/learning` and `/api/feedback`.
+   - Added `digital-twin-sensor learning` and `digital-twin-sensor feedback`.
+   - Added dashboard feedback buttons and a Learning Mode tab.
+   - Kept learned router updates offline-only until labelled evaluation data exists.
+
 ## Current Live Product Posture
 
 Implemented:
@@ -68,6 +78,8 @@ Implemented:
 - Product Ops UI
 - pause/resume controls
 - retention purge controls
+- Learning Mode feedback labels
+- evolving context cards
 - context graph
 - working spheres
 - context packs
@@ -82,7 +94,6 @@ Still product gaps:
 - menubar status/pause control
 - GitLab summary sync
 - OCR summary gate for opaque apps
-- feedback-labeled evaluation loop
 - learned query x digital-twin-signature router
 
 ## Validation Results
@@ -158,8 +169,8 @@ notes:
 
 1. Add encrypted storage.
 2. Add menubar status/pause indicator.
-3. Add feedback buttons on context packs and evidence results.
-4. Add a context-card maintenance job that consolidates working spheres nightly.
-5. Add local OCR summaries only for explicitly allowlisted opaque apps.
-6. Add GitLab summary sync for approved context packs and health reports.
+3. Add a scheduled context-card maintenance job.
+4. Add local OCR summaries only for explicitly allowlisted opaque apps.
+5. Add GitLab summary sync for approved context packs and health reports.
+6. Add offline replay for learned Query x Digital Twin Signature router policies.
 7. Add paper metrics: task-resume time, context precision, leakage rate, freshness, and failure attribution.

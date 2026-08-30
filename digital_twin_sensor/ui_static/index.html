@@ -43,6 +43,7 @@
         <button class="tab" type="button" data-view="fleet">Fleet</button>
         <button class="tab" type="button" data-view="activities">Activities</button>
         <button class="tab" type="button" data-view="packs">Context Packs</button>
+        <button class="tab" type="button" data-view="learning">Learning Mode</button>
         <button class="tab" type="button" data-view="graph">Context Graph</button>
         <button class="tab" type="button" data-view="signature">Twin Signature</button>
         <button class="tab" type="button" data-view="evidence">Evidence</button>
@@ -499,6 +500,12 @@
               <div id="packPrivacy" class="pack-privacy"></div>
             </aside>
 
+            <aside class="panel">
+              <p class="kicker">Teach The Gate</p>
+              <h2>Label this pack</h2>
+              <div id="packFeedback" class="feedback-panel"></div>
+            </aside>
+
             <article class="panel wide">
               <div class="panel-head compact">
                 <div>
@@ -545,6 +552,38 @@
                 </div>
               </div>
               <pre id="markdownPreview" class="markdown-preview"></pre>
+            </article>
+          </div>
+        </section>
+
+        <section id="learning" class="view" aria-labelledby="learningTitle">
+          <div class="learning-grid">
+            <article class="panel wide">
+              <div class="panel-head">
+                <div>
+                  <p class="kicker">Learning Mode</p>
+                  <h2 id="learningTitle">Context cards from labelled traces</h2>
+                </div>
+                <span id="learningStatus" class="status-pill">Loading</span>
+              </div>
+              <div id="learningStats" class="learning-stats"></div>
+              <div id="learningMaintenance" class="maintenance-list"></div>
+            </article>
+
+            <article class="panel">
+              <p class="kicker">Label Ledger</p>
+              <h2>Recent feedback</h2>
+              <div id="recentFeedback" class="feedback-list"></div>
+            </article>
+
+            <article class="panel wide">
+              <div class="panel-head compact">
+                <div>
+                  <p class="kicker">Evolving Memory</p>
+                  <h2>Context cards</h2>
+                </div>
+              </div>
+              <div id="contextCards" class="context-cards"></div>
             </article>
           </div>
         </section>
