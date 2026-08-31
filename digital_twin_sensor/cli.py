@@ -216,6 +216,10 @@ def cmd_configure(args: argparse.Namespace) -> int:
         config["ocr_surface_max_lines"] = max(1, min(40, int(args.ocr_max_lines)))
     if args.ocr_min_confidence is not None:
         config["ocr_surface_min_confidence"] = max(0.0, min(1.0, float(args.ocr_min_confidence)))
+    if args.ocr_provider is not None:
+        config["ocr_surface_provider"] = args.ocr_provider
+    if args.ocr_tesseract_binary is not None:
+        config["ocr_tesseract_binary"] = args.ocr_tesseract_binary.strip() or "tesseract"
     if args.fleet_device_name is not None:
         config["fleet_device_name"] = args.fleet_device_name.strip() or config.get("fleet_device_name")
     if args.fleet_control_plane_url is not None:
@@ -245,6 +249,7 @@ def cmd_configure(args: argparse.Namespace) -> int:
         "ocr_surface_provider",
         "ocr_surface_max_lines",
         "ocr_surface_min_confidence",
+        "ocr_tesseract_binary",
         "fleet_device_id",
         "fleet_device_name",
         "fleet_control_plane_url",
@@ -705,6 +710,8 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--ocr-app", action="append", default=[], metavar="APP")
     configure.add_argument("--ocr-max-lines", type=int, default=None)
     configure.add_argument("--ocr-min-confidence", type=float, default=None)
+    configure.add_argument("--ocr-provider", choices=["apple_vision", "tesseract"], default=None)
+    configure.add_argument("--ocr-tesseract-binary", default=None)
     configure.add_argument("--fleet-device-name", default=None)
     configure.add_argument("--fleet-control-plane-url", default=None)
     configure.add_argument("--fleet-sync", type=_toggle, default=None, metavar="on|off")

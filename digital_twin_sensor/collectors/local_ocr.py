@@ -31,32 +31,46 @@ def ocr_provider_status(config: dict[str, Any] | None = None) -> dict[str, Any]:
     config = config or {}
     providers = []
     helper = _helper_path()
+    helper_ready = helper.exists()
     if platform.system() == "Darwin":
         providers.append(
             {
                 "name": "apple_vision",
-                "status": "ready" if helper.exists() else "missing_helper",
+                "status": "ready" if helper_ready else "missing_helper",
                 "detail": str(helper),
             }
         )
     tesseract = shutil.which(str(config.get("ocr_tesseract_binary", "tesseract")))
+    tesseract_status = "ready" if tesseract else "not_installed"
+    if platform.system() == "Darwin" and tesseract and not helper_ready:
+        tesseract_status = "missing_helper"
     providers.append(
         {
             "name": "tesseract",
-            "status": "ready" if tesseract else "not_installed",
+            "status": tesseract_status,
             "detail": tesseract or "install tesseract for cross-platform offline OCR fallback",
         }
     )
-    ready = [item["name"] for item in providers if item["status"] == "ready"]
+    ready = {item["name"] for item in providers if item["status"] == "ready"}
+    preferred = next((name for name in _provider_order(config) if name in ready), None)
     return {
         "status": "ready" if ready else "not_ready",
-        "preferred": ready[0] if ready else None,
+        "preferred": preferred,
         "providers": providers,
         "privacy": "OCR is local-only; screenshots are transient and text is redacted before storage.",
     }
 
 
-def _run_apple_vision_probe(app: str, config: dict[str, Any]) -> dict[str, Any] | None:
+def _provider_order(config: dict[str, Any]) -> list[str]:
+    preferred = str(config.get("ocr_surface_provider", "apple_vision")).strip().lower()
+    order = [preferred] if preferred in {"apple_vision", "tesseract"} else ["apple_vision"]
+    for provider in ("apple_vision", "tesseract"):
+        if provider not in order:
+            order.append(provider)
+    return order
+
+
+def _run_macos_ocr_probe(app: str, config: dict[str, Any], provider: str) -> dict[str, Any] | None:
     if platform.system() != "Darwin":
         return None
     helper = _helper_path()
@@ -65,8 +79,11 @@ def _run_apple_vision_probe(app: str, config: dict[str, Any]) -> dict[str, Any] 
 
     max_lines = max(1, min(int(config.get("ocr_surface_max_lines", 12)), 40))
     min_confidence = max(0.0, min(float(config.get("ocr_surface_min_confidence", 0.35)), 1.0))
+    tesseract = shutil.which(str(config.get("ocr_tesseract_binary", "tesseract"))) or ""
+    if provider == "tesseract" and not tesseract:
+        return None
     result = subprocess.run(
-        [str(helper), app, str(max_lines), str(min_confidence)],
+        [str(helper), app, str(max_lines), str(min_confidence), provider, tesseract],
         check=False,
         capture_output=True,
         text=True,
@@ -138,7 +155,11 @@ def active_ocr_surface_detail(app: str, config: dict[str, Any]) -> dict[str, Any
     if not ocr_detail_enabled(app, config):
         return None
 
-    raw = _run_apple_vision_probe(app, config)
+    raw = None
+    for provider in _provider_order(config):
+        raw = _run_macos_ocr_probe(app, config, provider)
+        if raw and raw.get("status") == "captured":
+            break
     if not raw or raw.get("status") != "captured":
         return None
 

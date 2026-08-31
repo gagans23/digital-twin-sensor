@@ -75,6 +75,7 @@ The product must stay useful without becoming silent surveillance. The design ta
 
 10. Added Depth 4 local OCR summary gate.
    - Added a macOS Apple Vision OCR helper using `VNRecognizeTextRequest`.
+   - Added Tesseract CLI fallback support inside the same temporary-window-image helper.
    - Added `digital_twin_sensor.collectors.local_ocr`.
    - Added app allowlist, confidence, line-limit, and timeout policy keys.
    - Wired OCR behind Depth 4 after browser and Accessibility metadata.
@@ -131,7 +132,7 @@ Validated on 2026-08-29:
 
 Validated on 2026-08-31:
 
-- `python -m unittest discover -s tests`: 65 tests passed in a venv with the encrypted extra
+- `python -m unittest discover -s tests`: 68 tests passed in a venv with the encrypted extra
 - `python -m compileall digital_twin_sensor`: passed
 - `node --check digital_twin_sensor/ui_static/app.js`: passed
 - `git diff --check`: passed

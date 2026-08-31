@@ -133,7 +133,14 @@ Depth 4 local OCR summaries for an opaque allowlisted app:
 digital-twin-sensor configure --depth 4 --ocr-surface-details on --ocr-app "Ibo Pro Player" --ocr-max-lines 12 --ocr-min-confidence 0.35
 ```
 
-On macOS, Depth 4 uses the Apple Vision helper installed by `scripts/install_launch_agent.sh`. macOS may require Screen Recording permission for the terminal or Python runtime. The product stores redacted OCR hints and summary only, not screenshots.
+On macOS, Depth 4 uses the helper installed by `scripts/install_launch_agent.sh`. It prefers Apple Vision and can fall back to Tesseract when the CLI is installed. macOS may require Screen Recording permission for the terminal or Python runtime. The product stores redacted OCR hints and summary only, not screenshots.
+
+Optional Tesseract fallback:
+
+```bash
+brew install tesseract
+digital-twin-sensor configure --ocr-provider tesseract --ocr-tesseract-binary "$(command -v tesseract)"
+```
 
 ## Export A Context Pack
 

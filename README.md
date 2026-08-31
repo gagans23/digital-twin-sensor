@@ -116,7 +116,7 @@ Full policy: [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.
 
 PII masking runs before events are written to SQLite. The redactor masks emails, Luhn-validated card numbers, US SSNs, phone numbers, IP addresses, common secret and token shapes, URL paths, and configured names.
 
-Depth 4 OCR uses a local provider only. On macOS the installer builds a small Apple Vision `VNRecognizeTextRequest` helper; Tesseract is treated as the open-source offline fallback for future cross-platform adapters. The active product stores redacted hints and confidence, not image pixels.
+Depth 4 OCR uses local providers only. On macOS the installer builds a small helper that prefers Apple Vision `VNRecognizeTextRequest` and can fall back to the Tesseract CLI when installed. The active product stores redacted hints and confidence, not image pixels.
 
 A worker who believes they are being logged changes what they do — and then you have captured the performance instead of the practice. The boundary is not a setting. It is the product.
 
@@ -418,7 +418,7 @@ Do not open `digital_twin_sensor/ui_static/index.html` directly — the dashboar
 
 ### macOS permissions
 
-The active-window collector uses macOS Accessibility APIs through a native helper, with an AppleScript fallback. Enable your terminal or Python runtime under **System Settings → Privacy & Security → Accessibility**. Depth 2 and Depth 3 may additionally prompt for Automation permission for Safari, Chrome, or allowlisted apps.
+The active-window collector uses macOS Accessibility APIs through a native helper, with an AppleScript fallback. Enable your terminal or Python runtime under **System Settings → Privacy & Security → Accessibility**. Depth 2 and Depth 3 may additionally prompt for Automation permission for Safari, Chrome, or allowlisted apps. Depth 4 OCR may prompt for Screen Recording permission because the helper creates a temporary window image and deletes it immediately after local OCR.
 
 ### Install as a background sensor
 
@@ -549,7 +549,7 @@ Reference: [docs/API.md](docs/API.md)
 
 | Layer | Responsibility |
 | --- | --- |
-| Collector | macOS foreground app/window sampling with optional browser and Accessibility metadata |
+| Collector | macOS foreground app/window sampling with optional browser, Accessibility, and local OCR metadata |
 | Redaction | PII, names, cards, tokens, IPs and URL-path masking before storage |
 | Store | local SQLite event ledger with retention deletion |
 | Digital Twin Signature | domain, rhythm, baseline, response and diversity vectors |
@@ -574,6 +574,7 @@ Reference: [docs/API.md](docs/API.md)
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | local and enterprise deployment path |
 | [docs/RESEARCH_AND_EVALUATION.md](docs/RESEARCH_AND_EVALUATION.md) | study design and metrics |
 | [docs/GITLAB_PUBLISHING.md](docs/GITLAB_PUBLISHING.md) | GitLab push, project metadata, release commands |
+| [docs/CLAUDE_HANDOVER.md](docs/CLAUDE_HANDOVER.md) | concise handover for another agent to continue the build |
 | [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.md) | capture-depth and masking policy |
 | [ENTERPRISE_PORTABILITY.md](ENTERPRISE_PORTABILITY.md) | fleet and control-plane model |
 | [CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md](CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md) | three-year research synthesis |

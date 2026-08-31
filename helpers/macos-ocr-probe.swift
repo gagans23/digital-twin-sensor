@@ -15,6 +15,8 @@ let args = CommandLine.arguments
 let expectedApp = args.count > 1 ? args[1] : ""
 let maxLines = args.count > 2 ? max(1, min(Int(args[2]) ?? 12, 40)) : 12
 let minConfidence = args.count > 3 ? max(0.0, min(Float(args[3]) ?? 0.35, 1.0)) : 0.35
+let provider = args.count > 4 ? args[4] : "apple_vision"
+let tesseractPath = args.count > 5 ? args[5] : "/opt/homebrew/bin/tesseract"
 
 let activeApp = NSWorkspace.shared.frontmostApplication
 let appName = activeApp?.localizedName ?? activeApp?.bundleIdentifier ?? "unknown"
@@ -86,6 +88,62 @@ guard capture.terminationStatus == 0,
         "reason": "window image unavailable; Screen Recording permission may be required",
         "app": appName
     ])
+    exit(0)
+}
+
+func runTesseract() {
+    let ocr = Process()
+    ocr.executableURL = URL(fileURLWithPath: tesseractPath)
+    ocr.arguments = [tempURL.path, "stdout", "--oem", "1", "--psm", "6", "-l", "eng"]
+    let pipe = Pipe()
+    ocr.standardOutput = pipe
+    ocr.standardError = Pipe()
+
+    do {
+        try ocr.run()
+        ocr.waitUntilExit()
+    } catch {
+        emit([
+            "status": "error",
+            "reason": error.localizedDescription,
+            "provider": "tesseract",
+            "app": appName
+        ])
+        exit(1)
+    }
+
+    if ocr.terminationStatus != 0 {
+        emit([
+            "status": "empty",
+            "reason": "tesseract returned no readable text",
+            "provider": "tesseract",
+            "app": appName
+        ])
+        exit(0)
+    }
+
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    let output = String(data: data, encoding: .utf8) ?? ""
+    let rows = output
+        .components(separatedBy: .newlines)
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+        .prefix(maxLines)
+        .map { ["text": $0, "confidence": 0.0] as [String: Any] }
+
+    emit([
+        "status": rows.isEmpty ? "empty" : "captured",
+        "provider": "tesseract",
+        "source": "tesseract_cli",
+        "app": appName,
+        "window_title": windowTitle,
+        "line_count": rows.count,
+        "lines": Array(rows)
+    ])
+}
+
+if provider == "tesseract" {
+    runTesseract()
     exit(0)
 }
 

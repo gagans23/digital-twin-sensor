@@ -146,26 +146,40 @@ Eye attention should be built as a ladder, not as immediate camera capture.
 
 The product should use eye proxies first because they explain attention well enough for most digital-twin context tasks while avoiding biometric collection.
 
-## Depth 4: Semantic Summaries And OCR Gates
+## Depth 4: Local OCR Summary Gate
 
-Purpose: create richer agent context packs.
+Purpose: create richer agent context for opaque apps without storing screenshots.
 
 Collect:
 
-- local summaries of active documents
 - local OCR summaries for explicitly allowlisted apps when Accessibility exposes no useful metadata
+- OCR provider name
+- OCR confidence
+- redacted text hints
+- short local summary
+
+Default rule:
+
+- use local providers only: Apple Vision on macOS, Tesseract CLI fallback when installed
+- discard temporary OCR images after summarization
+- store redacted text hints and summary, not screenshots or raw images
+- expose provider readiness in Product Doctor and Signal Depth
+- keep raw upload disabled
+
+Implemented status:
+
+- Depth 4 activates only when `context_capture_depth >= 4`
+- apps must be explicitly allowlisted with `--ocr-app`
+- the macOS installer builds `helpers/macos-ocr-probe.swift`
+- the helper prefers Apple Vision `VNRecognizeTextRequest` and can fall back to the Tesseract CLI
+
+Still next:
+
 - local embeddings of titles/artifacts
 - topic clusters
 - decision trails
 - repeated-work summaries
-
-Default rule:
-
-- summarize locally when possible
-- store summary, not raw source text
-- discard temporary OCR images after summarization
-- expose citations back to local artifacts
-- allow per-artifact delete
+- local document summaries with per-artifact deletion
 
 ## Depth 5: Full Content
 
