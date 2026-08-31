@@ -199,3 +199,24 @@ can change; a dependency upgrade must pass the SDK transport tests.
 References: [SDK configuration](https://www.comet.com/docs/opik/tracing/advanced/sdk_configuration),
 [Python client reference](https://www.comet.com/docs/opik/python-sdk-reference/Opik.html),
 [pinned package](https://pypi.org/project/opik/2.2.45/).
+
+## Release Verification, 31 August 2026
+
+- Rebased on main `1884cd4`; retained the concurrent aggregation work unchanged.
+- Python 3.9 regression suite: 209 tests, 205 passed, four SDK tests skipped.
+- Python 3.12 Opik suite: all 16 passed, including those four SDK tests. Repeated
+  from outside the checkout against the installed wheel and dedicated worker.
+- JavaScript: all ten tests passed. Syntax, compilation, and diff checks passed.
+- Context harness: all five scenarios passed, zero leakage canaries, no baseline
+  regression. This is a small regression set, not a production privacy guarantee.
+- Installed wheel: connector and UI asset smoke passed. Desktop 1440px and mobile
+  390px layouts checked; no document/text overflow. Recording, filtering, logging
+  pause, and purge confirmation/cancellation exercised with synthetic data.
+- GitHub CI passed for implementation commit `6e33b00`, including the new SDK job.
+- Live sensor wheel updated, all four prior LaunchAgents restored, capture config
+  hash unchanged. Local-only logging enabled. Collection and learning operations
+  appeared in the operational log. No endpoint or external exporter service was
+  enabled, and no live workstation traces were sent to the test receiver.
+- Opik server persistence remains unverified: a destination/workspace still needs
+  approval. Docker was installed on this host but its daemon was not running;
+  no local Opik deployment was started.

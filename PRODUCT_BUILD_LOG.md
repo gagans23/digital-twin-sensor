@@ -250,3 +250,10 @@ receiver, canaries for input/error leakage, queue/consent/purge tests, and exist
 runtime/UI regressions. Real server persistence still requires a synthetic smoke
 against the user's approved Opik deployment. No cloud destination is configured
 by this build. See `docs/OPIK_OBSERVABILITY.md` for setup and remaining limits.
+
+Release checks completed: 209 Python regression tests (four SDK cases run in
+the separate Python 3.12 suite), 16 Opik tests, ten JavaScript tests, installed
+wheel smoke, and five harness scenarios. GitHub CI passed. Local-only logging is
+live; capture settings were preserved and the existing services restored.
+The separate exporter environment is installed but no Opik destination or
+exporter LaunchAgent is configured. Full verification is in the setup guide.
