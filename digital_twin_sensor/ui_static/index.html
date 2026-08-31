@@ -39,6 +39,7 @@
 
       <nav class="tabs" aria-label="Dashboard views">
         <button class="tab active" type="button" data-view="overview">Overview</button>
+        <button class="tab" type="button" data-view="resume">Resume my work</button>
         <button class="tab" type="button" data-view="depth">Signal Depth</button>
         <button class="tab" type="button" data-view="ops">Product Ops</button>
         <button class="tab" type="button" data-view="fleet">Fleet</button>
@@ -53,6 +54,59 @@
       </nav>
 
       <main>
+        <section id="resume" class="view" aria-labelledby="resumeTitle">
+          <header class="resume-header">
+            <div><p class="kicker">Work continuity</p><h2 id="resumeTitle">Resume my work</h2></div>
+            <div class="resume-controls">
+              <select id="resumeTask" aria-label="Task to resume"><option value="">Loading tasks</option></select>
+              <button id="resumeStart" class="tool-button primary" type="button" disabled>Start resume</button>
+            </div>
+          </header>
+          <div id="resumeCoverage" class="resume-coverage" role="status">Checking recent samples.</div>
+          <div id="resumeNotice" class="resume-notice" role="status"></div>
+          <div class="resume-layout">
+            <div class="resume-main">
+              <section class="resume-section" aria-labelledby="resumeConfirmedTitle">
+                <div class="resume-heading"><h3 id="resumeConfirmedTitle">Last confirmed state</h3><span class="resume-type confirmed">Your report</span></div>
+                <div id="resumeConfirmed" class="resume-copy"></div>
+              </section>
+              <section class="resume-section" aria-labelledby="resumeChangesTitle">
+                <div class="resume-heading"><h3 id="resumeChangesTitle">Since that checkpoint</h3><span class="resume-type observed">Observed</span></div>
+                <div id="resumeChanges" class="resume-copy"></div>
+                <ol id="resumeEvidence" class="resume-evidence"></ol>
+              </section>
+              <section class="resume-section" aria-labelledby="resumeSuggestionTitle">
+                <div class="resume-heading"><h3 id="resumeSuggestionTitle">Possible next step</h3><span class="resume-type inferred">Inferred</span></div>
+                <div id="resumeSuggestion" class="resume-copy"></div>
+              </section>
+              <section class="resume-section" aria-labelledby="resumeSessionsTitle">
+                <h3 id="resumeSessionsTitle">Resume sessions</h3>
+                <div id="resumeSessions"></div>
+              </section>
+            </div>
+            <aside class="resume-sidebar">
+              <form id="resumeCheckpointForm" class="resume-section">
+                <div class="resume-heading"><h3>Leave a checkpoint</h3><span id="resumeDraftStatus" class="resume-type">Not saved</span></div>
+                <fieldset id="resumeFields" disabled>
+                  <label for="resumeState">What can you confirm?</label>
+                  <textarea id="resumeState" rows="4" maxlength="1200" required></textarea>
+                  <label for="resumeNext">Your next step</label>
+                  <textarea id="resumeNext" rows="2" maxlength="1200"></textarea>
+                  <label for="resumeQuestion">Unresolved question</label>
+                  <textarea id="resumeQuestion" rows="2" maxlength="1200"></textarea>
+                  <div class="resume-form-actions">
+                    <button id="resumeSave" class="tool-button primary" type="submit">Save checkpoint</button>
+                    <button id="resumeDiscard" class="tool-button" type="button" hidden>Discard draft</button>
+                  </div>
+                </fieldset>
+              </form>
+              <section class="resume-section" aria-labelledby="resumeHistoryTitle">
+                <h3 id="resumeHistoryTitle">Checkpoint history</h3>
+                <div id="resumeHistory"></div>
+              </section>
+            </aside>
+          </div>
+        </section>
         <section id="overview" class="view active-view" aria-labelledby="overviewTitle">
           <div class="twin-experience">
             <section class="twin-hero" aria-labelledby="twinHeroTitle">

@@ -1,6 +1,6 @@
 # 0007 — Count-based k-anonymity floor in synthesis
 
-**Status:** Accepted
+**Status:** Accepted. The floor stands; the trust model it assumed is superseded by [0012](0012-secure-aggregation-trust-model.md), which stops the aggregator holding per-subject spheres in the first place.
 
 ## Context
 

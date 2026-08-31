@@ -1,0 +1,18 @@
+{
+  "version": "2026-08-31",
+  "note": "Declared themes are the only countable units in collective synthesis. A theme that is not declared here cannot be counted, whatever a sensor observes locally. Order is part of the contract: reordering invalidates every mask built against this file. Add themes by appending, never by inserting.",
+  "themes": [
+    {"id": "coding:implementation", "description": "Writing or modifying source in an editor or IDE"},
+    {"id": "coding:review", "description": "Reading diffs, pull requests or someone else's code"},
+    {"id": "coding:debugging", "description": "Working a failure: logs, traces, reproduction"},
+    {"id": "operations:incident", "description": "Live operational response to a fault or alert"},
+    {"id": "operations:runbook", "description": "Following or maintaining an operational procedure"},
+    {"id": "analysis:data", "description": "Querying, modelling or charting data"},
+    {"id": "analysis:document", "description": "Reading long-form documents, policies or specifications"},
+    {"id": "writing:drafting", "description": "Producing prose: memos, reports, correspondence"},
+    {"id": "communication:async", "description": "Mail, chat and ticket correspondence"},
+    {"id": "communication:meeting", "description": "Scheduled calls and meetings"},
+    {"id": "planning:coordination", "description": "Boards, backlogs, scheduling and task tracking"},
+    {"id": "learning:research", "description": "Reading papers, documentation or reference material"}
+  ]
+}

@@ -219,3 +219,169 @@ def format_synthesis_markdown(result: dict[str, Any]) -> str:
                 f"- Topic withheld: {item['reason']} (minimum {item['required']} subjects)."
             )
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Secure path. See docs/adr/0012 and digital_twin_sensor/aggregation.py.
+#
+# `synthesize_collective` above requires the caller to hold every subject's
+# spheres in the clear. The floor it applies protects the output; nothing
+# protected the input. Everything below takes cohort totals that were summed
+# under masks instead, so no readable per-subject contribution ever exists at
+# the aggregator.
+# ---------------------------------------------------------------------------
+
+def theme_of_sphere(sphere: dict[str, Any]) -> str | None:
+    """Map a local sphere onto a declared theme id, or nothing.
+
+    Deliberately conservative: an unmapped sphere contributes nothing rather
+    than inventing a bucket. Undercounting is recoverable by declaring another
+    theme; counting something nobody declared is not.
+    """
+    domain = str(sphere.get("domain") or "").strip().lower()
+    task = f"{sphere.get('task') or ''} {sphere.get('label') or ''}".lower()
+
+    if domain == "coding":
+        if any(word in task for word in ("review", "pull request", "diff", "merge")):
+            return "coding:review"
+        if any(word in task for word in ("bug", "debug", "error", "failure", "trace", "log")):
+            return "coding:debugging"
+        return "coding:implementation"
+    if domain == "operations":
+        if any(word in task for word in ("incident", "alert", "outage", "page")):
+            return "operations:incident"
+        return "operations:runbook"
+    if domain in {"analysis", "data"}:
+        return "analysis:document" if "doc" in task or "policy" in task or "spec" in task else "analysis:data"
+    if domain == "writing":
+        return "writing:drafting"
+    if domain in {"communication", "email", "chat"}:
+        return "communication:meeting" if any(w in task for w in ("call", "meet", "zoom", "standup")) else "communication:async"
+    if domain in {"planning", "project"}:
+        return "planning:coordination"
+    if domain in {"research", "learning"}:
+        return "learning:research"
+    return None
+
+
+def synthesize_secure(
+    totals: list[int],
+    vocabulary: Any,
+    *,
+    cohort_size: int,
+    min_subjects: int = DEFAULT_MIN_SUBJECTS,
+    max_themes: int = DEFAULT_MAX_THEMES,
+    epsilon: float | None = None,
+    days: int = 14,
+) -> dict[str, Any]:
+    """Fold masked cohort totals into themes above the floor.
+
+    Takes the output of `aggregation.secure_sum` — counts of how many cohort
+    members touched each declared theme — and never anything per-subject.
+
+    Confidence is a Wilson interval on the proportion of the cohort, not a
+    weighted score. The uncertainty is a property of the count and the cohort
+    size, so it is derived; ADR 0008's invented weights are not needed on this
+    path and are not used.
+
+    `epsilon`, when set, adds discrete Laplace noise at the aggregator. That is
+    central DP and it assumes the aggregator is honest about adding it. At team
+    scale it is usually the wrong trade: the noise needed for a meaningful
+    epsilon swamps a cohort of ten, and secure aggregation alone is the stronger
+    practical protection. Left off by default for that reason.
+    """
+    from .aggregation import discrete_laplace, wilson_interval  # noqa: PLC0415
+
+    if min_subjects < 2:
+        raise ValueError("min_subjects must be at least 2; a floor of 1 is not a floor")
+    if cohort_size < min_subjects:
+        raise ValueError(
+            f"cohort of {cohort_size} cannot clear a floor of {min_subjects}; "
+            "publishing from it would be a floor in name only"
+        )
+    if len(totals) != len(vocabulary):
+        raise ValueError("totals do not match the declared vocabulary width")
+
+    scale = (1.0 / epsilon) if epsilon and epsilon > 0 else 0.0
+    themes: list[dict[str, Any]] = []
+    withheld = 0
+
+    for position, theme_id in enumerate(vocabulary.themes):
+        support = int(totals[position])
+        if scale:
+            support = max(0, support + discrete_laplace(scale))
+        if support < min_subjects:
+            withheld += 1
+            continue
+        low, high = wilson_interval(min(support, cohort_size), cohort_size)
+        themes.append(
+            {
+                "theme": theme_id,
+                "description": vocabulary.descriptions.get(theme_id, ""),
+                "subjects": support,
+                "share_of_cohort": round(min(support, cohort_size) / cohort_size, 3),
+                "confidence_interval": [low, high],
+            }
+        )
+
+    themes.sort(key=lambda item: item["subjects"], reverse=True)
+    truncated = max(0, len(themes) - max_themes)
+    themes = themes[:max_themes]
+
+    # The count of withheld themes is itself a signal about a small cohort, so
+    # it is reported as a band rather than an exact figure.
+    if withheld == 0:
+        withheld_band = "none"
+    elif withheld <= 2:
+        withheld_band = "1-2"
+    elif withheld <= 5:
+        withheld_band = "3-5"
+    else:
+        withheld_band = "6+"
+
+    return {
+        "status": "ready" if themes else "below_floor",
+        "path": "secure-aggregation",
+        "generated_at": utc_now().isoformat(),
+        "days": days,
+        "cohort_size": cohort_size,
+        "min_subjects": min_subjects,
+        "vocabulary_version": vocabulary.version,
+        "vocabulary_digest": vocabulary.digest,
+        "epsilon": epsilon,
+        "themes_emitted": len(themes),
+        "themes_withheld_band": withheld_band,
+        "themes": themes,
+        "decisions": [
+            {
+                "field": "per_subject_contributions",
+                "decision": "deny",
+                "reason": "contributions are masked; the aggregator never holds a readable per-subject vector",
+            },
+            {
+                "field": "theme_vocabulary",
+                "decision": "allow",
+                "reason": f"{len(vocabulary)} declared themes, digest {vocabulary.digest}; undeclared work cannot be counted",
+            },
+            {
+                "field": "aggregation_floor",
+                "decision": "enforced",
+                "reason": f"a theme needs {min_subjects} distinct subjects before it is emitted",
+            },
+            {
+                "field": "withheld_count",
+                "decision": "generalize",
+                "reason": "an exact suppression count is itself disclosive on a small cohort",
+            },
+            {
+                "field": "differential_privacy",
+                "decision": "allow" if epsilon else "deny",
+                "reason": (
+                    f"central DP noise at epsilon={epsilon}, added by the aggregator"
+                    if epsilon
+                    else "no noise: at team scale it costs more signal than it buys, and secure aggregation is the stronger protection here"
+                ),
+            },
+        ]
+        + ([{"field": "themes", "decision": "truncate", "reason": f"{truncated} themes beyond max_themes"}] if truncated else []),
+    }

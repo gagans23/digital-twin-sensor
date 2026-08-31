@@ -59,6 +59,10 @@ The collector/dashboard/watchdog/learning LaunchAgents share `~/.digital-twin-se
 
 ## Next Build: Reliable Task Resumption
 
+The first vertical slice is now implemented. Read `RESUME_WORKFLOW.md` before extending it. `/api/resume` and the Resume my work view provide gated observations, separate inferred suggestions, redacted/versioned user checkpoints, and explicit request/display/self-reported-outcome records. No new capture permissions, model training, or causal comparison were added. The resume tables participate in encryption migration and purge/retention; session metadata is plaintext. Browser checks covered desktop/mobile and the main flow with synthetic data.
+
+The remaining work below is still open: durable task identity, complete source lineage, measured progress, and prospective experimental design. Do not mistake the new client display acknowledgement for proof of reading or the user outcome for independent productivity measurement.
+
 1. Introduce observation, inference, and confirmed-outcome types with evidence, validity dates, and correction history. Foreground presence does not prove attention or progress.
 2. Add coarse coverage states: permitted, unavailable, paused, failed, expired. Missing observation does not prove neglected work.
 3. Persist task membership and split/merge corrections. Current deterministic identity stabilizes repeated artifact seeds, not arbitrary regrouping or renames.
@@ -67,6 +71,67 @@ The collector/dashboard/watchdog/learning LaunchAgents share `~/.digital-twin-se
 6. Compare against no context, recent activity, and query-only retrieval at fixed model/context budgets. Tune routing only after suitable held-out outcome data exists.
 
 X-SYNTH inspires attention-informed relevance and feedback attribution. This repo implements heuristics and feedback records, not the paper's trained router or reproduced results. A candidate extension is reasoning under permission-limited, incomplete, correctable observation. Novelty and benefit remain unproven.
+
+## Collective Synthesis: Trust Model Changed (ADR 0012)
+
+Added alongside your `421178b` work, in files you were not touching. Nothing in
+`learning.py`, `store.py`, `web.py`, the UI or `resume.py` was modified.
+
+**What changed and why.** `synthesize_collective` required the caller to hold
+every subject's working spheres in the clear. The k-anonymity floor from ADR 0007
+governed what was published; nothing governed what was collected, so the
+aggregator held per-person traces — which is the threat model's adversary #4
+walking straight through the layer. Two further problems: a count floor does not
+compose across repeated queries (run it twice with one member removed and diff),
+and exact withheld counts leaked the same way.
+
+**New files, all additive:**
+
+- `digital_twin_sensor/aggregation.py` — declared theme vocabulary, clipped
+  contribution vectors, pairwise masking, `secure_sum`, Wilson interval
+- `digital_twin_sensor/vocabularies/themes.json` — the declared allowlist
+- `tests/test_aggregation.py` — 23 tests
+- `docs/adr/0012-secure-aggregation-trust-model.md`
+
+**Modified:** `synthesis.py` (appended `theme_of_sphere` and `synthesize_secure`;
+the legacy `synthesize_collective` is untouched and still passes its tests),
+ADR README/0007/0008 status lines, `docs/VALIDATION.md`, `CHANGELOG.md`.
+
+**Contracts worth knowing before you touch this:**
+
+- The vocabulary order is part of the contract. Masks are bound to the digest;
+  reordering `themes.json` invalidates every contribution built against it. Add
+  themes by appending only.
+- `secure_sum` refuses a partial cohort by design. It cannot return a degraded
+  answer — unc­ancelled masks produce a meaningless number, not a noisy one. Do
+  not "fix" this by dropping the check.
+- Confidence on the secure path is a Wilson interval, not a score. Do not
+  reintroduce the ADR 0008 weights here; VALIDATION V1 is retired on this path
+  because the quantity it would have fitted is no longer computed.
+- DP noise is off by default and that is deliberate, not an oversight. At team
+  scale the noise needed for a meaningful epsilon swamps the signal. The
+  mechanism-by-cohort-size table is in ADR 0012.
+- Claim wording: this is pseudonymous aggregation with a published floor, not
+  anonymity. The symmetric cohort secret defends against the aggregator, not
+  against a colluding cohort member.
+
+**Deliberately not built, so nobody assumes it exists.** There is no CLI command
+and no transport. Cohort formation, secret distribution and round coordination
+are unsolved, and shipping a command that implied otherwise would be the exact
+failure this repo argues against. The library is complete and tested; the
+plumbing is not. If you build the transport, `VALIDATION.md` V6 records what
+would have to be measured about dropout before the refusal-on-partial-cohort
+behaviour can be called acceptable.
+
+**Also from this side, earlier:** `resume_study.py` (measurement — distinct from
+your `resume.py` checkpoints; `tests/test_hardening.py` already exercises it),
+`baseline.py` plus `harness/baseline.json` (drift gate, wired into both CI
+files), and `tests/test_fuzz_leak_gate.py` (property tests over the redaction
+and export boundaries — these found four real bugs, including a card number
+hidden by a neighbouring digit and `_gate_counts` reading a key that never
+existed).
+
+Suite is at 192 tests, harness passes against the committed baseline.
 
 ## Privacy And Writing
 

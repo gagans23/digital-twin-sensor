@@ -32,8 +32,20 @@ missing_context). Those are the labels.
 - Compare against two nulls: breadth alone, and a constant. A formula that does
   not beat breadth alone should be deleted, not defended.
 
-**Until then.** The label stays in the docstring, the docs, the README and the
-public case study, and `tests/test_synthesis.py` fails if it is removed.
+**Update (ADR 0012): this debt is retired on the secure path, not paid.**
+`synthesize_secure` reports share-of-cohort with a Wilson interval instead of a
+weighted score. The uncertainty is a property of the count and the cohort size,
+so it is derived rather than fitted — the acceptance criteria above are no longer
+the route to resolving it, because the quantity they would fit is no longer
+computed. The criteria stand only for the legacy trusted-curator path, which is
+now deprecated.
+
+The lesson generalises and is worth keeping: an invented number was not a
+missing measurement, it was a sign the wrong quantity was being computed.
+
+**Until then, on the legacy path.** The label stays in the docstring, the docs,
+the README and the public case study, and `tests/test_synthesis.py` fails if it
+is removed.
 
 ---
 
@@ -127,3 +139,26 @@ gate CI (ADR 0006).
   move when the model does.
 
 Until that exists, promoting them would repeat V1's mistake in a new place.
+
+---
+
+## V6 — Whether secure aggregation survives contact with a real cohort
+
+**Claim as it stands.** `aggregation.py` recovers exact totals under pairwise
+masks and refuses a partial cohort (ADR 0012). Proven in tests against synthetic
+cohorts of six. Never run across real machines.
+
+**Why it matters.** The refusal is correct but brittle: one laptop asleep at
+sync time and the round yields nothing. Whether that is an acceptable operating
+characteristic or a fatal one is an empirical question about how often a real
+team is simultaneously online, and nobody here knows the answer.
+
+**Acceptance criteria.**
+
+- Instrument round completion across at least 20 rounds on a real team of 5+.
+- Report the completion rate and the distribution of missing members.
+- Below ~80% completion, dropout resilience stops being a nice-to-have and the
+  crypto dependency (ADR 0004) has to be reconsidered on its merits.
+
+**Known confound.** A team that knows its rounds are being measured may keep
+machines awake. Measure passively or not at all.

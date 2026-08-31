@@ -21,3 +21,4 @@ exactly the failure mode this project exists to argue about.
 | [0009](0009-connector-manifests-are-allowlists.md) | Connector manifests are allowlists, not parsers | Accepted |
 | [0010](0010-encryption-optional-and-partial.md) | Encryption at rest is optional and deliberately partial | Accepted |
 | [0011](0011-resume-time-from-the-trace.md) | Measure resume time from the trace; refuse to compare a thin sample | Accepted |
+| [0012](0012-secure-aggregation-trust-model.md) | Aggregate under masks; derive confidence instead of choosing it | Accepted (supersedes 0007's trust model) |

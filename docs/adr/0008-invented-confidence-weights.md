@@ -1,6 +1,6 @@
 # 0008 — Ship the confidence formula labelled as an unvalidated prior
 
-**Status:** Accepted, pending validation
+**Status:** Accepted, pending validation on the legacy path. Retired on the secure path by [0012](0012-secure-aggregation-trust-model.md), which derives a Wilson interval instead of weighting a score.
 
 ## Context
 

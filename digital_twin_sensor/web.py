@@ -24,6 +24,7 @@ from .fleet import DASHBOARD_SERVICE, SENSOR_SERVICE, build_fleet_status, servic
 from .health import build_health_report, run_watchdog
 from .learning import LearningStore, build_learning_state
 from .query import retrieve
+from .resume import ResumeConflict, build_resume_view, resume_action
 from .store import open_event_store, parse_dt, utc_now
 from .twin import build_digital_twin_signature
 from .working_spheres import build_working_spheres
@@ -1015,6 +1016,12 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
         query = self._query()
 
         try:
+            if route == "/api/resume":
+                config = load_config(self.server.config_path)
+                self._send_json(build_resume_view(self.server.db_path, config,
+                                                 sphere_id=query.get("sphere_id", [None])[0],
+                                                 days=_safe_int(query.get("days", [None])[0], 14)))
+                return
             if route == "/api/overview":
                 days = _safe_int(query.get("days", [None])[0], 14)
                 limit = _safe_int(query.get("limit", [None])[0], 80, 1, 500)
@@ -1202,6 +1209,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
             "/api/collect-once",
             "/api/feedback",
             "/api/feedback/resolve",
+            "/api/resume",
             "/api/admin/watchdog",
             "/api/admin/pause",
             "/api/admin/resume",
@@ -1212,6 +1220,9 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
 
         try:
             config = load_config(self.server.config_path)
+            if parsed.path == "/api/resume":
+                self._send_json(resume_action(self.server.db_path, config, self._read_json_body()))
+                return
             if parsed.path == "/api/feedback/resolve":
                 payload = self._read_json_body()
                 store = LearningStore(self.server.db_path, config=config)
@@ -1290,6 +1301,10 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
             store.close()
             event["id"] = event_id
             self._send_json({"stored": True, "event": _serialize_event(event)})
+        except ResumeConflict as exc:
+            self._send_json({"stored": False, "error": str(exc)}, HTTPStatus.CONFLICT)
+        except ValueError as exc:
+            self._send_json({"stored": False, "error": str(exc)}, HTTPStatus.BAD_REQUEST)
         except Exception as exc:
             self._send_json({"stored": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
