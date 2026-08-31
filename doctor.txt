@@ -1,0 +1,43 @@
+Digital Twin Product Doctor: attention
+Generated: 2026-08-31T11:17:11.343190+00:00
+
+Diagnostics:
+- ready: Collection mode - collection is enabled
+- ready: Collector service - active pid=19267
+- ready: Dashboard service - active pid=19293
+- ready: Watchdog service - installed
+- ready: Learning maintenance - installed
+- ready: Sample freshness - last sample 3s ago
+- ready: macOS Accessibility - foreground app visible: Terminal
+- attention: Automation Permissions - macOS may ask permission the first time these apps are inspected: Safari, Google Chrome, Ibo Pro Player
+- ready: Local OCR provider - apple_vision for Ibo Pro Player; macOS may require Screen Recording permission for the terminal/Python runtime
+- ready: PII masking - pre-storage masking enabled
+- ready: URL minimization - browser paths/queries redacted
+- ready: Raw upload boundary - raw event upload disabled
+- ready: Local event store - local event store is present
+
+Paper deviations:
+- gap: Learned filter router - the paper uses a learned Query x DTS modality router; this prototype uses rule cues plus DTS heuristics
+- partial: Feedback attribution - the paper decomposes failures across modality, retrieval, and synthesis; this prototype captures local labels but does not yet separate router, retrieval, and synthesis failures
+- gap: Collective signal - the paper includes collective filters; this local build is single-user until fleet summary sync exists
+- gap: Evaluation metric - the paper reports TLR/FLR; this build needs task-resume and answer-quality evaluation
+- risk: Causality claim - current attention correlations should be described as evidence, not causal proof, until outcome labels exist
+
+Product gaps:
+- next: Encrypted storage - add SQLCipher or encrypted event bundles before enterprise deployment
+- next: Menubar indicator - always-visible collection state, pause button, and permission alerts
+- implemented: Permission doctor UI - dashboard and CLI now expose service, permission, freshness, and privacy diagnostics
+- implemented: Pause/resume and retention - dashboard and CLI can pause collection and purge expired local rows without uninstalling services
+- implemented: OCR summary gate - Depth 4 local OCR summaries use on-device Apple Vision helper or Tesseract posture; screenshots are transient and only redacted text hints are stored
+- implemented: Feedback learning - local pack/evidence labels and scheduled context-card maintenance are implemented; automatic routing changes stay offline-only next
+- next: GitLab summary sync - push context packs and health reports, not raw event rows
+
+Research backlog:
+- implemented: Evolving context cards - turn repeated working-sphere evidence into living notes with summary, open questions, next actions, sensitivity, expiry, and evidence ids
+- partial: Memory maintenance loop - context cards are refreshed from working spheres and labels; consolidation, conflict resolution, and automatic forgetting remain next
+- next: Dynamic graph evolution - let new events update existing context nodes, strengthen/weaken links, and expose why a relationship changed
+- partial: Feedback-labeled evaluation - explicit useful/wrong/stale/too broad/too private/missing context labels are captured locally; paper-grade routing metrics remain next
+- research: Offline policy rehearsal - model context-pack decisions as trajectories so future routing policies can be tested before they affect live handoffs
+- next: Trust calibration UI - show confidence, evidence gaps, and attribution of errors so the twin is never presented as a faithful copy without proof
+- research: Anti-overclaim benchmark - measure individuation, bias, and false confidence before calling the model a reliable personal twin
+- future: Event-bus simulator - split the product into user, content, interaction, and platform loops for reproducible counterfactual experiments

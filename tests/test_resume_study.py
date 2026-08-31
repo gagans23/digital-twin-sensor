@@ -168,3 +168,60 @@ class StudyReportTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SampledCollectorTests(unittest.TestCase):
+    """Regression for the failure the first real run exposed.
+
+    The collector samples every ~15 seconds. Judging "substantive" on a single
+    event's dwell meant no event ever qualified, no anchor was ever found, and
+    the study reported zero resumes across a trace of 11,783 events — silently,
+    which was the worse half of the bug.
+    """
+
+    def _sampled(self, offset_minutes: float, artifact: str, count: int, interval: float = 15.0):
+        events = []
+        for index in range(count):
+            start = BASE + timedelta(minutes=offset_minutes, seconds=index * interval)
+            events.append(
+                {
+                    "app": "Kiro",
+                    "artifact": artifact,
+                    "title": artifact,
+                    "domain": "coding",
+                    "ts_start": start.isoformat(),
+                    "ts_end": (start + timedelta(seconds=interval)).isoformat(),
+                    "dwell_seconds": interval,
+                }
+            )
+        return events
+
+    def test_short_samples_accumulate_into_substantive_work(self):
+        events = (
+            self._sampled(0, "service/router.py", 20)      # 5 minutes of work
+            + self._sampled(60, "slack", 8)                # interruption, then Slack
+            + self._sampled(75, "service/router.py", 20)   # returns to the work
+        )
+        resumes = find_resume_events(events)
+        self.assertEqual(len(resumes), 1, "sampled events must accumulate into a run")
+        self.assertAlmostEqual(resumes[0].resume_seconds, 900.0, delta=30)
+
+    def test_zero_result_explains_itself(self):
+        # Everything below the substantive threshold: the detector must say why.
+        report = run_resume_study(self._sampled(0, "a.py", 2), days=3650, substantive_seconds=600)
+        self.assertEqual(report["resume_events"], 0)
+        self.assertIsNotNone(report["no_resumes_because"])
+        self.assertIn("substantive", report["no_resumes_because"])
+        self.assertIn("runs", report["diagnostics"])
+
+    def test_continuous_trace_reports_no_gap_rather_than_nothing(self):
+        report = run_resume_study(self._sampled(0, "a.py", 40), days=3650)
+        self.assertEqual(report["resume_events"], 0)
+        self.assertIn("gap", report["no_resumes_because"])
+
+    def test_markdown_surfaces_the_explanation(self):
+        rendered = format_resume_study_markdown(
+            run_resume_study(self._sampled(0, "a.py", 40), days=3650)
+        )
+        self.assertIn("No resume events.", rendered)
+        self.assertIn("Detector trace:", rendered)

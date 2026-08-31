@@ -19,6 +19,10 @@ gap is a proxy for resumption.
 
 Derive resume events from the existing store, with no new collection:
 
+- **work is a run**, not an event: the collector samples every few seconds, so
+  dwell is accumulated across consecutive attention on the same cluster. Judging
+  a single event's dwell found nothing at all against a real 11,783-event trace,
+  because no sample ever cleared the bar;
 - an **interruption** is a gap longer than `gap_minutes` (default 15 — shorter
   is thinking, not interruption);
 - the **task** being returned to is the last *substantive* activity before the
@@ -45,6 +49,11 @@ The measurement collects itself from an ordinary fortnight of work. It is also
 weaker than a trial, in ways the output states every time it runs: one subject,
 unblindable, and interruptions inferred rather than observed. An unattended
 machine will read as an interruption, which inflates the count of long gaps.
+
+A zero result must explain itself. The report says which stage produced nothing
+— no events, no substantive run, no gap, no known prior task, or a genuine
+never-returned — and prints the detector's own counts. An empty table that could
+equally mean "never interrupted" or "detector broken" is worse than no table.
 
 ## Enforced by
 

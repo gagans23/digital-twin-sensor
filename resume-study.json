@@ -1,0 +1,49 @@
+{
+  "window_days": 90,
+  "gap_minutes": 15.0,
+  "substantive_seconds": 60.0,
+  "block_days": 1,
+  "events_considered": 11783,
+  "resume_events": 0,
+  "days_with_data": 0,
+  "first_day": null,
+  "last_day": null,
+  "overall": {
+    "n": 0,
+    "median_seconds": null,
+    "p25_seconds": null,
+    "p75_seconds": null,
+    "p90_seconds": null,
+    "min_seconds": null,
+    "max_seconds": null
+  },
+  "conditions": {
+    "pack_available": {
+      "n": 0,
+      "median_seconds": null,
+      "p25_seconds": null,
+      "p75_seconds": null,
+      "p90_seconds": null,
+      "min_seconds": null,
+      "max_seconds": null
+    },
+    "pack_withheld": {
+      "n": 0,
+      "median_seconds": null,
+      "p25_seconds": null,
+      "p75_seconds": null,
+      "p90_seconds": null,
+      "min_seconds": null,
+      "max_seconds": null
+    }
+  },
+  "comparison": null,
+  "comparable": false,
+  "caveats": [
+    "Fewer than 10 resume events in at least one condition. The distributions are reported; the comparison is not, because it would not mean anything yet.",
+    "Single subject, single machine: this is a case study, not a trial.",
+    "The operator can see which condition they are in. A tool you can look at cannot be blinded, and this confound does not shrink with sample size.",
+    "Resume events are inferred from attention gaps, not self-reported. A gap is a proxy for an interruption and will miscount an unattended machine."
+  ],
+  "events": []
+}

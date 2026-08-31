@@ -29,6 +29,15 @@
 
 ### Fixed
 
+- **the resume study could never detect anything on a real trace.** "Substantive"
+  was judged on a single sampled event's dwell, but the collector samples every
+  few seconds, so no event ever qualified, no prior task was ever identified, and
+  the first real run reported zero resumes across 11,783 events. Dwell now
+  accumulates across consecutive attention on the same cluster, and a zero result
+  names the stage that produced it instead of printing an empty table.
+
+### Fixed
+
 - **card numbers could be hidden by a neighbouring digit.** The greedy candidate
   pattern swallowed an adjacent digit — `Invoice 3 4111 1111 1111 1111` — failed
   Luhn as a combined span, and returned the whole card unmasked. The pattern now

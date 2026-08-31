@@ -139,58 +139,118 @@ def _cluster_key(event: dict[str, Any]) -> str:
     return artifact or f"app:{str(event.get('app') or '').strip().lower()}"
 
 
+@dataclass
+class Run:
+    """Consecutive attention on one cluster, with the dwell summed.
+
+    The collector samples every few seconds, so a single event never
+    represents sustained work. Judging "substantive" on one event's dwell
+    made the detector find nothing at all against a real trace of 11,783
+    events — the first thing it was pointed at. Work is a run, not an event.
+    """
+
+    cluster: str
+    start: datetime
+    end: datetime
+    dwell: float
+    artifact: str
+    app: str
+
+
+def build_runs(
+    events: list[dict[str, Any]],
+    *,
+    gap_minutes: float = DEFAULT_GAP_MINUTES,
+) -> list[Run]:
+    ordered = sorted(
+        (e for e in events if e.get("ts_start") and e.get("ts_end")),
+        key=lambda e: parse_dt(str(e["ts_start"])),
+    )
+    gap = timedelta(minutes=gap_minutes)
+    runs: list[Run] = []
+
+    for event in ordered:
+        cluster = _cluster_key(event)
+        start = parse_dt(str(event["ts_start"]))
+        end = parse_dt(str(event["ts_end"]))
+        dwell = float(event.get("dwell_seconds") or 0.0)
+
+        if runs and runs[-1].cluster == cluster and start - runs[-1].end < gap:
+            current = runs[-1]
+            current.end = max(current.end, end)
+            current.dwell += dwell
+            continue
+
+        runs.append(
+            Run(
+                cluster=cluster,
+                start=start,
+                end=end,
+                dwell=dwell,
+                artifact=str(event.get("artifact") or ""),
+                app=str(event.get("app") or ""),
+            )
+        )
+
+    return runs
+
+
 def find_resume_events(
     events: list[dict[str, Any]],
     *,
     gap_minutes: float = DEFAULT_GAP_MINUTES,
     substantive_seconds: float = DEFAULT_SUBSTANTIVE_SECONDS,
     block_days: int = DEFAULT_BLOCK_DAYS,
+    diagnostics: dict[str, int] | None = None,
 ) -> list[ResumeEvent]:
     """One resume event per interruption episode.
 
-    Two rules stop the count inflating. The task being returned to is the last
-    *substantive* activity before the gap, not merely the last event — a
-    five-second glance is not what the subject was doing. And once an episode
-    resolves, scanning continues after the resumption, so a pause inside the
-    resumed stretch is not charged to the same interruption twice.
+    Three rules stop the count inflating or collapsing. Work is measured as a
+    *run* of consecutive attention, not a single sampled event. The task being
+    returned to is the last run that was substantive, so a glance before the
+    interruption is not mistaken for what someone was doing. And once an
+    episode resolves, scanning continues after the resumption, so a pause
+    inside the resumed stretch is not charged to the same interruption twice.
     """
-    ordered = sorted(
-        (e for e in events if e.get("ts_start") and e.get("ts_end")),
-        key=lambda e: parse_dt(str(e["ts_start"])),
-    )
-    if len(ordered) < 2:
+    runs = build_runs(events, gap_minutes=gap_minutes)
+    if diagnostics is not None:
+        diagnostics["runs"] = len(runs)
+        diagnostics["substantive_runs"] = sum(1 for r in runs if r.dwell >= substantive_seconds)
+    if len(runs) < 2:
         return []
 
     gap = timedelta(minutes=gap_minutes)
     resumes: list[ResumeEvent] = []
+    interruptions = anchored = 0
     index = 1
 
-    while index < len(ordered):
-        previous = ordered[index - 1]
-        current = ordered[index]
-        previous_end = parse_dt(str(previous["ts_end"]))
-        current_start = parse_dt(str(current["ts_start"]))
+    while index < len(runs):
+        previous = runs[index - 1]
+        current = runs[index]
 
-        if current_start - previous_end < gap:
+        if current.start - previous.end < gap:
             index += 1
             continue
 
+        interruptions += 1
+
         # What was actually being worked on before the interruption.
         anchor = None
-        for candidate in reversed(ordered[:index]):
-            if float(candidate.get("dwell_seconds") or 0.0) >= substantive_seconds:
+        for candidate in reversed(runs[:index]):
+            if candidate.dwell >= substantive_seconds:
                 anchor = candidate
                 break
         if anchor is None:
             index += 1
             continue
 
-        target = _cluster_key(anchor)
+        anchored += 1
         resumed_index = None
-        for offset, candidate in enumerate(ordered[index:], start=index):
-            if _cluster_key(candidate) != target:
+        for offset in range(index, len(runs)):
+            candidate = runs[offset]
+            if candidate.cluster != anchor.cluster:
                 continue
-            if float(candidate.get("dwell_seconds") or 0.0) < substantive_seconds:
+            if candidate.dwell < substantive_seconds:
                 continue  # a glance, not resumed work
             resumed_index = offset
             break
@@ -199,21 +259,26 @@ def find_resume_events(
             index += 1
             continue
 
-        resumed_at = parse_dt(str(ordered[resumed_index]["ts_start"]))
+        resumed_at = runs[resumed_index].start
         resumes.append(
             ResumeEvent(
-                interrupted_at=previous_end.isoformat(),
+                interrupted_at=previous.end.isoformat(),
                 resumed_at=resumed_at.isoformat(),
-                resume_seconds=(resumed_at - current_start).total_seconds(),
-                gap_seconds=(current_start - previous_end).total_seconds(),
-                artifact=str(anchor.get("artifact") or ""),
-                app=str(anchor.get("app") or ""),
-                condition=assign_condition(current_start, block_days),
-                day=current_start.date().isoformat(),
+                resume_seconds=(resumed_at - current.start).total_seconds(),
+                gap_seconds=(current.start - previous.end).total_seconds(),
+                artifact=anchor.artifact,
+                app=anchor.app,
+                condition=assign_condition(current.start, block_days),
+                day=current.start.date().isoformat(),
             )
         )
         # The episode is closed; do not recount a pause inside the resumption.
         index = resumed_index + 1
+
+    if diagnostics is not None:
+        diagnostics["interruptions"] = interruptions
+        diagnostics["interruptions_with_a_known_task"] = anchored
+        diagnostics["resumes"] = len(resumes)
 
     return resumes
 
@@ -227,11 +292,13 @@ def run_resume_study(
     block_days: int = DEFAULT_BLOCK_DAYS,
 ) -> dict[str, Any]:
     windowed = filter_window(events, days)
+    diagnostics: dict[str, int] = {}
     resumes = find_resume_events(
         windowed,
         gap_minutes=gap_minutes,
         substantive_seconds=substantive_seconds,
         block_days=block_days,
+        diagnostics=diagnostics,
     )
 
     by_condition: dict[str, list[float]] = {"pack_available": [], "pack_withheld": []}
@@ -272,8 +339,39 @@ def run_resume_study(
                 "never a result to publish as an effect.",
             }
 
+    # A zero has to say why it is a zero. The first real run of this study
+    # found nothing across 11,783 events and reported it as an empty table,
+    # which is indistinguishable from a subject who was never interrupted.
+    explanation = None
+    if not resumes:
+        if not windowed:
+            explanation = "No events in the window. Is the sensor running?"
+        elif not diagnostics.get("substantive_runs"):
+            explanation = (
+                f"No run of attention reached {substantive_seconds:.0f}s. The collector "
+                "samples in short intervals, so try a lower --substantive-seconds, or "
+                "check that dwell is being recorded."
+            )
+        elif not diagnostics.get("interruptions"):
+            explanation = (
+                f"No gap longer than {gap_minutes:.0f} min was found. Try a shorter "
+                "--gap-minutes, or the trace may be one continuous stretch."
+            )
+        elif not diagnostics.get("interruptions_with_a_known_task"):
+            explanation = (
+                "Interruptions were found, but nothing substantive preceded them, "
+                "so there was no task to return to."
+            )
+        else:
+            explanation = (
+                "Interruptions were found with a known prior task, but the subject "
+                "never returned to it substantively. That is a finding, not a bug."
+            )
+
     days_observed = sorted({r.day for r in resumes})
     return {
+        "diagnostics": diagnostics,
+        "no_resumes_because": explanation,
         "window_days": days,
         "gap_minutes": gap_minutes,
         "substantive_seconds": substantive_seconds,
@@ -322,6 +420,12 @@ def format_resume_study_markdown(report: dict[str, Any]) -> str:
     lines.append(row("all resumes", report["overall"]))
     for name, dist in report["conditions"].items():
         lines.append(row(name.replace("_", " "), dist))
+
+    if report.get("no_resumes_because"):
+        lines += ["", f"**No resume events.** {report['no_resumes_because']}", ""]
+        diag = report.get("diagnostics") or {}
+        if diag:
+            lines.append("Detector trace: " + ", ".join(f"{k.replace('_', ' ')}: {v}" for k, v in diag.items()))
 
     if report["comparison"]:
         lines += [
