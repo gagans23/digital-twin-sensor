@@ -545,6 +545,7 @@ digital-twin-sensor context-pack --days 14 --target kiro --format markdown
 digital-twin-sensor context-pack --days 14 --target gitlab --purpose gitlab --output work/context-pack.md
 
 # measure and synthesise
+digital-twin-sensor resume-study --days 14   # the V2 measurement, from the local trace
 digital-twin-sensor harness --fail-under 0.8
 digital-twin-sensor synthesize --min-subjects 5
 

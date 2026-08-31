@@ -19,6 +19,13 @@
   including a gate that stops denying while recall improves
 - `harness --baseline` and `harness --update-baseline`
 - optional `fuzz` extra for deeper local property testing
+- **task-resume measurement** (`digital_twin_sensor/resume_study.py`,
+  `resume-study` command, ADR 0011) — derives interruption and resume events
+  from the existing trace with no new collection and no self-reporting, assigns
+  conditions in alternating day blocks fixed by the date, reports distributions
+  rather than means, and refuses to print a comparison until both conditions
+  clear a minimum count. This is the instrument for `docs/VALIDATION.md` V2, the
+  one benefit the project promises and has never measured.
 
 ### Fixed
 

@@ -588,6 +588,37 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
 
 
 
+def cmd_resume_study(args: argparse.Namespace) -> int:
+    """Measure task-resume time from the local attention trace.
+
+    The one number this project promises and has never had (docs/VALIDATION.md
+    V2). Reads the existing store; collects nothing new; sends nothing anywhere.
+    """
+    from .resume_study import format_resume_study_markdown, run_resume_study  # noqa: PLC0415
+
+    config = load_config(args.config)
+    store = EventStore(args.db)
+    try:
+        events = store.fetch_window(
+            subject_id=args.subject_id or config["subject_id"], days=args.days
+        )
+    finally:
+        store.close()
+
+    report = run_resume_study(
+        events,
+        days=args.days,
+        gap_minutes=args.gap_minutes,
+        substantive_seconds=args.substantive_seconds,
+        block_days=args.block_days,
+    )
+    rendered = json.dumps(report, indent=2) if args.format == "json" else format_resume_study_markdown(report)
+    print(rendered, end="" if args.format == "markdown" else "\n")
+    if args.output:
+        args.output.write_text(rendered, encoding="utf-8")
+    return 0
+
+
 def cmd_deep_harness(args: argparse.Namespace) -> int:
     """Judgement-based evaluation with deep agents. Optional extra; the
     deterministic harness remains the CI gate."""
@@ -873,6 +904,34 @@ def build_parser() -> argparse.ArgumentParser:
     synthesize.add_argument("--min-subjects", type=int, default=5)
     synthesize.add_argument("--format", choices=["markdown", "json"], default="markdown")
     synthesize.set_defaults(func=cmd_synthesize)
+
+    resume = sub.add_parser(
+        "resume-study",
+        help="Measure task-resume time from the local trace (docs/VALIDATION.md V2).",
+    )
+    resume.add_argument("--subject-id", default=None)
+    resume.add_argument("--days", type=int, default=14)
+    resume.add_argument(
+        "--gap-minutes",
+        type=float,
+        default=15.0,
+        help="a pause longer than this counts as an interruption",
+    )
+    resume.add_argument(
+        "--substantive-seconds",
+        type=float,
+        default=60.0,
+        help="a return shorter than this is a glance, not resumed work",
+    )
+    resume.add_argument(
+        "--block-days",
+        type=int,
+        default=1,
+        help="length of each alternating condition block",
+    )
+    resume.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    resume.add_argument("--output", type=_path, default=None)
+    resume.set_defaults(func=cmd_resume_study)
 
     deep = sub.add_parser(
         "deep-harness",

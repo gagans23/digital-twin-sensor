@@ -45,6 +45,18 @@ is untested — stated as untested in the essay, the README and the gaps table.
 **What would settle it.** A measured comparison of time-to-productive-resume
 after an interruption, with and without a context pack.
 
+**The instrument now exists.** `digital-twin-sensor resume-study` derives resume
+events from the local trace with no extra collection and no self-reporting, and
+assigns conditions in alternating day blocks fixed by the date (ADR 0011). It
+reports the distribution per condition and refuses to print a comparison until
+both conditions clear a minimum count. Starting the study is now just running
+the sensor for a fortnight:
+
+```bash
+digital-twin-sensor resume-study --days 14
+digital-twin-sensor resume-study --days 14 --format json --output resume-study.json
+```
+
 **Acceptance criteria.**
 
 - One operator, one real function, at least 4 weeks of ordinary work.
@@ -57,7 +69,7 @@ after an interruption, with and without a context pack.
 
 **Known confound.** The operator knows which condition they are in. Blinding is
 not possible for a tool you can see, and pretending otherwise would be worse than
-naming it.
+naming it. Every report restates this, so a number cannot travel without it.
 
 ---
 
