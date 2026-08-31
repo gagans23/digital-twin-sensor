@@ -100,8 +100,17 @@ def _automation_probe(config: dict[str, Any]) -> dict[str, Any]:
         targets.extend(config.get("accessibility_surface_detail_apps", []))
     if ocr_active:
         targets.extend(config.get("ocr_surface_detail_apps", []))
+    target_names = []
+    seen_targets = set()
+    for item in targets:
+        name = str(item)
+        key = name.lower()
+        if key in seen_targets:
+            continue
+        seen_targets.add(key)
+        target_names.append(name)
 
-    if not targets:
+    if not target_names:
         return {
             "name": "Automation Permissions",
             "status": "ready",
@@ -111,7 +120,7 @@ def _automation_probe(config: dict[str, Any]) -> dict[str, Any]:
         "name": "Automation Permissions",
         "status": "attention",
         "detail": "macOS may ask permission the first time these apps are inspected: "
-        + ", ".join(str(item) for item in targets),
+        + ", ".join(target_names),
     }
 
 
