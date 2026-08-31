@@ -181,13 +181,13 @@ class DashboardBoundaryTests(SyntheticFixture):
         self.addCleanup(worker.join, 5)
         self.addCleanup(self.server.shutdown)
 
-    def request(self, method, path, *, authenticated=False, headers=None):
+    def request(self, method, path, *, authenticated=False, headers=None, payload=None):
         request_headers = dict(headers or {})
         if authenticated:
             request_headers["X-DTS-Token"] = self.server.session_token
         conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
         try:
-            conn.request(method, path, headers=request_headers)
+            conn.request(method, path, body=json.dumps(payload) if payload is not None else None, headers=request_headers)
             response = conn.getresponse()
             return response.status, response.read()
         finally:
@@ -219,3 +219,20 @@ class DashboardBoundaryTests(SyntheticFixture):
         for purpose in ("", "unknown"):
             status, _ = self.request("GET", "/api/context-pack?purpose=" + purpose, authenticated=True)
             self.assertEqual(status, 400)
+
+    def test_resume_routes_require_session_and_validate_actions(self):
+        self.assertEqual(self.request("GET", "/api/resume")[0], 403)
+        self.assertEqual(self.request("POST", "/api/resume")[0], 403)
+        self.assertEqual(self.request("GET", "/api/resume", authenticated=True)[0], 200)
+        self.assertEqual(self.request("POST", "/api/resume", authenticated=True, payload={"action":"invalid"})[0], 400)
+
+    def test_resume_checkpoint_http_path_and_conflict(self):
+        store = EventStore(self.db)
+        store.insert_event(event())
+        store.close()
+        status, body = self.request("GET", "/api/resume", authenticated=True)
+        self.assertEqual(status, 200)
+        view = json.loads(body)
+        payload = {"action":"checkpoint", "sphere_id":view["selected_sphere_id"], "state":"Synthetic checkpoint"}
+        self.assertEqual(self.request("POST", "/api/resume", authenticated=True, payload=payload)[0], 200)
+        self.assertEqual(self.request("POST", "/api/resume", authenticated=True, payload=payload)[0], 409)

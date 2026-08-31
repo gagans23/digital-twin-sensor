@@ -3348,3 +3348,58 @@ tbody tr:last-child td {
   margin: 14px 0 0;
   max-width: 70ch;
 }
+
+/* Work continuity is a reading/editing surface, not another metric dashboard. */
+#resume { background: #fff; padding: 24px; color: var(--ink); }
+#resume [hidden] { display: none !important; }
+#resume h2 { font-size: 24px; margin: 0; }
+#resume h3 { font-size: 17px; margin: 0; }
+#resume p, #resume dd, #resume strong { overflow-wrap: anywhere; }
+#resume .kicker { letter-spacing: 0; }
+.resume-header, .resume-controls, .resume-heading, .resume-form-actions, .resume-outcomes { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.resume-header { justify-content: space-between; padding-bottom: 20px; }
+.resume-controls { min-width: 0; max-width: 100%; }
+#resumeTask { width: 290px; max-width: 100%; text-overflow: ellipsis; }
+.resume-coverage { background: #edf7f3; border-left: 3px solid #14845d; padding: 12px 16px; font-size: 14px; line-height: 1.6; }
+.resume-coverage[data-state="stale"], .resume-coverage[data-state="paused"], .resume-coverage[data-state="unavailable"] { background: #fff7e3; border-color: #b57917; }
+.resume-notice { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; padding-top: 24px; }
+.resume-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); gap: 36px; }
+.resume-main, .resume-sidebar { min-width: 0; }
+.resume-section { border: 0; border-bottom: 1px solid var(--line); padding: 24px 0; margin: 0; }
+.resume-heading { justify-content: space-between; margin-bottom: 14px; }
+.resume-type { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.resume-type.confirmed { color: #137248; }
+.resume-type.observed { color: #087c85; }
+.resume-type.inferred { color: #8f6200; }
+.resume-copy { font-size: 15px; line-height: 1.65; }
+.resume-copy p { margin: 8px 0; white-space: pre-wrap; }
+.resume-lead { font-size: 17px; }
+.resume-muted { color: #637078; font-size: 13px; line-height: 1.6; }
+.resume-copy dl { margin: 18px 0 0; }
+.resume-copy dt { font-weight: 600; font-size: 13px; margin-top: 12px; }
+.resume-copy dd { margin: 4px 0 0; white-space: pre-wrap; }
+.resume-evidence { list-style: none; padding: 0; margin: 18px 0 0; }
+.resume-evidence li { display: grid; grid-template-columns: 122px minmax(0, 1fr); gap: 16px; padding: 12px 0; border-top: 1px solid #edf0f1; }
+.resume-evidence time { font-size: 12px; color: var(--muted); }
+.resume-evidence strong { display: block; font-size: 14px; font-weight: 600; }
+.resume-evidence span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+#resumeFields { min-width: 0; padding: 0; margin: 0; border: 0; }
+#resume label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 8px; }
+#resume textarea { display: block; width: 100%; max-width: 100%; min-height: 70px; resize: vertical; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fafcfc; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.6; letter-spacing: 0; }
+#resume :focus-visible { outline: 2px solid #087c85; outline-offset: 3px; }
+#resume .tool-button { white-space: normal; min-height: 40px; font-size: 13px; }
+.resume-form-actions { margin-top: 16px; }
+.resume-revision { border-top: 1px solid var(--line); padding: 14px 0; font-size: 13px; line-height: 1.6; }
+.resume-revision:first-of-type { margin-top: 16px; }
+.resume-revision summary { cursor: pointer; font-weight: 600; }
+.resume-revision p { white-space: pre-wrap; }
+.resume-session { padding: 16px 0; border-bottom: 1px solid #edf0f1; }
+.resume-session strong { font-size: 14px; }
+@media (max-width: 800px) {
+  #resume { padding: 18px 14px; }
+  .resume-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .resume-header { align-items: flex-start; }
+  .resume-controls { width: 100%; }
+  #resumeTask { flex: 1; min-width: 0; }
+  .resume-evidence li { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+}

@@ -8,7 +8,7 @@ async function dashboard() {
   const elements = new Map();
   function element(id) {
     if (!elements.has(id)) elements.set(id, {
-      innerHTML: '', value: '', listeners: {},
+      innerHTML: '', value: '', listeners: {}, dataset: {},
       classList: { add() {}, remove() {}, toggle() {} },
       addEventListener(name, callback) { this.listeners[name] = callback; },
     });
@@ -80,4 +80,46 @@ test('blocked summary explains the restriction, not target allowlisting', async 
   context.renderPackSummary({ status: 'blocked', selection_reason: 'Review required', admission: { target_reason: 'Target allowed' } });
   assert.match(element('packSummary').innerHTML, /Review required/);
   assert.doesNotMatch(element('packSummary').innerHTML, /Target allowed/);
+});
+
+function resumeView() {
+  return {
+    status: 'ready', selected_sphere_id: 'synthetic-sphere', title: 'Synthetic task',
+    tasks: [{ id: 'synthetic-sphere', title: 'Synthetic task' }], coverage: {state:'recent'},
+    checkpoint: {id:1,state:'Confirmed state',next_step:'Saved step',question:'Open question',confirmed_at:'2026-08-31T10:00:00Z'},
+    history: [], observations: [], sessions: [],
+  };
+}
+
+test('refresh preserves a checkpoint draft and its original revision', async () => {
+  const { context, element } = await dashboard();
+  context.renderResume(resumeView());
+  element('resumeNext').value = 'Unsaved draft';
+  element('resumeCheckpointForm').listeners.input();
+  const newer = resumeView();
+  newer.checkpoint.id = 2;
+  context.renderResume(newer);
+  assert.equal(element('resumeNext').value, 'Unsaved draft');
+  assert.equal(vm.runInContext('state.resumeBaseCheckpointId', context), 1);
+  assert.equal(element('resumeTask').disabled, true);
+  assert.equal(element('daysSelect').disabled, true);
+});
+
+test('a blocked resume clears old checkpoint text and disables actions', async () => {
+  const { context, element } = await dashboard();
+  context.renderResume(resumeView());
+  context.renderResume({ status: 'blocked', selected_sphere_id: 'synthetic-sphere', tasks: [], coverage: {}, reason: 'Review required' });
+  assert.equal(element('resumeState').value, '');
+  assert.equal(element('resumeFields').disabled, true);
+  assert.equal(element('resumeStart').disabled, true);
+  assert.doesNotMatch(element('resumeConfirmed').innerHTML, /Confirmed state/);
+});
+
+test('resume text is escaped and is not rendered as markup', async () => {
+  const { context, element } = await dashboard();
+  const view = resumeView();
+  view.checkpoint.state = '<img src=x onerror=alert(1)>';
+  context.renderResume(view);
+  assert.match(element('resumeConfirmed').innerHTML, /&lt;img/);
+  assert.doesNotMatch(element('resumeConfirmed').innerHTML, /<img/);
 });

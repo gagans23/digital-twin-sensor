@@ -2,6 +2,8 @@
 
 **31 August hardening update:** [What changed and what remains unproven](docs/HARDENING_2026_08_31.md) | [Claude handover](docs/CLAUDE_HANDOVER.md).
 
+**Resume my work:** the dashboard now separates observed activity, inferred suggestions, and checkpoints you confirm. [Workflow, API, and limitations](docs/RESUME_WORKFLOW.md).
+
 **A local-first, privacy-gated context sensor for personal and enterprise context engineering.**
 
 ![MIT licence](https://img.shields.io/badge/licence-MIT-B98A2F)

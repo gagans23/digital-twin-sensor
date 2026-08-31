@@ -74,6 +74,30 @@ CREATE TABLE IF NOT EXISTS context_cards (
 
 CREATE INDEX IF NOT EXISTS idx_context_cards_subject_updated
 ON context_cards(subject_id, updated_at);
+
+CREATE TABLE IF NOT EXISTS resume_checkpoints (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id TEXT NOT NULL,
+  sphere_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_resume_checkpoint_subject_sphere
+ON resume_checkpoints(subject_id, sphere_id, id);
+
+CREATE TABLE IF NOT EXISTS resume_sessions (
+  id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL,
+  sphere_id TEXT NOT NULL,
+  pack_id TEXT NOT NULL,
+  checkpoint_id INTEGER,
+  created_at TEXT NOT NULL,
+  shown_at TEXT,
+  outcome TEXT,
+  completed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_resume_session_subject_sphere
+ON resume_sessions(subject_id, sphere_id, created_at);
 """
 
 
@@ -137,6 +161,7 @@ class LearningStore:
         tables = {
             "context_feedback": ["note", "metadata_json"],
             "context_cards": ["title", "summary", "labels_json", "evidence_json", "open_questions_json", "next_actions_json"],
+            "resume_checkpoints": ["payload_json"],
         }
         changed = 0
         with self.conn:

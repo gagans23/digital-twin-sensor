@@ -5,6 +5,13 @@ const state = {
   contextPack: null,
   learning: null,
   days: 14,
+  resume: null,
+  resumeSelected: null,
+  resumeDirty: false,
+  resumeBaseCheckpointId: null,
+  resumeRequestId: null,
+  resumeLoadVersion: 0,
+  resumeStarting: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -73,7 +80,9 @@ async function getJson(url, options = {}) {
   });
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || `Request failed: ${response.status}`);
+    const error = new Error(data.error || `Request failed: ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
@@ -2326,6 +2335,136 @@ async function refresh() {
   renderSignature(overview.profile);
   renderEvents(state.events);
   renderPrivacy(overview.privacy);
+  if (document.querySelector("#resume.active-view")) await loadResume();
+}
+
+async function loadResume() {
+  const version = ++state.resumeLoadVersion;
+  const task = state.resumeSelected ? `&sphere_id=${encodeURIComponent(state.resumeSelected)}` : "";
+  try {
+    const view = await getJson(`/api/resume?days=${state.days}${task}`);
+    if (version === state.resumeLoadVersion) renderResume(view);
+  } catch (error) {
+    if (version === state.resumeLoadVersion) {
+      $("resumeStart").disabled = true;
+      $("resumeFields").disabled = true;
+      $("resumeNotice").textContent = `Could not refresh context: ${error.message}`;
+    }
+    throw error;
+  }
+}
+
+function renderResume(view) {
+  const previousTask = state.resume?.selected_sphere_id;
+  state.resume = view;
+  state.resumeSelected = view.selected_sphere_id;
+  const ready = view.status === "ready";
+  if (!ready || previousTask !== view.selected_sphere_id) state.resumeDirty = false;
+  const tasks = view.tasks || [];
+  $("resumeTask").innerHTML = tasks.length ? tasks.map(task => `<option value="${escapeHtml(task.id)}">${escapeHtml(task.title)}</option>`).join("") : `<option value="">No available tasks</option>`;
+  $("resumeTask").value = view.selected_sphere_id || "";
+  $("resumeTask").disabled = !tasks.length || state.resumeDirty;
+  $("resumeCoverage").textContent = view.coverage?.detail || "Coverage unavailable.";
+  $("resumeCoverage").dataset.state = view.coverage?.state || "unavailable";
+  $("resumeNotice").textContent = ready ? view.title : view.reason;
+  $("resumeStart").disabled = !ready || state.resumeDirty || state.resumeStarting;
+  $("daysSelect").disabled = state.resumeDirty;
+  $("resumeFields").disabled = !ready;
+  const checkpoint = ready ? view.checkpoint : null;
+  if (!state.resumeDirty) {
+    state.resumeBaseCheckpointId = checkpoint?.id ?? null;
+    $("resumeState").value = checkpoint?.state || "";
+    $("resumeNext").value = checkpoint?.next_step || "";
+    $("resumeQuestion").value = checkpoint?.question || "";
+  }
+  $("resumeDraftStatus").textContent = state.resumeDirty ? "Unsaved draft" : checkpoint ? "Saved" : "Not saved";
+  $("resumeDiscard").hidden = !state.resumeDirty;
+  $("resumeConfirmed").innerHTML = checkpoint
+    ? `<p class="resume-lead">${escapeHtml(checkpoint.state)}</p><p class="resume-muted">Confirmed by you ${fmtTime(checkpoint.confirmed_at)}</p><dl><dt>Your next step</dt><dd>${escapeHtml(checkpoint.next_step || "Not recorded")}</dd><dt>Unresolved question</dt><dd>${escapeHtml(checkpoint.question || "Not recorded")}</dd></dl>`
+    : `<p class="resume-muted">${ready ? "No confirmed checkpoint for this task." : "No admitted checkpoint."}</p>`;
+  const change = view.change;
+  $("resumeChanges").innerHTML = ready
+    ? `<p>${change?.since ? `${change.recent_samples_since} of the displayed samples are newer than the checkpoint's last observed activity.` : "No checkpoint to compare against yet."}</p><p class="resume-muted">${escapeHtml(change?.scope || "")} Content changes are not verified.</p>`
+    : "";
+  $("resumeEvidence").innerHTML = ready ? (view.observations || []).map(item => `<li><time>${fmtTime(item.time)}</time><div><strong>${escapeHtml(item.artifact)}</strong><span>${escapeHtml(item.app)} / ${fmtSeconds(item.dwell_seconds)} sampled foreground dwell</span></div></li>`).join("") : "";
+  $("resumeSuggestion").innerHTML = ready
+    ? `<p>${escapeHtml(view.inference?.text || "No suggestion available.")}</p><p class="resume-muted">${escapeHtml(view.inference?.basis || "")} ${escapeHtml(view.validity || "")}</p>` : "";
+  $("resumeHistory").innerHTML = ready && view.history?.length
+    ? view.history.map((item, index) => `<details class="resume-revision"><summary>${index === 0 ? "Current" : "Earlier"} checkpoint / ${fmtTime(item.confirmed_at)}</summary><p>${escapeHtml(item.state)}</p><p>${escapeHtml(item.next_step || "No next step recorded")}</p><p>${escapeHtml(item.question || "No question recorded")}</p></details>`).join("")
+    : `<p class="resume-muted">No checkpoint history.</p>`;
+  const outcomes = { progress: "Progress reported", no_progress: "No progress reported", not_used: "Context not used" };
+  $("resumeSessions").innerHTML = ready && view.sessions?.length
+    ? view.sessions.map(session => `<article class="resume-session"><div><strong>${fmtTime(session.created_at)}</strong><p class="resume-muted">${session.shown_at ? "Display acknowledged" : "Display not acknowledged"} / ${session.outcome ? outcomes[session.outcome] : "Outcome not reported"}</p></div>${!session.outcome && session.shown_at ? `<div class="resume-outcomes"><button type="button" class="tool-button" data-resume-session="${escapeHtml(session.id)}" data-resume-outcome="progress">Made progress</button><button type="button" class="tool-button" data-resume-session="${escapeHtml(session.id)}" data-resume-outcome="no_progress">No progress</button><button type="button" class="tool-button" data-resume-session="${escapeHtml(session.id)}" data-resume-outcome="not_used">Did not use context</button></div>` : ""}</article>`).join("") + `<p class="resume-muted">Outcomes are your reports, not independently verified progress. No treatment comparison.</p>`
+    : `<p class="resume-muted">No resume sessions for this task.</p>`;
+}
+
+function bindResume() {
+  $("resumeTask").addEventListener("change", async event => {
+    state.resumeSelected = event.target.value || null;
+    state.resumeRequestId = null;
+    try { await loadResume(); } catch (error) { showToast(error.message); }
+  });
+  $("resumeCheckpointForm").addEventListener("input", () => {
+    state.resumeDirty = true;
+    $("resumeDraftStatus").textContent = "Unsaved draft";
+    $("resumeDiscard").hidden = false;
+    $("resumeTask").disabled = true;
+    $("resumeStart").disabled = true;
+    $("daysSelect").disabled = true;
+  });
+  $("resumeDiscard").addEventListener("click", () => {
+    state.resumeDirty = false;
+    if (state.resume) renderResume(state.resume);
+  });
+  $("resumeCheckpointForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (state.resume?.status !== "ready") return;
+    $("resumeFields").disabled = true;
+    try {
+      await postJson("/api/resume", { action: "checkpoint", sphere_id: state.resumeSelected, days: state.days,
+        base_checkpoint_id: state.resumeBaseCheckpointId, state: $("resumeState").value,
+        next_step: $("resumeNext").value, question: $("resumeQuestion").value });
+      state.resumeDirty = false;
+      state.resumeRequestId = null;
+      await loadResume();
+      showToast("Checkpoint saved");
+    } catch (error) {
+      $("resumeFields").disabled = false;
+      $("resumeNotice").textContent = error.message;
+      showToast(error.message);
+    }
+  });
+  $("resumeStart").addEventListener("click", async () => {
+    if (state.resume?.status !== "ready" || state.resumeDirty || state.resumeStarting) return;
+    state.resumeStarting = true;
+    $("resumeStart").disabled = true;
+    state.resumeRequestId ||= crypto.randomUUID();
+    try {
+      const result = await postJson("/api/resume", { action: "start", sphere_id: state.resumeSelected, days: state.days, request_id: state.resumeRequestId });
+      renderResume(result.view);
+      if (!document.hidden) await postJson("/api/resume", { action: "shown", session_id: result.session_id });
+      state.resumeRequestId = null;
+      await loadResume();
+      showToast("Resume session started");
+    } catch (error) {
+      if (error.status === 409) state.resumeRequestId = null;
+      $("resumeNotice").textContent = error.message;
+      showToast(error.message);
+    } finally {
+      state.resumeStarting = false;
+      $("resumeStart").disabled = state.resume?.status !== "ready" || state.resumeDirty;
+    }
+  });
+  $("resumeSessions").addEventListener("click", async event => {
+    const button = event.target.closest("button[data-resume-outcome]");
+    if (!button) return;
+    button.disabled = true;
+    try {
+      await postJson("/api/resume", { action: "outcome", session_id: button.dataset.resumeSession, outcome: button.dataset.resumeOutcome });
+      await loadResume();
+      showToast("Outcome recorded as your report");
+    } catch (error) { button.disabled = false; showToast(error.message); }
+  });
 }
 
 function escapeHtml(value) {
@@ -2345,6 +2484,7 @@ function activateView(viewName) {
   document.querySelectorAll(".view").forEach((item) => item.classList.remove("active-view"));
   button.classList.add("active");
   view.classList.add("active-view");
+  if (viewName === "resume") loadResume().catch(error => showToast(error.message));
   button.scrollIntoView({ block: "nearest", inline: "nearest" });
   if (viewName === "graph" && state.overview) {
     window.requestAnimationFrame(() => renderContextGraph(state.overview.context_graph));
@@ -2355,6 +2495,7 @@ function activateView(viewName) {
 }
 
 function bindUi() {
+  bindResume();
   $("refreshBtn").addEventListener("click", async () => {
     try {
       await refresh();

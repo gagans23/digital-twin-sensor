@@ -20,6 +20,10 @@ Base URL:
 http://127.0.0.1:8765
 ```
 
+## Resume Workflow
+
+`GET /api/resume` returns the local gated resume view. `POST /api/resume` accepts checkpoint, start, shown, and outcome actions. These use the same session header and do not add checkpoint notes to agent exports. See [Resume My Work](RESUME_WORKFLOW.md) for schemas, conflict handling, retention, and evidence limits.
+
 ## GET /api/overview
 
 Returns the dashboard payload: totals, profile, context graph, working spheres, context pack, surface details, attention depth, fleet posture, recent events, and privacy state.
