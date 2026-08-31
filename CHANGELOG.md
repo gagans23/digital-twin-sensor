@@ -22,6 +22,25 @@
 
 ### Added
 
+- **secure aggregation for collective synthesis** (`digital_twin_sensor/aggregation.py`,
+  `synthesize_secure`, ADR 0012) — clients emit fixed-width count vectors over a
+  declared theme vocabulary, blinded with pairwise masks that cancel only over
+  the whole cohort. The aggregator recovers totals and never holds a readable
+  per-subject contribution. The k-floor from ADR 0007 now applies to those
+  totals. Previously the caller received every subject's working spheres in the
+  clear: the floor protected the output while nothing protected the input.
+- declared theme vocabulary (`digital_twin_sensor/vocabularies/themes.json`) —
+  an allowlist with a description per theme and a digest pinned into every
+  output; work nobody declared cannot be counted
+- confidence as a **Wilson interval on share of cohort**, replacing the invented
+  `0.65·breadth + 0.35·depth` weighting on the secure path. Uncertainty is a
+  property of the count and the cohort size, so it is derived rather than fitted
+  — which retires VALIDATION V1 by deletion rather than by collecting labels.
+- banded suppression counts; an exact withheld count is disclosive on a small cohort
+- optional central DP noise (`epsilon=`), **off by default**: at team scale the
+  noise needed for a meaningful epsilon swamps the signal, and secure
+  aggregation is the stronger protection there
+
 - architecture decision records (`docs/adr/`) — ten decisions with what drove
   them, the test that enforces each, and what evidence would reverse it
 - threat model (`docs/THREAT_MODEL.md`) — assets, six adversaries and what each
