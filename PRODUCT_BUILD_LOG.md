@@ -1,5 +1,14 @@
 # Product Build Log
 
+## 2026-08-31: Resume My Work
+
+1. Added a local resume view using existing sphere inference and memory admission checks, without expanding collection.
+2. Separated sampled foreground evidence, task-category guesses, and explicitly saved user checkpoints.
+3. Added redacted checkpoint revisions, optimistic conflict detection, encryption migration, and purge/retention cleanup.
+4. Added explicit resume requests, client display acknowledgements, and separate self-reported outcomes; no treatment assignment or benefit claim.
+5. Added UI draft preservation, restricted-state clearing, and responsive form/evidence layouts.
+6. Verified the main flow against a disposable synthetic store in desktop/mobile browser views. Technical details and remaining limitations are in `docs/RESUME_WORKFLOW.md`.
+
 ## 2026-08-31: Hardening After Critical Review
 
 1. Reproduced privacy, lifecycle, packaging, grouping, and study failures using synthetic fixtures at `53f4e94`.
@@ -13,7 +22,7 @@
 
 Packaging, UI, and live verification are recorded in `docs/HARDENING_2026_08_31.md`.
 
-The next build is evidence-backed task resumption, not broader collection. No productivity effect or complete enterprise readiness is claimed.
+The initial evidence-backed resumption workflow was subsequently added above. Durable task membership, source lineage, and outcome validation remain open. No productivity effect or complete enterprise readiness is claimed.
 
 Build date: 2026-08-29
 

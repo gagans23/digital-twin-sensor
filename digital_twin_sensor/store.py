@@ -255,7 +255,7 @@ class EventStore:
         # Until every derived field has source lineage, discard cached cards on
         # retention. Keep active restrictions so retention cannot weaken consent.
         tables = {row[0] for row in self.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        names = ["context_cards"] + (["context_feedback"] if clear_feedback else [])
+        names = ["context_cards", "resume_checkpoints", "resume_sessions"] + (["context_feedback"] if clear_feedback else [])
         for name in names:
             if name in tables:
                 if subject_id:

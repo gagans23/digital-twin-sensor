@@ -59,6 +59,10 @@ The collector/dashboard/watchdog/learning LaunchAgents share `~/.digital-twin-se
 
 ## Next Build: Reliable Task Resumption
 
+The first vertical slice is now implemented. Read `RESUME_WORKFLOW.md` before extending it. `/api/resume` and the Resume my work view provide gated observations, separate inferred suggestions, redacted/versioned user checkpoints, and explicit request/display/self-reported-outcome records. No new capture permissions, model training, or causal comparison were added. The resume tables participate in encryption migration and purge/retention; session metadata is plaintext. Browser checks covered desktop/mobile and the main flow with synthetic data.
+
+The remaining work below is still open: durable task identity, complete source lineage, measured progress, and prospective experimental design. Do not mistake the new client display acknowledgement for proof of reading or the user outcome for independent productivity measurement.
+
 1. Introduce observation, inference, and confirmed-outcome types with evidence, validity dates, and correction history. Foreground presence does not prove attention or progress.
 2. Add coarse coverage states: permitted, unavailable, paused, failed, expired. Missing observation does not prove neglected work.
 3. Persist task membership and split/merge corrections. Current deterministic identity stabilizes repeated artifact seeds, not arbitrary regrouping or renames.

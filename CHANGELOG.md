@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Resume My Work
+
+- Added a gated resume view with observed activity, separate inferred next steps, and redacted user checkpoints with revision history.
+- Added session request/display acknowledgement and separate self-reported outcomes, without treatment comparison or a productivity claim.
+- Integrated new records with optional encryption migration and conservative purge/retention cleanup.
+- Added conflicting-edit protection, in-page draft preservation, privacy-block clearing, and responsive layouts.
+- Added 17 Python regressions and three JavaScript regressions; updated Claude handover and workflow documentation.
+
 ### August 31 Hardening
 
 - Fixed dashboard traversal and added session/Host/Origin checks; remote binding is refused.
