@@ -29,6 +29,8 @@ The review found integration failures: mechanisms existed but runtime paths bypa
 
 ## Runtime Contracts
 
+- Optional Opik instrumentation now exists. Read `OPIK_OBSERVABILITY.md` before extending it. The sensor only writes bounded, fixed-schema operational metadata; a separate Python 3.10+ worker uses the official pinned SDK. Do not add auto-captured arguments, outputs, raw errors, screen text, or entity IDs. No destination is inferred from ambient Opik settings. Local-only logs do not later become an export backlog. API acceptance is not verified persistence. Keep telemetry changes separate from changes to inference quality.
+
 - Use `open_event_store` for runtime event access. Direct `EventStore(..., cipher=...)` is for migration/tests; health may read timing-only summaries without decryption.
 - Pass `config=config` to runtime `LearningStore` calls.
 - Stored-context exports must call `build_context_pack(..., db_path=db)`. Pure synthetic callers can supply explicit `feedback`. Every production export path supplies its database.

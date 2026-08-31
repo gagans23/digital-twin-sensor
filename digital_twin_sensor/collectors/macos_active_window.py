@@ -12,6 +12,7 @@ from .local_ocr import active_ocr_surface_detail
 from ..connectors import structured_detail
 from ..redaction import redact_text
 from ..store import utc_now
+from ..observability import observed
 
 
 ACTIVE_WINDOW_SCRIPT = """
@@ -118,6 +119,7 @@ def scrub_title(title: str, config: dict[str, Any]) -> str:
     return re.sub(r"\s+", " ", title).strip()[:240]
 
 
+@observed("collection.capture")
 def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] | None:
     if config.get("collection_paused", False):
         return None

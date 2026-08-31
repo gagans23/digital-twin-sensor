@@ -28,6 +28,10 @@ from .resume import ResumeConflict, build_resume_view, resume_action
 from .store import open_event_store, parse_dt, utc_now
 from .twin import build_digital_twin_signature
 from .working_spheres import build_working_spheres
+from .observability import (
+    observed, operation, status as observability_status,
+    configure as configure_observability, purge as purge_observability,
+)
 
 
 def _safe_int(value: str | None, default: int, minimum: int = 1, maximum: int = 365) -> int:
@@ -776,6 +780,7 @@ def _collector_status() -> dict[str, Any]:
     return service_status(SENSOR_SERVICE)
 
 
+@observed("dashboard.overview")
 def build_overview(
     *,
     db_path: Path,
@@ -1016,6 +1021,9 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
         query = self._query()
 
         try:
+            if route == "/api/observability":
+                self._send_json(observability_status(self.server.db_path))
+                return
             if route == "/api/resume":
                 config = load_config(self.server.config_path)
                 self._send_json(build_resume_view(self.server.db_path, config,
@@ -1188,7 +1196,9 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 events = store.fetch_window(subject_id=config["subject_id"], days=days)
                 store.close()
                 profile = build_digital_twin_signature(events, short_days=min(5, days), long_days=days)
-                self._send_json(retrieve(text, events, profile, top_k=top_k))
+                with operation(self.server.db_path, "query.retrieve"):
+                    result = retrieve(text, events, profile, top_k=top_k)
+                self._send_json(result)
                 return
 
             if route == "/" or route.startswith("/assets/"):
@@ -1210,6 +1220,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
             "/api/feedback",
             "/api/feedback/resolve",
             "/api/resume",
+            "/api/observability",
             "/api/admin/watchdog",
             "/api/admin/pause",
             "/api/admin/resume",
@@ -1220,6 +1231,19 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
 
         try:
             config = load_config(self.server.config_path)
+            if parsed.path == "/api/observability":
+                action = self._read_json_body().get("action")
+                if action in {"off", "local"}:
+                    self._send_json(configure_observability(self.server.db_path, mode=action))
+                elif action == "purge":
+                    self._send_json(purge_observability(self.server.db_path))
+                elif action == "test":
+                    with operation(self.server.db_path, "observability.test"):
+                        pass
+                    self._send_json(observability_status(self.server.db_path))
+                else:
+                    raise ValueError("Choose local, off, test, or purge; export setup requires the CLI")
+                return
             if parsed.path == "/api/resume":
                 self._send_json(resume_action(self.server.db_path, config, self._read_json_body()))
                 return
@@ -1292,13 +1316,18 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 self._send_json({"stored": False, "reason": "collection_paused"})
                 return
 
-            event = build_event(config, float(config.get("sample_interval_seconds", 15)))
-            if event is None:
-                self._send_json({"stored": False, "reason": "ignored_app"})
-                return
-            store = open_event_store(self.server.db_path, config)
-            event_id = store.insert_event(event)
-            store.close()
+            with operation(self.server.db_path, "collection.sample") as trace:
+                event = build_event(config, float(config.get("sample_interval_seconds", 15)))
+                if event is None:
+                    trace.outcome("ignored")
+                    self._send_json({"stored": False, "reason": "ignored_app"})
+                    return
+                store = open_event_store(self.server.db_path, config)
+                try:
+                    event_id = store.insert_event(event)
+                    trace.counts(stored=1)
+                finally:
+                    store.close()
             event["id"] = event_id
             self._send_json({"stored": True, "event": _serialize_event(event)})
         except ResumeConflict as exc:

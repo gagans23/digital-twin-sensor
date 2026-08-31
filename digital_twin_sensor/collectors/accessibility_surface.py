@@ -6,6 +6,7 @@ from collections import Counter
 from typing import Any
 
 from ..redaction import redact_text
+from ..observability import observed
 
 
 AX_SURFACE_SCRIPT = """
@@ -131,6 +132,7 @@ def sanitize_accessibility_surface_detail(
     }
 
 
+@observed("collection.accessibility")
 def active_accessibility_surface_detail(app: str, config: dict[str, Any]) -> dict[str, Any] | None:
     if not accessibility_detail_enabled(app, config):
         return None

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import DEFAULT_DB_PATH
+from .observability import observed
 
 
 SCHEMA = """
@@ -106,6 +107,7 @@ class EventStore:
     def close(self) -> None:
         self.conn.close()
 
+    @observed("collection.persist")
     def insert_event(self, event: dict[str, Any]) -> int:
         assert_encrypted_write(self.conn, self.cipher)
         if self.cipher is not None:
@@ -249,6 +251,8 @@ class EventStore:
         deleted = int(cur.rowcount)
         self._clear_derived_memory(subject_id, clear_feedback=True)
         self.conn.commit()
+        from .observability import purge
+        purge(self.db_path)
         return deleted
 
     def _clear_derived_memory(self, subject_id: str | None, *, clear_feedback: bool = False) -> None:

@@ -5,6 +5,7 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from ..redaction import redact_text
+from ..observability import observed
 
 
 SAFARI_TAB_SCRIPT = """
@@ -65,6 +66,7 @@ def _run_script(script: str) -> str:
     return result.stdout.strip()
 
 
+@observed("collection.browser")
 def active_browser_tab_detail(app: str, config: dict[str, Any]) -> dict[str, Any] | None:
     if not browser_detail_enabled(app, config):
         return None

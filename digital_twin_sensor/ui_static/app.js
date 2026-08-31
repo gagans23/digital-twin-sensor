@@ -2336,6 +2336,77 @@ async function refresh() {
   renderEvents(state.events);
   renderPrivacy(overview.privacy);
   if (document.querySelector("#resume.active-view")) await loadResume();
+  if (document.querySelector("#observability.active-view")) await loadObservability();
+}
+
+let observabilityView = null;
+let observabilityBusy = false;
+
+async function loadObservability() {
+  try { renderObservability(await getJson("/api/observability")); }
+  catch (error) {
+    $("obsNotice").textContent = "Operational status unavailable. Refresh to try again.";
+    $("obsEnabled").disabled = true;
+    $("obsTest").disabled = true;
+    $("obsOpen").hidden = true;
+  }
+}
+
+function renderObservability(view) {
+  observabilityView = view;
+  const exporter = view.exporter || {};
+  const messages = {off: "Operational logging is off. No new logs or exports.",
+    local: "Local logs only. Nothing is being sent to Opik.",
+    opik: "Opik export enabled. API acceptance is not proof of server-side persistence.",
+    unavailable: "Operational log unavailable. Sensor collection is independent."};
+  $("obsNotice").textContent = messages[view.mode] || messages.unavailable;
+  if (view.mode === "opik" && !exporter.last_attempt) $("obsNotice").textContent = "Opik configured. The exporter has not attempted delivery yet.";
+  $("obsEnabled").checked = view.mode === "local" || view.mode === "opik";
+  $("obsEnabled").disabled = observabilityBusy || view.mode === "unavailable";
+  $("obsTest").disabled = observabilityBusy || !$("obsEnabled").checked;
+  $("obsDestination").textContent = view.mode === "opik" ? view.destination : view.mode === "local" ? "Local only" : "No export";
+  $("obsPending").textContent = String(view.pending || 0);
+  $("obsAccepted").textContent = exporter.last_success ? fmtTime(new Date(exporter.last_success * 1000).toISOString()) : "Never";
+  $("obsError").textContent = exporter.last_error || "None";
+  $("obsTotals").textContent = `${view.records || 0} retained / ${exporter.failures || 0} failed batches / ${exporter.dropped || 0} pending traces expired or evicted`;
+  const link = $("obsOpen");
+  link.hidden = view.mode !== "opik";
+  if (!link.hidden && /^https?:\/\//.test(view.destination)) link.href = view.destination.replace(/\/api\/?$/, "");
+  else link.hidden = true;
+  renderOperationalTraces();
+}
+
+function renderOperationalTraces() {
+  const filter = $("obsFilter").value || "all";
+  const traces = (observabilityView?.recent || []).filter(trace => filter === "all" || trace.outcome === filter || trace.spans.some(span => span.outcome === filter));
+  $("obsTraces").innerHTML = traces.length ? traces.map(trace => {
+    const detail = span => `<li><div><code>${escapeHtml(span.name)}</code><span>${escapeHtml(span.outcome)}${span.error !== "none" ? ` / ${escapeHtml(span.error)}` : ""}</span></div><span>${Number(span.duration_ms).toFixed(1)} ms</span></li>`;
+    return `<details class="obs-trace"><summary><time>${fmtTime(new Date(trace.start * 1000).toISOString())}</time><strong>${escapeHtml(trace.name)}</strong><span class="obs-outcome" data-outcome="${escapeHtml(trace.outcome)}">${escapeHtml(trace.outcome)}</span><span>${Number(trace.duration_ms).toFixed(1)} ms</span></summary>
+      <div class="obs-trace-detail"><div class="obs-trace-meta"><code>${escapeHtml(trace.id)}</code><span>Delivery: ${escapeHtml(trace.delivery)}</span></div>
+      <ul>${detail(trace)}${(trace.spans || []).map(detail).join("")}</ul>
+      <pre>${escapeHtml(JSON.stringify(trace.counts || {}, null, 2))}</pre></div></details>`;
+  }).join("") : `<p class="resume-muted">${filter === "all" ? "No operational traces recorded yet." : "No matching outcomes in the latest 30 traces."}</p>`;
+}
+
+function bindObservability() {
+  const act = async action => {
+    if (observabilityBusy) return;
+    observabilityBusy = true;
+    $("obsEnabled").disabled = true;
+    $("obsTest").disabled = true;
+    try { renderObservability(await postJson("/api/observability", {action})); }
+    catch (error) { showToast(error.message); await loadObservability(); }
+    finally {
+      observabilityBusy = false;
+      if (observabilityView) renderObservability(observabilityView);
+    }
+  };
+  $("obsEnabled").addEventListener("change", event => act(event.target.checked ? "local" : "off"));
+  $("obsTest").addEventListener("click", () => act("test"));
+  $("obsFilter").addEventListener("change", renderOperationalTraces);
+  $("obsClear").addEventListener("click", () => { $("obsClearConfirm").hidden = false; });
+  $("obsClearNo").addEventListener("click", () => { $("obsClearConfirm").hidden = true; });
+  $("obsClearYes").addEventListener("click", async () => { await act("purge"); $("obsClearConfirm").hidden = true; });
 }
 
 async function loadResume() {
@@ -2485,6 +2556,7 @@ function activateView(viewName) {
   button.classList.add("active");
   view.classList.add("active-view");
   if (viewName === "resume") loadResume().catch(error => showToast(error.message));
+  if (viewName === "observability") loadObservability().catch(error => showToast(error.message));
   button.scrollIntoView({ block: "nearest", inline: "nearest" });
   if (viewName === "graph" && state.overview) {
     window.requestAnimationFrame(() => renderContextGraph(state.overview.context_graph));
@@ -2496,6 +2568,7 @@ function activateView(viewName) {
 
 function bindUi() {
   bindResume();
+  bindObservability();
   $("refreshBtn").addEventListener("click", async () => {
     try {
       await refresh();

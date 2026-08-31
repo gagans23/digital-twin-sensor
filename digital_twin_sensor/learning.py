@@ -11,6 +11,7 @@ from .context_pack import _stable_key
 from .redaction import redact_text
 from .store import DEFAULT_DB_PATH, assert_encrypted_write, filter_window, parse_dt, utc_now
 from .working_spheres import build_working_spheres
+from .observability import observed
 
 
 FEEDBACK_LABELS = {
@@ -478,6 +479,7 @@ def build_context_cards(
     return cards
 
 
+@observed("learning.refresh")
 def build_learning_state(
     events: list[dict[str, Any]],
     config: dict[str, Any],

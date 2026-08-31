@@ -224,3 +224,29 @@ notes:
 5. Add paper metrics: task-resume time, context precision, leakage rate, freshness, and failure attribution.
 6. Add conflict resolution and forgetting policies for context cards.
 7. Add app-specific structured connectors to replace OCR where APIs are available.
+## 2026-08-31: Optional Opik Observability
+
+Added in an isolated worktree to avoid sharing Claude's staging area. The build
+adds a local operational log, trace spans at collection/admission/learning/resume
+boundaries, an observability dashboard, and an explicit Opik exporter.
+
+Decisions:
+
+1. Keep the Python 3.9 sensor dependency-free. Opik 2.2.45 needs Python 3.10+, so
+   export runs in a separate worker environment.
+2. Reconstruct an allowlisted schema at persistence and export. Never reuse raw
+   application logging or automatically capture function inputs/outputs.
+3. Use synchronous SDK REST calls to distinguish failed delivery from successful
+   enqueueing. Disable SDK analytics, Sentry, redirects, and ambient proxies.
+4. Bound retention, record count, child spans, batch size, and retries. Preserve
+   operation behavior when logging fails. Expose pending/failed/expired records.
+5. Treat changing consent as a new generation. Old local history and pending
+   batches must not become a backlog for a newly approved destination.
+6. Expose timing as sensitive operational data, not anonymized data or a measure
+   of human attention. No paper-quality outcome claim follows from these traces.
+
+Validation includes the actual pinned SDK against a synthetic localhost HTTP
+receiver, canaries for input/error leakage, queue/consent/purge tests, and existing
+runtime/UI regressions. Real server persistence still requires a synthetic smoke
+against the user's approved Opik deployment. No cloud destination is configured
+by this build. See `docs/OPIK_OBSERVABILITY.md` for setup and remaining limits.

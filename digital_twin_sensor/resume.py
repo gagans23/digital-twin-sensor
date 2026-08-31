@@ -11,6 +11,7 @@ from .learning import LearningStore
 from .redaction import redact_text
 from .store import assert_encrypted_write, open_event_store, parse_dt, utc_now
 from .working_spheres import build_working_spheres
+from .observability import observed
 
 
 class ResumeConflict(ValueError):
@@ -106,6 +107,7 @@ def _build(events, config, store, sphere_id, days):
     return result
 
 
+@observed("resume.view")
 def build_resume_view(db_path: Path, config: dict, *, sphere_id=None, days=14):
     events_store = open_event_store(db_path, config)
     try:
@@ -119,6 +121,7 @@ def build_resume_view(db_path: Path, config: dict, *, sphere_id=None, days=14):
         store.close()
 
 
+@observed("resume.action")
 def resume_action(db_path: Path, config: dict, payload: dict):
     action = payload.get("action")
     if action not in {"checkpoint", "start", "shown", "outcome"}:

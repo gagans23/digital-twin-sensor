@@ -215,6 +215,17 @@ class DashboardBoundaryTests(SyntheticFixture):
         with self.assertRaises(ValueError):
             TwinDashboardServer(("0.0.0.0", 0), TwinDashboardHandler)
 
+    def test_observability_requires_session_and_cannot_enable_external_export(self):
+        self.assertEqual(self.request("GET", "/api/observability")[0], 403)
+        self.assertEqual(self.request("POST", "/api/observability", payload={"action": "local"})[0], 403)
+        self.assertEqual(self.request("POST", "/api/observability", authenticated=True, payload={"action": "opik", "endpoint": "https://example.com"})[0], 400)
+        status, body = self.request("POST", "/api/observability", authenticated=True, payload={"action": "local"})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["mode"], "local")
+        self.assertEqual(self.request("POST", "/api/observability", authenticated=True, payload={"action": "test"})[0], 200)
+        status, body = self.request("GET", "/api/observability", authenticated=True)
+        self.assertEqual(json.loads(body)["records"], 1)
+
     def test_empty_or_unknown_purpose_is_a_bad_request(self):
         for purpose in ("", "unknown"):
             status, _ = self.request("GET", "/api/context-pack?purpose=" + purpose, authenticated=True)

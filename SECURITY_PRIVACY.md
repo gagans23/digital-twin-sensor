@@ -67,3 +67,17 @@ Local deletion is guarded. The CLI requires `--yes`, and the dashboard purge rou
 digital-twin-sensor purge --older-than-days 30 --yes
 digital-twin-sensor purge --all --yes
 ```
+# Optional Operational Telemetry
+
+Opik observability is off by default. Enabling local logs does not enable export.
+An explicit approved endpoint is required to send operation names, timestamps,
+durations, counts, outcomes, and random trace IDs. No captured content, source
+identifiers, arguments, raw errors, or credentials are included in those records.
+SDK usage analytics and error reporting are disabled by the dedicated exporter.
+
+Operational metadata is plaintext even when event-field encryption is enabled.
+Activity timing remains sensitive. Logs are bounded to 2,000 root traces and
+seven days on next access, with at most 64 child spans per trace. Purging local
+logs or events does not delete previously exported copies. Configure Opik
+retention and access controls separately. A request already in flight cannot be
+recalled. See [Opik setup and full contract](docs/OPIK_OBSERVABILITY.md).

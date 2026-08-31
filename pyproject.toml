@@ -25,6 +25,8 @@ encrypted = ["cryptography>=42", "keyring>=24"]
 # alone so CI needs nothing extra; this buys shrinking and a smarter search
 # when hunting a specific evasion locally.
 fuzz = ["hypothesis>=6"]
+# Isolated exporter only. The Python 3.9 sensor never imports the SDK.
+observability = ["opik==2.2.45; python_version >= '3.10'"]
 
 [project.scripts]
 digital-twin-sensor = "digital_twin_sensor.cli:main"

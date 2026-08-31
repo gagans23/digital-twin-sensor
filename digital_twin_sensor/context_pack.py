@@ -10,6 +10,7 @@ from pathlib import Path
 from .redaction import redact_text
 from .store import filter_window, utc_now
 from .working_spheres import build_working_spheres
+from .observability import observed
 
 
 PURPOSES = {
@@ -257,6 +258,7 @@ def _assign_pack_id(pack: dict[str, Any]) -> dict[str, Any]:
     return pack
 
 
+@observed("context.pack")
 def build_context_pack(
     events: list[dict[str, Any]],
     config: dict[str, Any],

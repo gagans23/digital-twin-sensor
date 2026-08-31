@@ -22,6 +22,7 @@ from .store import EventStore, open_event_store, utc_now
 from .twin import build_digital_twin_signature
 from .web import run_dashboard
 from .working_spheres import build_working_spheres
+from .observability import operation
 
 
 def _path(value: str) -> Path:
@@ -50,13 +51,18 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 def cmd_collect_once(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    event = build_event(config, args.dwell_seconds)
-    if event is None:
-        print("Ignored current app according to config.")
-        return 0
-    store = open_event_store(args.db, config)
-    event_id = store.insert_event(event)
-    store.close()
+    with operation(args.db, "collection.sample") as trace:
+        event = build_event(config, args.dwell_seconds)
+        if event is None:
+            trace.outcome("paused" if config.get("collection_paused") else "ignored")
+            print("No sample stored (paused or ignored by config).")
+            return 0
+        store = open_event_store(args.db, config)
+        try:
+            event_id = store.insert_event(event)
+            trace.counts(stored=1)
+        finally:
+            store.close()
     print(f"Stored event {event_id}: {event['app']} | {event['artifact']} | {event['domain']}")
     return 0
 
@@ -82,16 +88,17 @@ def cmd_run(args: argparse.Namespace) -> int:
                     time.sleep(interval)
                     continue
                 paused_logged = False
-                event = build_event(config, interval)
-                if event is not None:
-                    store.insert_event(event)
-                    if args.verbose:
-                        print(
-                            f"{event['ts_end']} {event['app']} "
-                            f"{event['domain']} {event['artifact']}"
-                        )
-            except Exception as exc:
-                print(f"collector error: {exc}", file=sys.stderr)
+                with operation(args.db, "collection.sample") as trace:
+                    event = build_event(config, interval)
+                    if event is not None:
+                        store.insert_event(event)
+                        trace.counts(stored=1)
+                        if args.verbose:
+                            print("sample stored")
+                    else:
+                        trace.outcome("ignored")
+            except Exception:
+                print("collector error: sample failed; check doctor and operational logs", file=sys.stderr)
             time.sleep(interval)
     except KeyboardInterrupt:
         print("\nStopped.")
@@ -141,7 +148,8 @@ def cmd_query(args: argparse.Namespace) -> int:
     store.close()
 
     profile = build_digital_twin_signature(events, short_days=min(5, args.days), long_days=args.days)
-    result = retrieve(args.query, events, profile, top_k=args.top_k)
+    with operation(args.db, "query.retrieve"):
+        result = retrieve(args.query, events, profile, top_k=args.top_k)
     if args.json:
         print(json.dumps(result, indent=2))
     else:
@@ -738,6 +746,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=_path, default=DEFAULT_CONFIG_PATH)
 
     sub = parser.add_subparsers(dest="command", required=True)
+
+    from .opik_exporter import add_observability_parser
+    add_observability_parser(sub)
 
     init = sub.add_parser("init", help="Create config and SQLite database.")
     init.set_defaults(func=cmd_init)
