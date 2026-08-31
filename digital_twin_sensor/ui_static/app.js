@@ -2156,7 +2156,82 @@ function renderPrivacy(privacy) {
     <span class="flag ${privacy.collection_paused ? "" : "enabled"}">collection ${privacy.collection_paused ? "paused" : "on"}</span>
     <span class="flag enabled">redacted: ${escapeHtml(summary)}</span>
   `;
+  renderConnectors(privacy.connectors || [], privacy.connector_activity || {});
   renderCollectionControl(privacy);
+}
+
+function renderConnectors(connectors, activity) {
+  const registryRoot = $("connectorRegistry");
+  if (registryRoot) {
+    registryRoot.innerHTML = connectors.length
+      ? connectors
+          .map((c) => {
+            const fields = (c.fields || [])
+              .map(
+                (f) =>
+                  `<li><code>${escapeHtml(f.name)}</code> <span class="store-mode">${escapeHtml(f.store)}</span>` +
+                  `<small>${escapeHtml(f.description || "")}</small></li>`
+              )
+              .join("");
+            const denied = (c.denied || [])
+              .map((d) => `<span class="denied-chip">${escapeHtml(d)}</span>`)
+              .join("");
+            return `
+              <div class="connector-card ${c.active ? "is-active" : "is-dormant"}">
+                <div class="connector-head">
+                  <strong>${escapeHtml(c.display_name)}</strong>
+                  <span class="connector-state">${c.active ? "active" : `needs depth ${c.min_depth}`}</span>
+                </div>
+                <p class="connector-apps">${escapeHtml((c.apps || []).join(", "))}</p>
+                <p class="connector-note">${escapeHtml(c.notes || "")}</p>
+                <p class="connector-label">May store</p>
+                <ul class="connector-fields">${fields}</ul>
+                <p class="connector-label">Never stored</p>
+                <div class="denied-row">${denied}</div>
+              </div>`;
+          })
+          .join("")
+      : `<p class="mono-line">No connectors loaded.</p>`;
+  }
+
+  const activityRoot = $("connectorActivity");
+  if (!activityRoot) return;
+  const provenance = Object.entries(activity.provenance_counts || {});
+  const avoided = Object.entries(activity.costlier_sources_avoided || {});
+  if (!provenance.length && !(activity.connectors || []).length) {
+    activityRoot.innerHTML = `<p class="mono-line">No structured captures yet. Run the collector against an app a connector matches.</p>`;
+    return;
+  }
+  const rows = (activity.connectors || [])
+    .map((row) => {
+      const fields = Object.entries(row.fields_seen || {})
+        .map(([name, count]) => `<span class="field-chip">${escapeHtml(name)} &times;${count}</span>`)
+        .join("");
+      return `
+        <div class="activity-row">
+          <div class="activity-head">
+            <strong>${escapeHtml(row.display_name || row.connector)}</strong>
+            <span class="confidence-pill">confidence ${Number(row.mean_confidence || 0).toFixed(2)}</span>
+          </div>
+          <small>${fmtCompact(row.event_count || 0)} events</small>
+          <div class="field-chips">${fields}</div>
+        </div>`;
+    })
+    .join("");
+  const provChips = provenance
+    .map(([src, n]) => `<span class="prov-chip prov-${escapeHtml(src)}">${escapeHtml(src)} &times;${n}</span>`)
+    .join("");
+  const avoidChips = avoided.length
+    ? avoided.map(([src, n]) => `<span class="avoid-chip">${escapeHtml(src)} avoided &times;${n}</span>`).join("")
+    : `<span class="avoid-chip muted">none avoided yet</span>`;
+  activityRoot.innerHTML = `
+    ${rows}
+    <p class="connector-label">Value provenance</p>
+    <div class="chip-row">${provChips || '<span class="prov-chip muted">none yet</span>'}</div>
+    <p class="connector-label">Costlier sources not needed</p>
+    <div class="chip-row">${avoidChips}</div>
+    <p class="connector-explainer">${escapeHtml(activity.explainer || "")}</p>
+  `;
 }
 
 function renderCollectionControl(privacy) {

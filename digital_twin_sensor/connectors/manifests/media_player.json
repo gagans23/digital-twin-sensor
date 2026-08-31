@@ -1,0 +1,52 @@
+{
+  "id": "media_player",
+  "display_name": "Media player",
+  "version": 1,
+  "apps": ["Ibo Pro Player"],
+  "min_depth": 3,
+  "sources": ["accessibility", "ocr"],
+  "notes": "Structured metadata first, OCR only when the app exposes nothing. This connector exists so the OCR fallback is reached less often, not more.",
+  "denied": [
+    "video_frames", "persisted_screenshots", "audio", "subtitles_full_text",
+    "account_identifiers", "stream_urls"
+  ],
+  "fields": [
+    {
+      "name": "media_title",
+      "store": "redacted",
+      "sensitivity": "medium",
+      "from": "text_hints",
+      "max_length": 160,
+      "description": "Title of the item on screen, from Accessibility labels or, failing that, an OCR summary."
+    },
+    {
+      "name": "module",
+      "store": "redacted",
+      "sensitivity": "low",
+      "pattern": "(?:module|lesson|chapter|episode)\\s*[:\\-]?\\s*(?P<value>[\\w][\\w \\-]{0,60})",
+      "max_length": 80,
+      "description": "Module or lesson label when the surface exposes one."
+    },
+    {
+      "name": "playback_state",
+      "store": "token",
+      "sensitivity": "low",
+      "from": "text_hints",
+      "tokens": ["playing", "paused", "buffering", "stopped", "live"],
+      "description": "Coarse transport state, matched against a fixed list."
+    },
+    {
+      "name": "position",
+      "store": "redacted",
+      "sensitivity": "low",
+      "pattern": "(?P<value>\\d{1,2}:\\d{2}(?::\\d{2})?)",
+      "max_length": 12,
+      "description": "Playback timestamp as displayed. A position, not a duration of viewing."
+    }
+  ],
+  "graph": {
+    "node_type": "artifact",
+    "label_field": "media_title",
+    "context_fields": ["module", "playback_state"]
+  }
+}

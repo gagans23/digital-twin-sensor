@@ -1,0 +1,51 @@
+{
+  "id": "browser_page",
+  "display_name": "Browser page semantics",
+  "version": 1,
+  "apps": ["Safari", "Google Chrome"],
+  "min_depth": 2,
+  "sources": ["browser_tab", "accessibility"],
+  "notes": "Page identity only. The domain tells you the workstream; the path and query tell you far more than anyone consented to, so they are never declared here and therefore can never be stored by this connector.",
+  "denied": [
+    "url_path", "url_query", "url_fragment", "cookies",
+    "form_values", "page_body", "credentials"
+  ],
+  "fields": [
+    {
+      "name": "page_title",
+      "store": "redacted",
+      "sensitivity": "medium",
+      "from": "title",
+      "max_length": 180,
+      "description": "Tab title, passed through the PII masker."
+    },
+    {
+      "name": "domain",
+      "store": "domain",
+      "sensitivity": "low",
+      "from": "url_domain",
+      "description": "Bare hostname. Never a path."
+    },
+    {
+      "name": "page_kind",
+      "store": "token",
+      "sensitivity": "low",
+      "from": "title",
+      "tokens": ["docs", "issue", "pull request", "dashboard", "search", "video", "mail", "calendar"],
+      "description": "Coarse page type inferred from the title, matched against a fixed list."
+    },
+    {
+      "name": "heading",
+      "store": "redacted",
+      "sensitivity": "medium",
+      "from": "text_hints",
+      "max_length": 120,
+      "description": "Top heading from allowlisted Accessibility labels, when depth 3 is enabled."
+    }
+  ],
+  "graph": {
+    "node_type": "artifact",
+    "label_field": "page_title",
+    "context_fields": ["domain", "page_kind"]
+  }
+}

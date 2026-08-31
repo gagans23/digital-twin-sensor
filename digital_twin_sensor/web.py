@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .collectors.local_ocr import ocr_provider_status
+from .connectors import registry_summary
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config, write_config
 from .context_graph import build_context_graph
@@ -700,6 +701,72 @@ def _privacy_payload(
         "redaction_summary": _redaction_summary(events),
         "captured": captured,
         "not_captured": not_captured,
+        "connectors": registry_summary(config),
+        "connector_activity": _connector_activity(events),
+    }
+
+
+
+def _connector_activity(events: list[dict[str, Any]]) -> dict[str, Any]:
+    """What the connectors actually did, from observed events.
+
+    The registry says what a connector *may* store. This says what it *did*,
+    where each value came from, and how often a costlier source was avoided --
+    which is the number worth watching, because it is the whole justification
+    for this layer.
+    """
+    by_connector: dict[str, dict[str, Any]] = {}
+    provenance_counts: dict[str, int] = {}
+    avoided: dict[str, int] = {}
+    total_captured = 0
+
+    for event in events:
+        structured = (event.get("metadata") or {}).get("structured") or {}
+        if not isinstance(structured, dict) or structured.get("status") != "captured":
+            continue
+        total_captured += 1
+        ident = str(structured.get("connector", "unknown"))
+        row = by_connector.setdefault(
+            ident,
+            {
+                "connector": ident,
+                "display_name": structured.get("display_name", ident),
+                "events": 0,
+                "fields_seen": {},
+                "confidence_sum": 0.0,
+                "redaction_findings": {},
+            },
+        )
+        row["events"] += 1
+        row["confidence_sum"] += float(structured.get("confidence", 0.0) or 0.0)
+        for name in (structured.get("fields") or {}):
+            row["fields_seen"][name] = int(row["fields_seen"].get(name, 0)) + 1
+        for key, count in (structured.get("redaction_findings") or {}).items():
+            row["redaction_findings"][key] = int(row["redaction_findings"].get(key, 0)) + int(count)
+        for source in (structured.get("provenance") or {}).values():
+            provenance_counts[str(source)] = provenance_counts.get(str(source), 0) + 1
+        for source in structured.get("sources_not_needed") or []:
+            avoided[str(source)] = avoided.get(str(source), 0) + 1
+
+    rows = []
+    for row in by_connector.values():
+        events_seen = max(row.pop("events"), 1)
+        confidence_sum = row.pop("confidence_sum")
+        row["event_count"] = events_seen
+        row["mean_confidence"] = round(confidence_sum / events_seen, 3)
+        rows.append(row)
+    rows.sort(key=lambda item: item["event_count"], reverse=True)
+
+    return {
+        "captured_events": total_captured,
+        "connectors": rows,
+        "provenance_counts": provenance_counts,
+        "costlier_sources_avoided": avoided,
+        "explainer": (
+            "Provenance shows which surface each value came from. "
+            "Avoided counts show how often a cheaper source answered so a costlier "
+            "one -- usually OCR -- was never opened."
+        ),
     }
 
 

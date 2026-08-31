@@ -8,6 +8,7 @@ from .store import filter_window, parse_dt
 
 
 TYPE_PRIORITY = {
+    "connector-field": 3,
     "subject": 10,
     "domain": 8,
     "task": 7,
@@ -25,6 +26,7 @@ TYPE_LABELS = {
     "app": "App",
     "time": "Time",
     "private-signal": "Privacy",
+    "connector-field": "Structured",
 }
 
 SENSITIVE_PLACEHOLDERS = (
@@ -361,6 +363,32 @@ class ContextGraphBuilder:
                 self.add_edge(prev_domain_node, domain, "transitioned_to", dwell_seconds=dwell)
             if prev_artifact_node != artifact:
                 self.add_edge(prev_artifact_node, artifact, "next_context", dwell_seconds=dwell)
+
+        # Structured connector output becomes typed nodes rather than dying in
+        # metadata. Each carries where it came from, so the graph can show that a
+        # value was read from the app itself rather than recovered from pixels.
+        structured = (event.get("metadata") or {}).get("structured") or {}
+        if isinstance(structured, dict) and structured.get("status") == "captured":
+            provenance = structured.get("provenance") or {}
+            confidences = structured.get("field_confidence") or {}
+            connector_id = str(structured.get("connector", "connector"))
+            for field_name, value in (structured.get("fields") or {}).items():
+                if value is None or value == "":
+                    continue
+                label = f"{field_name}: {value}"
+                source = str(provenance.get(field_name, "unknown"))
+                node = self.add_node(
+                    "connector-field",
+                    _safe_label(label, field_name),
+                    dwell_seconds=0.0,
+                    gate_mode="allowed",
+                    sensitivity="low",
+                    gate_reason=(
+                        f"declared by the {connector_id} manifest; read from {source} "
+                        f"(confidence {confidences.get(field_name, 0.0)})"
+                    ),
+                )
+                self.add_edge(artifact, node, "described_by", dwell_seconds=0.0)
 
         for finding, count in _event_findings(event).items():
             self.redaction_summary[finding] += count

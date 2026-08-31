@@ -9,6 +9,7 @@ from typing import Any
 from .accessibility_surface import active_accessibility_surface_detail
 from .browser_tab import active_browser_tab_detail
 from .local_ocr import active_ocr_surface_detail
+from ..connectors import structured_detail
 from ..redaction import redact_text
 from ..store import utc_now
 
@@ -127,12 +128,21 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
         return None
 
     surface_detail = None
+    surfaces: dict[str, Any] = {}
     if not ignored:
         surface_detail = active_browser_tab_detail(app, config)
+        if surface_detail is not None:
+            surfaces["browser_tab"] = surface_detail
         if surface_detail is None:
             surface_detail = active_accessibility_surface_detail(app, config)
+            if surface_detail is not None:
+                surfaces["accessibility"] = surface_detail
         if surface_detail is None:
             surface_detail = active_ocr_surface_detail(app, config)
+            if surface_detail is not None:
+                surfaces["ocr"] = surface_detail
+        # Depth 1 is always available: the app already put this on screen.
+        surfaces.setdefault("window_title", {"title": raw_title})
     if surface_detail and surface_detail.get("title"):
         raw_title = str(surface_detail["title"])
 
@@ -144,12 +154,16 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
         text_hints = " ".join(str(item) for item in surface_detail.get("text_hints", [])[:4])
         domain_hint = f"{surface_detail.get('url_domain', '')} {surface_detail.get('title', '')} {text_hints}"
     domain = "system" if ignored else classify_domain(app, f"{raw_safe_title} {domain_hint}", config)
+    structured = None if ignored else structured_detail(app, surfaces, config)
     redacted_title = redact_text(raw_safe_title, config)
     title = redacted_title.text
     artifact = title if title else app
     redaction_findings = dict(redacted_title.findings)
     if surface_detail:
         for key, value in surface_detail.get("redaction_findings", {}).items():
+            redaction_findings[key] = int(redaction_findings.get(key, 0)) + int(value)
+    if structured:
+        for key, value in structured.get("redaction_findings", {}).items():
             redaction_findings[key] = int(redaction_findings.get(key, 0)) + int(value)
 
     return {
@@ -167,6 +181,7 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
             "collector_version": "macos-active-window-v1",
             "ignored_app_recorded_as_system": ignored,
             "surface_detail": surface_detail,
+            "structured": structured,
             "redaction_findings": redaction_findings,
             "privacy": "no_keystrokes_no_screenshots_no_clipboard",
         },

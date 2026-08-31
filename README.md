@@ -324,6 +324,7 @@ Honest accounting. The endpoint half is built; the control plane is specified, n
 | Deep-agent judgement harness (optional extra) | ✅ built |
 | Rolling-window enforcement in all builders | ✅ built |
 | Field-level encryption at rest (optional extra) | ✅ built |
+| Structured app connectors v1 (manifest-declared, depth-aware) | ✅ built |
 | Local OCR summary gate for opaque apps | ✅ built |
 | Trust-calibration surfacing (confidence, evidence age) | 🟡 partial |
 | Memory maintenance diagnostics | 🟡 partial |
@@ -568,6 +569,7 @@ Reference: [docs/API.md](docs/API.md)
 | --- | --- |
 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | installation and first run |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | system architecture and data flow |
+| [docs/CONNECTORS.md](docs/CONNECTORS.md) | structured app connectors: manifests, depth, provenance, and how to add one |
 | [docs/UNDER_THE_HOOD.md](docs/UNDER_THE_HOOD.md) | how attention is defined, what joins the layers, and the known gaps |
 | [PRODUCT.md](PRODUCT.md) | the open-core product plan: wedge, build milestones, pilot design, kill risks |
 | [docs/API.md](docs/API.md) | local dashboard API |

@@ -66,6 +66,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "mask_ip_addresses": True,
     "redact_url_paths": True,
     "context_capture_depth": 1,
+    "enable_structured_connectors": True,
     "enable_context_graph": True,
     "context_graph_max_nodes": 70,
     "context_graph_max_edges": 140,

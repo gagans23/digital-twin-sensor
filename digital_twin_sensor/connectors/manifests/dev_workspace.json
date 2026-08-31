@@ -1,0 +1,51 @@
+{
+  "id": "dev_workspace",
+  "display_name": "Developer workspace",
+  "version": 1,
+  "apps": ["Kiro", "Code", "Visual Studio Code", "Cursor", "Codex", "Terminal", "iTerm2"],
+  "min_depth": 1,
+  "sources": ["window_title", "accessibility"],
+  "notes": "Repository and branch are read from what the editor already puts in its own window title. This connector never touches the filesystem and never reads file contents - a tool that opened your working tree to learn about your work would be the thing this product exists to avoid.",
+  "denied": [
+    "file_contents", "diff_bodies", "source_code", "commit_messages",
+    "remote_urls", "credentials", "env_files"
+  ],
+  "fields": [
+    {
+      "name": "repo",
+      "store": "redacted",
+      "sensitivity": "medium",
+      "pattern": "(?:^|[\\-\\u2014] )(?P<value>[A-Za-z0-9][A-Za-z0-9._\\-]{1,60})(?:\\s*[\\-\\u2014]\\s*(?:Kiro|Code|Cursor|Codex|Visual Studio Code)\\s*$)",
+      "max_length": 64,
+      "description": "Repository or workspace name as the editor titles it."
+    },
+    {
+      "name": "branch",
+      "store": "redacted",
+      "sensitivity": "low",
+      "pattern": "(?:branch|git)[:\\s]+(?P<value>[A-Za-z0-9._\\-\\/]{1,60})",
+      "max_length": 64,
+      "description": "Branch name when the title or status bar exposes one."
+    },
+    {
+      "name": "active_file",
+      "store": "redacted",
+      "sensitivity": "medium",
+      "pattern": "^(?P<value>[A-Za-z0-9._\\-]{1,60}\\.[A-Za-z0-9]{1,8})",
+      "max_length": 64,
+      "description": "Relative file name only. Never the path, never the contents."
+    },
+    {
+      "name": "dirty_files",
+      "store": "count",
+      "sensitivity": "low",
+      "pattern": "(?P<value>\\d{1,4})\\s+(?:changed|modified|unstaged)",
+      "description": "Count of changed files when the surface exposes one. A number, never a list."
+    }
+  ],
+  "graph": {
+    "node_type": "task",
+    "label_field": "repo",
+    "context_fields": ["branch", "active_file"]
+  }
+}
