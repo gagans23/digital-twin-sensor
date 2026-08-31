@@ -12,13 +12,28 @@ PHONE_RE = re.compile(
     r"(?<!\w)(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}(?!\w)"
 )
 URL_RE = re.compile(r"https?://[^\s<>'\"]+", re.IGNORECASE)
-CARD_CANDIDATE_RE = re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)")
+# A card is either one unbroken 13-19 digit run, or groups of 3-6 digits
+# separated by a single space or hyphen (4-4-4-4, and Amex 4-6-5).
+#
+# The previous pattern accepted a group of any length, including one. That let
+# a neighbouring digit join the span — "Invoice 3 4111 1111 1111 1111" became a
+# 17-digit candidate, failed Luhn as a unit, and the whole card was handed back
+# unmasked. A one-character evasion, found by the property tests in
+# tests/test_fuzz_leak_gate.py rather than by the golden set.
+CARD_CANDIDATE_RE = re.compile(
+    r"(?<![\d-])(?:\d{13,19}|\d{3,6}(?:[ -]\d{3,6}){1,5})(?![\d-])"
+)
 IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+# Character classes are deliberately wider than the vendors' own formats.
+# A prefixed, 16+ character token is a secret whatever separators it carries,
+# and over-masking is the safe direction of failure (ADR 0003). Narrow classes
+# were how `xoxb-...he_re` and `ghp_...-re` survived redaction until the
+# property tests in tests/test_fuzz_leak_gate.py generated them.
 SECRET_RE = re.compile(
     r"(?i)\b(?:"
     r"sk-[a-z0-9_-]{16,}|"
-    r"gh[pousr]_[a-z0-9_]{16,}|"
-    r"xox[baprs]-[a-z0-9-]{16,}|"
+    r"gh[pousr]_[a-z0-9_-]{16,}|"
+    r"xox[baprs]-[a-z0-9_-]{16,}|"
     r"AKIA[0-9A-Z]{16}|"
     r"AIza[0-9A-Za-z_-]{20,}|"
     r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"

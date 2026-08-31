@@ -9,6 +9,9 @@ unit_tests:
     - python -m pip install -e .
     - python -m unittest discover -s tests
     - python -m compileall digital_twin_sensor
+    # Longer soak than the in-suite default, so CI explores inputs the
+    # committed seed does not reach.
+    - FUZZ_ITERATIONS=5000 python -m unittest tests.test_fuzz_leak_gate
 
 package_smoke:
   image: python:3.11-slim
@@ -31,7 +34,10 @@ context_harness:
     # Exits non-zero on any leakage canary reaching an export, or if mean
     # recall drops below the floor. A context regression should break the
     # build the same way a failing unit test does.
-    - digital-twin-sensor harness --format markdown --output harness-report.md
+    # Two gates. The floor catches a system that is bad now; the baseline
+    # catches one getting worse while still above the floor — including a gate
+    # that quietly stops denying while recall improves.
+    - digital-twin-sensor harness --format markdown --baseline harness/baseline.json --output harness-report.md
   artifacts:
     when: always
     paths:

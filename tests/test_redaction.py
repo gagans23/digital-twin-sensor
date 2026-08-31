@@ -38,5 +38,45 @@ class RedactionTests(unittest.TestCase):
         self.assertNotIn("[credit-card]", result.text)
 
 
+class EvasionRegressionTests(unittest.TestCase):
+    """Named regressions for the two leaks the property tests found.
+
+    Both had been live since the first commit and both passed the golden set,
+    which only ever planted well-formed values standing on their own.
+    """
+
+    def test_neighbouring_digit_does_not_hide_a_card(self):
+        # The greedy candidate used to swallow the "3", fail Luhn as a unit,
+        # and hand the whole card back unmasked.
+        result = redact_text("Invoice 3 4111 1111 1111 1111", {"mask_pii": True})
+        self.assertNotIn("4111 1111 1111 1111", result.text)
+        self.assertIn("[credit-card]", result.text)
+        self.assertIn("Invoice 3", result.text)
+
+    def test_fifteen_digit_card_after_a_stray_digit(self):
+        result = redact_text("draft 3 378282246310005 review", {"mask_pii": True})
+        self.assertNotIn("378282246310005", result.text)
+        self.assertIn("[credit-card]", result.text)
+
+    def test_grouped_amex_is_masked(self):
+        result = redact_text("amex 3782 822463 10005", {"mask_pii": True})
+        self.assertIn("[credit-card]", result.text)
+
+    def test_token_with_mixed_separators_is_masked(self):
+        # Character classes were narrower than the token shapes in the wild.
+        for token in (
+            "xoxb-qzi16rvyqwe_6l2f-dhrhfl-o1234",
+            "ghp_xa8d-c0br9agh5sisg-46e_h86d7",
+        ):
+            with self.subTest(token=token):
+                result = redact_text(f"branch {token} pushed", {"mask_pii": True})
+                self.assertNotIn(token, result.text)
+
+    def test_ordinary_numbers_are_still_left_alone(self):
+        for text in ("build 7 of 9 today", "reference 4111 1111 1111 1112", "sprint/42 ticket 118"):
+            with self.subTest(text=text):
+                self.assertEqual(redact_text(text, {"mask_pii": True}).text, text)
+
+
 if __name__ == "__main__":
     unittest.main()

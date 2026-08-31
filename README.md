@@ -231,10 +231,47 @@ reaching an export is a hard failure whatever the recall score.
 digital-twin-sensor harness                  # markdown report
 digital-twin-sensor harness --format json    # machine-readable
 digital-twin-sensor harness --fail-under 0.8 # tighten the recall floor
+digital-twin-sensor harness --baseline harness/baseline.json   # fail on drift, not only on the floor
 ```
 
 Non-zero exit on any leak or recall miss, wired into CI, so a context regression breaks
 the build exactly like a failing test.
+
+### Two gates, because a floor cannot see drift
+
+A pass/fail floor answers one question: is the context good enough right now. It cannot
+see a system quietly getting worse while staying above the line — recall sliding 0.98 to
+0.80 over a quarter reads green every run, which is exactly the failure this project
+argues nobody measures.
+
+So the last accepted scores are committed to `harness/baseline.json` and every run is
+diffed against them. A drop beyond tolerance fails the build whatever the absolute score,
+and so does **a gate that stops denying while recall improves** — the case that looks
+like progress and is not. Improvements never fail; the baseline is refreshed deliberately
+with `--update-baseline`.
+
+### Fuzzing the leak gate
+
+The golden set proves the canaries somebody thought of do not escape. It says nothing
+about the ones nobody thought of, which is the population that matters for a leak.
+`tests/test_fuzz_leak_gate.py` generates hostile inputs instead — cards split across odd
+separators, tokens with mixed separators, IDs buried in window-title noise — and asserts
+two invariants over thousands of them: nothing redaction claims to mask survives
+`redact_text`, and nothing masked at capture reappears in an export. Seeded and
+standard-library only, so a failure is reproducible from the seed in the message.
+
+```bash
+python3 -m unittest tests.test_fuzz_leak_gate            # fast, in the default suite
+FUZZ_ITERATIONS=5000 python3 -m unittest tests.test_fuzz_leak_gate   # soak, as CI runs it
+```
+
+> **It found three real bugs on its first two runs.** A neighbouring digit hid a card
+> number: `Invoice 3 4111 1111 1111 1111` merged the stray `3` into the candidate span,
+> failed Luhn as a unit, and handed the whole card back unmasked — a one-character
+> evasion. Secret detection was prefix-correct but character-class-narrow, so tokens
+> carrying mixed `-`/`_` separators walked through. And `_gate_counts` read decisions
+> from the pack root instead of `admission`, so the harness had been reporting an empty
+> gate for every scenario since it was written. Each is now a named regression test.
 
 ### Where determinism runs out
 
@@ -585,6 +622,9 @@ Reference: [docs/API.md](docs/API.md)
 | [PRODUCT_BUILD_LOG.md](PRODUCT_BUILD_LOG.md) | build and validation log |
 | [UI_RESEARCH_AND_DIRECTION.md](UI_RESEARCH_AND_DIRECTION.md) | interface research |
 | [SECURITY.md](SECURITY.md) · [SECURITY_PRIVACY.md](SECURITY_PRIVACY.md) | reporting, posture, deployment cautions |
+| [docs/adr/](docs/adr) | architecture decision records — what was decided, what drove it, what would reverse it |
+| [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | assets, adversaries, what each one actually gets, and the known gaps |
+| [docs/VALIDATION.md](docs/VALIDATION.md) | every claim that is asserted rather than measured, with acceptance criteria |
 | [showcase/](showcase) | motion case study and the context-moat essay |
 
 ---
@@ -597,7 +637,9 @@ python3 -m compileall digital_twin_sensor
 node --check digital_twin_sensor/ui_static/app.js
 ```
 
-Twelve suites, 34 tests, covering redaction, admission, attention depth, browser capture, accessibility surface, context graph, working spheres, packs, controls, fleet, health, window enforcement and synthesis floors. Plus the context harness above. CI in `.gitlab-ci.yml` and `.github/workflows/ci.yml` — both run the harness as a gating step.
+115 tests across the suites, covering redaction, admission, attention depth, browser capture, accessibility surface, context graph, working spheres, packs, controls, fleet, health, window enforcement, synthesis floors, connectors, encryption boundaries, property-based leak fuzzing and the baseline drift gate itself. Plus the context harness above.
+
+CI in `.gitlab-ci.yml` and `.github/workflows/ci.yml` — both run the unit suite, a 5,000-iteration fuzz soak, and the harness against the committed baseline as gating steps.
 
 ---
 

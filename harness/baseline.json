@@ -1,0 +1,64 @@
+{
+  "leak_count": 0,
+  "mean_noise_ratio": 0.0,
+  "mean_recall": 1.0,
+  "scenarios": {
+    "coding_resume": {
+      "gate_counts": {
+        "allow": 6,
+        "deny": 9,
+        "summarize": 7
+      },
+      "leaks": 0,
+      "noise_ratio": 0.0,
+      "pack_chars": 11557,
+      "recall": 1.0
+    },
+    "leak_canary_collected": {
+      "gate_counts": {
+        "allow": 4,
+        "deny": 9,
+        "mask": 3,
+        "summarize": 6
+      },
+      "leaks": 0,
+      "noise_ratio": 0.0,
+      "pack_chars": 12016,
+      "recall": 1.0
+    },
+    "leak_canary_export_gate_only": {
+      "gate_counts": {
+        "allow": 4,
+        "deny": 9,
+        "mask": 3,
+        "summarize": 6
+      },
+      "leaks": 0,
+      "noise_ratio": 0.0,
+      "pack_chars": 11091,
+      "recall": 1.0
+    },
+    "policy_denied_target": {
+      "gate_counts": {
+        "allow": 1,
+        "deny": 11,
+        "summarize": 1
+      },
+      "leaks": 0,
+      "noise_ratio": 0.0,
+      "pack_chars": 5872,
+      "recall": 1.0
+    },
+    "stale_evidence": {
+      "gate_counts": {
+        "allow": 2,
+        "deny": 10,
+        "summarize": 1
+      },
+      "leaks": 0,
+      "noise_ratio": 0.0,
+      "pack_chars": 5782,
+      "recall": 1.0
+    }
+  }
+}

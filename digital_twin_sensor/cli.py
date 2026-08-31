@@ -507,20 +507,53 @@ def cmd_purge(args: argparse.Namespace) -> int:
 
 
 def cmd_harness(args: argparse.Namespace) -> int:
-    """Score context packs against the golden set. Non-zero exit on any leak."""
+    """Score context packs against the golden set. Non-zero exit on any leak.
+
+    With --baseline, also diff against the last accepted scores: a system
+    drifting downward inside the floor still fails, because that drift is
+    invisible to a pass/fail gate.
+    """
+    from .baseline import compare, format_comparison, load_baseline, write_baseline  # noqa: PLC0415
+
     config = load_config(args.config) if args.config.exists() else None
     scenarios = load_scenarios(args.scenarios) if args.scenarios else None
     report = run_harness(scenarios, config, fail_under=args.fail_under)
+
+    comparison = None
+    if args.baseline:
+        if not args.baseline.exists():
+            print(f"no baseline at {args.baseline}; write one with --update-baseline", file=sys.stderr)
+            return 2
+        comparison = compare(report, load_baseline(args.baseline))
+
     if args.format == "json":
-        print(json.dumps(report, indent=2))
+        payload = dict(report)
+        if comparison is not None:
+            payload["baseline"] = {
+                "ok": comparison["ok"],
+                "regressions": comparison["regressions"],
+                "improvements": comparison["improvements"],
+                "notes": comparison["notes"],
+            }
+        rendered = json.dumps(payload, indent=2)
     else:
-        print(format_report_markdown(report), end="")
+        rendered = format_report_markdown(report)
+        if comparison is not None:
+            rendered += format_comparison(comparison)
+
+    print(rendered, end="" if args.format == "markdown" else "\n")
     if args.output:
-        args.output.write_text(
-            json.dumps(report, indent=2) if args.format == "json" else format_report_markdown(report),
-            encoding="utf-8",
-        )
-    return 0 if report["ok"] else 1
+        args.output.write_text(rendered, encoding="utf-8")
+
+    if args.update_baseline:
+        write_baseline(report, args.update_baseline)
+        print(f"baseline written to {args.update_baseline}", file=sys.stderr)
+
+    if not report["ok"]:
+        return 1
+    if comparison is not None and not comparison["ok"]:
+        return 1
+    return 0
 
 
 def cmd_synthesize(args: argparse.Namespace) -> int:
@@ -816,6 +849,18 @@ def build_parser() -> argparse.ArgumentParser:
     harness.add_argument("--fail-under", type=float, default=0.75)
     harness.add_argument("--format", choices=["markdown", "json"], default="markdown")
     harness.add_argument("--output", type=_path, default=None)
+    harness.add_argument(
+        "--baseline",
+        type=_path,
+        default=None,
+        help="fail on regression against this committed baseline, not only against the floor",
+    )
+    harness.add_argument(
+        "--update-baseline",
+        type=_path,
+        default=None,
+        help="write this run's scores as the new accepted baseline",
+    )
     harness.set_defaults(func=cmd_harness)
 
     synthesize = sub.add_parser(

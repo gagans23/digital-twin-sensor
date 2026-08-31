@@ -1,5 +1,46 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- architecture decision records (`docs/adr/`) — ten decisions with what drove
+  them, the test that enforces each, and what evidence would reverse it
+- threat model (`docs/THREAT_MODEL.md`) — assets, six adversaries and what each
+  actually gets, including what the encryption boundary deliberately leaves
+  readable
+- validation plan (`docs/VALIDATION.md`) — every asserted-but-unmeasured claim
+  with acceptance criteria, so the debts are collectable rather than merely
+  disclosed
+- property-based leak tests (`tests/test_fuzz_leak_gate.py`) — generated hostile
+  inputs against the redaction and export boundaries, seeded and dependency-free
+- harness baseline gate (`digital_twin_sensor/baseline.py`,
+  `harness/baseline.json`) — fails on drift against the last accepted scores,
+  including a gate that stops denying while recall improves
+- `harness --baseline` and `harness --update-baseline`
+- optional `fuzz` extra for deeper local property testing
+
+### Fixed
+
+- **card numbers could be hidden by a neighbouring digit.** The greedy candidate
+  pattern swallowed an adjacent digit — `Invoice 3 4111 1111 1111 1111` — failed
+  Luhn as a combined span, and returned the whole card unmasked. The pattern now
+  requires plausible card chunks (3-6 digit groups, or one unbroken 13-19 digit
+  run), which also correctly handles Amex 4-6-5 grouping.
+- **secret detection was character-class-narrow.** Token patterns did not accept
+  mixed `-`/`_` separators, so credential-shaped strings carrying both survived
+  redaction. Classes widened; over-masking is the safe direction of failure.
+- **the harness reported an empty admission gate for every scenario.**
+  `_gate_counts` read `pack["decisions"]`, but decisions live under
+  `pack["admission"]["decisions"]`. The gate-count metric had never measured
+  anything.
+- **`python -m digital_twin_sensor` discarded its exit code**, so a leak exited
+  0 when invoked that way. The console-script wrapper had been masking this in
+  CI.
+
+All four were found by the new property tests and baseline work, not by the
+golden set.
+
 ## 0.1.0
 
 Initial local-first product prototype.

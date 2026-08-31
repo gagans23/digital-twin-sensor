@@ -21,6 +21,10 @@ deep-eval = ["deepagents>=0.7.11"]
 # Encryption at rest for the local ledger. Optional so the default install
 # stays dependency-free; opting in is an explicit, reversible choice.
 encrypted = ["cryptography>=42", "keyring>=24"]
+# Deeper property testing. The committed tests run on the standard library
+# alone so CI needs nothing extra; this buys shrinking and a smarter search
+# when hunting a specific evasion locally.
+fuzz = ["hypothesis>=6"]
 
 [project.scripts]
 digital-twin-sensor = "digital_twin_sensor.cli:main"

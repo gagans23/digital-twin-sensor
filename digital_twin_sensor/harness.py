@@ -144,8 +144,13 @@ def _serialise_pack(pack: dict[str, Any]) -> str:
 
 
 def _gate_counts(pack: dict[str, Any]) -> dict[str, int]:
+    """Decisions live under `admission`; reading them from the pack root
+    silently reported an empty gate for every scenario until the property
+    tests went looking for a denial and found none."""
+    admission = pack.get("admission") or {}
+    decisions = admission.get("decisions") or pack.get("decisions") or []
     counts: dict[str, int] = {}
-    for decision in pack.get("decisions", []) or []:
+    for decision in decisions:
         key = str(decision.get("decision", "unknown"))
         counts[key] = counts.get(key, 0) + 1
     return counts
