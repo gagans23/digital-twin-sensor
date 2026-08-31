@@ -127,6 +127,14 @@ Depth 3 allowlisted Accessibility metadata:
 digital-twin-sensor configure --depth 3 --accessibility-surface-details on --accessibility-app "Ibo Pro Player"
 ```
 
+Depth 4 local OCR summaries for an opaque allowlisted app:
+
+```bash
+digital-twin-sensor configure --depth 4 --ocr-surface-details on --ocr-app "Ibo Pro Player" --ocr-max-lines 12 --ocr-min-confidence 0.35
+```
+
+On macOS, Depth 4 uses the Apple Vision helper installed by `scripts/install_launch_agent.sh`. macOS may require Screen Recording permission for the terminal or Python runtime. The product stores redacted OCR hints and summary only, not screenshots.
+
 ## Export A Context Pack
 
 For Kiro:

@@ -70,6 +70,39 @@ class AttentionDepthTests(unittest.TestCase):
         self.assertEqual(payload["media_focus"]["status"], "captured")
         self.assertEqual(payload["media_focus"]["playback_visibility"], "allowlisted UI metadata")
 
+    def test_treats_ocr_summary_as_rich_detail(self):
+        detail = {
+            "kind": "ocr_summary",
+            "status": "captured",
+            "app": "Ibo Pro Player",
+            "line_count": 3,
+            "text_hints": ["Trading psychology module", "Chapter 4"],
+            "summary": "Trading psychology module; Chapter 4",
+            "confidence": 0.84,
+            "redaction_findings": {},
+            "privacy": "temporary window image processed locally; pixels are not stored",
+        }
+        config = {
+            "context_capture_depth": 4,
+            "enable_browser_tab_details": True,
+            "browser_tab_detail_min_depth": 2,
+            "browser_tab_detail_apps": ["Safari", "Google Chrome"],
+            "enable_accessibility_surface_details": True,
+            "accessibility_surface_min_depth": 3,
+            "accessibility_surface_detail_apps": ["Ibo Pro Player"],
+            "enable_ocr_surface_details": True,
+            "ocr_surface_min_depth": 4,
+            "ocr_surface_detail_apps": ["Ibo Pro Player"],
+        }
+        events = [event("Ibo Pro Player", "Ibo Pro Player", detail)]
+        surfaces = _surface_details(events, config)
+        payload = _attention_depth_payload(events, config, surfaces)
+
+        self.assertEqual(surfaces[0]["status"], "ocr summary captured")
+        self.assertEqual(payload["application_attention"][0]["status"], "rich")
+        self.assertEqual(payload["media_focus"]["status"], "captured")
+        self.assertEqual(payload["media_focus"]["playback_visibility"], "local OCR summary")
+
 
 if __name__ == "__main__":
     unittest.main()

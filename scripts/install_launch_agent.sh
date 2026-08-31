@@ -15,6 +15,7 @@ python3 -m venv "${VENV}"
 
 if command -v swiftc >/dev/null 2>&1; then
   swiftc "${PROJECT_DIR}/helpers/macos-window-probe.swift" -o "${INSTALL_DIR}/macos-window-probe" || true
+  swiftc "${PROJECT_DIR}/helpers/macos-ocr-probe.swift" -o "${INSTALL_DIR}/macos-ocr-probe" || true
 fi
 
 sed \

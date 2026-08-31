@@ -21,6 +21,7 @@ Observed digital attention can improve agent handoff when transformed into priva
 - Kiro/Codex/GitLab context-pack export
 - local feedback labels for packs, spheres, and evidence
 - evolving context cards over working spheres
+- Depth 4 local OCR summaries for explicitly allowlisted opaque apps
 - product doctor and watchdog
 - pause/resume and retention controls
 - research backlog in the dashboard
@@ -85,6 +86,7 @@ notes:
 | Memory maintenance doctor | Partial | Detects stale, duplicate, or unsupported memories |
 | Dynamic graph evolution | Next | Explains why relationships change over time |
 | Feedback-labeled context packs | Partial | Creates train/evaluate data for routing policies |
+| Local OCR summary gate | Implemented | Gives opaque apps richer context without storing image pixels |
 | Offline policy rehearsal | Research | Tests context policies before live use |
 | Trust calibration UI | Next | Prevents overclaiming and false confidence |
 | Anti-overclaim benchmark | Research | Measures bias, distortion, and individuation |

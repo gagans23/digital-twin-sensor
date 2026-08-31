@@ -73,6 +73,14 @@ The product must stay useful without becoming silent surveillance. The design ta
    - Added Product Doctor visibility for learning maintenance posture.
    - Documented four-service local deployment.
 
+10. Added Depth 4 local OCR summary gate.
+   - Added a macOS Apple Vision OCR helper using `VNRecognizeTextRequest`.
+   - Added `digital_twin_sensor.collectors.local_ocr`.
+   - Added app allowlist, confidence, line-limit, and timeout policy keys.
+   - Wired OCR behind Depth 4 after browser and Accessibility metadata.
+   - Stored only redacted OCR text hints, summary, provider, confidence, and redaction findings.
+   - Updated Signal Depth, Privacy, and Product Doctor payloads for OCR posture.
+
 ## Current Live Product Posture
 
 Implemented:
@@ -93,6 +101,7 @@ Implemented:
 - context packs
 - Depth 2 browser metadata
 - Depth 3 allowlisted Accessibility metadata
+- Depth 4 local OCR summaries for allowlisted opaque apps
 - PII masking before storage
 - raw-upload boundary
 
@@ -101,7 +110,6 @@ Still product gaps:
 - encrypted SQLite storage
 - menubar status/pause control
 - GitLab summary sync
-- OCR summary gate for opaque apps
 - learned query x digital-twin-signature router
 
 ## Validation Results
@@ -120,6 +128,15 @@ Validated on 2026-08-29:
 - pause/resume API: verified; collect-once refuses storage while paused and resumes cleanly
 - Product Ops desktop visual QA: no document overflow; research backlog renders 8 cards
 - Privacy mobile visual QA: no document overflow; collection controls visible and responsive
+
+Validated on 2026-08-31:
+
+- `python -m unittest discover -s tests`: 65 tests passed in a venv with the encrypted extra
+- `python -m compileall digital_twin_sensor`: passed
+- `node --check digital_twin_sensor/ui_static/app.js`: passed
+- `git diff --check`: passed
+- `swiftc helpers/macos-ocr-probe.swift`: passed
+- OCR helper smoke: frontmost-app mismatch returns a structured skipped payload
 
 Known non-blocking attention item:
 
@@ -177,8 +194,8 @@ notes:
 
 1. Add encrypted storage.
 2. Add menubar status/pause indicator.
-3. Add local OCR summaries only for explicitly allowlisted opaque apps.
-4. Add GitLab summary sync for approved context packs and health reports.
-5. Add offline replay for learned Query x Digital Twin Signature router policies.
-6. Add paper metrics: task-resume time, context precision, leakage rate, freshness, and failure attribution.
-7. Add conflict resolution and forgetting policies for context cards.
+3. Add GitLab summary sync for approved context packs and health reports.
+4. Add offline replay for learned Query x Digital Twin Signature router policies.
+5. Add paper metrics: task-resume time, context precision, leakage rate, freshness, and failure attribution.
+6. Add conflict resolution and forgetting policies for context cards.
+7. Add app-specific structured connectors to replace OCR where APIs are available.

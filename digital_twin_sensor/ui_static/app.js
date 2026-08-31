@@ -853,7 +853,7 @@ function fleetTone(status) {
   const value = String(status || "").toLowerCase();
   if (["ready", "online", "implemented", "enabled", "local", "enrolled", "active", "running", "scheduled", "steady", "rich", "captured", "watching"].includes(value)) return "ready";
   if (["blocked", "offline", "off", "failed"].includes(value)) return "blocked";
-  if (["planned", "next", "not enrolled", "not installed", "waiting", "stale", "unsupported", "unknown", "attention", "collector-only", "opaque", "gated", "basic"].includes(value)) return "attention";
+  if (["planned", "next", "not enrolled", "not installed", "not_ready", "missing_helper", "waiting", "stale", "unsupported", "unknown", "attention", "collector-only", "opaque", "gated", "basic"].includes(value)) return "attention";
   return "neutral";
 }
 

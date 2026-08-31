@@ -13,6 +13,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from .collectors.local_ocr import ocr_provider_status
 from .collectors.macos_active_window import build_event
 from .config import DEFAULT_CONFIG_PATH, DEFAULT_DB_PATH, ensure_config, load_config, write_config
 from .context_graph import build_context_graph
@@ -133,9 +134,11 @@ def _surface_details(events: list[dict[str, Any]], config: dict[str, Any], limit
     by_app: dict[str, dict[str, Any]] = {}
     browser_apps = {str(item).lower() for item in config.get("browser_tab_detail_apps", [])}
     accessibility_apps = {str(item).lower() for item in config.get("accessibility_surface_detail_apps", [])}
+    ocr_apps = {str(item).lower() for item in config.get("ocr_surface_detail_apps", [])}
     depth = int(config.get("context_capture_depth", 1))
     browser_min_depth = int(config.get("browser_tab_detail_min_depth", 2))
     accessibility_min_depth = int(config.get("accessibility_surface_min_depth", 3))
+    ocr_min_depth = int(config.get("ocr_surface_min_depth", 4))
 
     for event in events:
         if event.get("domain") == "system" or event.get("action") == "system":
@@ -192,6 +195,15 @@ def _surface_details(events: list[dict[str, Any]], config: dict[str, Any], limit
                 what_we_know = f"Accessibility exposed {latest_detail.get('element_count', 0)} UI elements; strongest roles are {roles}."
                 how_to_deepen = "If playback title/channel is still absent, add an app-specific connector or local OCR summary gate."
                 privacy_boundary = latest_detail.get("privacy", privacy_boundary)
+            elif latest_detail.get("kind") == "ocr_summary":
+                status = "ocr summary captured"
+                detail_level = "Depth 4 local OCR"
+                known_fields = ["redacted OCR hints", "local OCR confidence", "dwell time", "switch sequence"]
+                provider = latest_detail.get("provider", "local OCR")
+                confidence = round(float(latest_detail.get("confidence", 0.0)) * 100)
+                what_we_know = f"{provider} read {latest_detail.get('line_count', 0)} visible text lines with about {confidence}% average confidence."
+                how_to_deepen = "Prefer an app-specific connector for structured playback state; keep OCR as summary-only fallback."
+                privacy_boundary = latest_detail.get("privacy", privacy_boundary)
             else:
                 status = "browser detail captured"
                 detail_level = "Depth 2 metadata"
@@ -222,6 +234,21 @@ def _surface_details(events: list[dict[str, Any]], config: dict[str, Any], limit
                 what_we_know = f"{app} is eligible for an allowlisted Accessibility snapshot. The next frontmost sample may include visible UI labels."
                 how_to_deepen = "Keep the app frontmost for a sample interval. If no labels appear, build an app-specific connector or OCR summary gate."
             privacy_boundary = "Only redacted UI labels and roles are stored; no screenshots, keystrokes, clipboard, or camera."
+        elif app_key in ocr_apps:
+            provider = ocr_provider_status(config)
+            status = "ocr summary available"
+            detail_level = f"Depth {ocr_min_depth} gated" if depth < ocr_min_depth else "waiting for OCR sample"
+            known_fields = ["app", "window title", "dwell time", "domain"]
+            if depth < ocr_min_depth:
+                what_we_know = f"{app} is allowlisted for local OCR summaries, but capture depth is {depth}; it activates at Depth {ocr_min_depth}."
+                how_to_deepen = f"Set context_capture_depth to {ocr_min_depth} to run local OCR when browser and Accessibility metadata are empty."
+            elif provider.get("status") != "ready":
+                what_we_know = f"{app} is OCR-allowlisted, but no local OCR provider is ready."
+                how_to_deepen = "Install the macOS Vision helper through scripts/install_launch_agent.sh or install Tesseract for fallback readiness."
+            else:
+                what_we_know = f"{app} is eligible for local OCR summaries. The next frontmost sample may include redacted text hints."
+                how_to_deepen = "Keep the app frontmost for a sample interval, then inspect the Signal Depth and Learning Mode tabs."
+            privacy_boundary = "Window pixels are transient; only redacted OCR hints and summary are stored."
         elif "ibo pro player" in app_key:
             status = "opaque app"
             detail_level = "Depth 1 only"
@@ -423,6 +450,8 @@ def _media_focus_payload(events: list[dict[str, Any]]) -> dict[str, Any]:
         evidence.append({"label": "url domain", "value": str(detail.get("url_domain"))})
     if detail.get("text_hints"):
         evidence.append({"label": "visible hints", "value": ", ".join(str(item) for item in detail["text_hints"][:3])})
+    if detail.get("summary"):
+        evidence.append({"label": "ocr summary", "value": str(detail.get("summary"))[:180]})
 
     if kind == "browser_tab":
         status = "captured"
@@ -434,11 +463,16 @@ def _media_focus_payload(events: list[dict[str, Any]]) -> dict[str, Any]:
         playback_visibility = "allowlisted UI metadata"
         what_we_know = "The twin can see redacted Accessibility labels exposed by the player window, plus dwell time and switch sequence."
         next_step = "If the program or channel is still missing, add an app-specific connector or a local OCR summary gate."
+    elif kind == "ocr_summary":
+        status = "captured"
+        playback_visibility = "local OCR summary"
+        what_we_know = "The twin can see redacted on-device OCR hints from the visible player window, plus dwell time and switch sequence."
+        next_step = "Use OCR labels to learn what was useful, then replace OCR with a structured app connector when possible."
     elif _is_media_surface(app, str(focus.get("artifact", "")), detail):
         status = "opaque"
         playback_visibility = "app/window only"
         what_we_know = "The twin can see that this player has attention, but not the exact channel, stream, or playback state yet."
-        next_step = "Enable Depth 3 for an allowlisted Accessibility snapshot of this app before considering OCR."
+        next_step = "Enable Depth 3 Accessibility first; if it stays opaque, enable Depth 4 local OCR summaries for this app."
     else:
         status = "watching"
         playback_visibility = "attention only"
@@ -465,8 +499,10 @@ def _attention_depth_payload(
     depth = int(config.get("context_capture_depth", 1))
     browser_min = int(config.get("browser_tab_detail_min_depth", 2))
     ax_min = int(config.get("accessibility_surface_min_depth", 3))
+    ocr_min = int(config.get("ocr_surface_min_depth", 4))
     browser_active = bool(config.get("enable_browser_tab_details", True) and depth >= browser_min)
     ax_active = bool(config.get("enable_accessibility_surface_details", True) and depth >= ax_min)
+    ocr_active = bool(config.get("enable_ocr_surface_details", True) and depth >= ocr_min)
     recent = sorted(events, key=lambda item: item["ts_start"], reverse=True)
     latest = recent[0] if recent else {}
 
@@ -475,7 +511,7 @@ def _attention_depth_payload(
         events_count = max(int(item.get("events", 0)), 1)
         detail_events = int(item.get("surface_detail_events", 0))
         coverage = round(detail_events / events_count, 3)
-        if item.get("status") in {"browser detail captured", "in-app surface captured"}:
+        if item.get("status") in {"browser detail captured", "in-app surface captured", "ocr summary captured"}:
             depth_status = "rich"
         elif "available" in str(item.get("status", "")):
             depth_status = "ready"
@@ -498,6 +534,8 @@ def _attention_depth_payload(
 
     browser_apps = ", ".join(config.get("browser_tab_detail_apps", []))
     ax_apps = ", ".join(config.get("accessibility_surface_detail_apps", []))
+    ocr_apps = ", ".join(config.get("ocr_surface_detail_apps", []))
+    ocr_status = ocr_provider_status(config)
     ladder = [
         {
             "level": "Depth 1",
@@ -523,8 +561,8 @@ def _attention_depth_payload(
         {
             "level": "Depth 4",
             "name": "Local OCR summaries",
-            "status": "planned",
-            "captures": "short on-device summaries when Accessibility exposes nothing",
+            "status": "active" if ocr_active else "gated",
+            "captures": f"short on-device text hints for {ocr_apps or 'allowlisted opaque apps'} when Accessibility exposes nothing",
             "privacy_gate": "no image storage; summaries pass through the same PII mask",
         },
         {
@@ -552,8 +590,8 @@ def _attention_depth_payload(
             {
                 "name": "Deepen opaque player apps",
                 "status": "next",
-                "detail": f"Start with {app_name}: enable Depth 3 Accessibility before local OCR.",
-                "command": f"digital-twin-sensor configure --depth 3 --accessibility-surface-details on --accessibility-app \"{app_name}\"",
+                "detail": f"Start with {app_name}: enable Depth 3 Accessibility, then Depth 4 OCR if the surface remains opaque.",
+                "command": f"digital-twin-sensor configure --depth 4 --accessibility-surface-details on --accessibility-app \"{app_name}\" --ocr-surface-details on --ocr-app \"{app_name}\"",
             }
         )
     if not browser_active:
@@ -589,6 +627,7 @@ def _attention_depth_payload(
                 {"name": "switch path", "status": "active", "detail": "what you returned to after interruption"},
                 {"name": "browser tab metadata", "status": "active" if browser_active else "ready", "detail": "site/title context without URL path/query by default"},
                 {"name": "in-app UI labels", "status": "active" if ax_active else "gated", "detail": "only allowlisted apps at Depth 3"},
+                {"name": "local OCR summaries", "status": "active" if ocr_active and ocr_status.get("status") == "ready" else "gated", "detail": "Apple Vision helper or Tesseract fallback; no stored pixels"},
                 {"name": "cursor and scroll zones", "status": "planned", "detail": "aggregate heatmap, no text capture"},
                 {"name": "webcam gaze", "status": "off", "detail": "only explicit local opt-in; no raw frames"},
             ],
@@ -609,6 +648,7 @@ def _privacy_payload(
     depth = int(config.get("context_capture_depth", 1))
     browser_depth = int(config.get("browser_tab_detail_min_depth", 2))
     ax_depth = int(config.get("accessibility_surface_min_depth", 3))
+    ocr_depth = int(config.get("ocr_surface_min_depth", 4))
     captured = [
         "active app",
         "window title or redacted title",
@@ -635,6 +675,9 @@ def _privacy_payload(
     if config.get("enable_accessibility_surface_details", True) and depth >= ax_depth:
         apps = ", ".join(config.get("accessibility_surface_detail_apps", []))
         captured.append(f"allowlisted Accessibility UI labels for: {apps}")
+    if config.get("enable_ocr_surface_details", True) and depth >= ocr_depth:
+        apps = ", ".join(config.get("ocr_surface_detail_apps", []))
+        captured.append(f"redacted local OCR summaries for: {apps}")
 
     return {
         "capture_window_title": bool(config.get("capture_window_title", True)),
@@ -651,6 +694,8 @@ def _privacy_payload(
         "accessibility_surface_details": bool(
             config.get("enable_accessibility_surface_details", True) and depth >= ax_depth
         ),
+        "ocr_surface_details": bool(config.get("enable_ocr_surface_details", True) and depth >= ocr_depth),
+        "ocr_provider": ocr_provider_status(config),
         "data_location": str(db_path.expanduser()),
         "redaction_summary": _redaction_summary(events),
         "captured": captured,

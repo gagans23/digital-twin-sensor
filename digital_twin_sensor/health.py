@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .collectors.local_ocr import ocr_provider_status
 from .collectors.macos_active_window import active_window
 from .config import load_config
 from .fleet import DASHBOARD_SERVICE, SENSOR_SERVICE, _is_running, service_status
@@ -88,13 +89,17 @@ def _automation_probe(config: dict[str, Any]) -> dict[str, Any]:
     depth = int(config.get("context_capture_depth", 1))
     browser_min = int(config.get("browser_tab_detail_min_depth", 2))
     ax_min = int(config.get("accessibility_surface_min_depth", 3))
+    ocr_min = int(config.get("ocr_surface_min_depth", 4))
     browser_active = bool(config.get("enable_browser_tab_details", True) and depth >= browser_min)
     ax_active = bool(config.get("enable_accessibility_surface_details", True) and depth >= ax_min)
+    ocr_active = bool(config.get("enable_ocr_surface_details", True) and depth >= ocr_min)
     targets = []
     if browser_active:
         targets.extend(config.get("browser_tab_detail_apps", []))
     if ax_active:
         targets.extend(config.get("accessibility_surface_detail_apps", []))
+    if ocr_active:
+        targets.extend(config.get("ocr_surface_detail_apps", []))
 
     if not targets:
         return {
@@ -107,6 +112,33 @@ def _automation_probe(config: dict[str, Any]) -> dict[str, Any]:
         "status": "attention",
         "detail": "macOS may ask permission the first time these apps are inspected: "
         + ", ".join(str(item) for item in targets),
+    }
+
+
+def _ocr_probe(config: dict[str, Any]) -> dict[str, Any]:
+    depth = int(config.get("context_capture_depth", 1))
+    ocr_min = int(config.get("ocr_surface_min_depth", 4))
+    enabled = bool(config.get("enable_ocr_surface_details", True))
+    active = enabled and depth >= ocr_min
+    status = ocr_provider_status(config)
+    apps = ", ".join(str(item) for item in config.get("ocr_surface_detail_apps", [])) or "none"
+    if not enabled:
+        return {
+            "name": "Local OCR provider",
+            "status": "off",
+            "detail": "OCR summaries disabled by policy",
+        }
+    if not active:
+        return {
+            "name": "Local OCR provider",
+            "status": "gated",
+            "detail": f"configured for {apps}; activates at Depth {ocr_min}",
+        }
+    return {
+        "name": "Local OCR provider",
+        "status": "ready" if status.get("status") == "ready" else "attention",
+        "detail": f"{status.get('preferred') or 'no provider ready'} for {apps}; macOS may require Screen Recording permission for the terminal/Python runtime",
+        "providers": status.get("providers", []),
     }
 
 
@@ -164,6 +196,7 @@ def _diagnostics(
         },
         _active_window_permission(),
         _automation_probe(config),
+        _ocr_probe(config),
         {
             "name": "PII masking",
             "status": "ready" if config.get("mask_pii", True) else "blocked",
@@ -208,7 +241,7 @@ def _beyond_paper() -> list[dict[str, str]]:
         {
             "name": "Signal depth ladder",
             "status": "implemented",
-            "detail": "browser metadata, allowlisted Accessibility metadata, playback visibility, and eye-proxy stance",
+            "detail": "browser metadata, allowlisted Accessibility metadata, local OCR summaries, playback visibility, and eye-proxy stance",
         },
         {
             "name": "Fleet posture",
@@ -272,8 +305,8 @@ def _product_gaps() -> list[dict[str, str]]:
         },
         {
             "name": "OCR summary gate",
-            "status": "next",
-            "detail": "for opaque apps, store only redacted local summaries and discard temporary screenshots",
+            "status": "implemented",
+            "detail": "Depth 4 local OCR summaries use on-device Apple Vision helper or Tesseract posture; screenshots are transient and only redacted text hints are stored",
         },
         {
             "name": "Feedback learning",

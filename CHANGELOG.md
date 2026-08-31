@@ -31,3 +31,5 @@ Initial local-first product prototype.
 - evolving context cards for working-sphere maintenance
 - `/api/learning`, `/api/feedback`, `learning`, and `feedback` commands
 - scheduled learning maintenance LaunchAgent and `maintain-learning` command
+- Depth 4 local OCR summary gate using macOS Apple Vision helper
+- OCR provider posture in Product Doctor, Signal Depth, and Privacy payloads

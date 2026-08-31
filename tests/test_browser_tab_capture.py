@@ -84,6 +84,68 @@ class BrowserTabCaptureTests(unittest.TestCase):
         self.assertEqual(event["metadata"]["redaction_findings"]["name"], 1)
         self.assertEqual(event["metadata"]["redaction_findings"]["url"], 1)
 
+    def test_ocr_detail_updates_event_after_structured_collectors_are_empty(self):
+        config = {
+            "subject_id": "local-user",
+            "context_capture_depth": 4,
+            "capture_window_title": True,
+            "redact_sensitive_titles": True,
+            "mask_pii": True,
+            "mask_configured_names": True,
+            "mask_ip_addresses": True,
+            "name_terms_to_mask": ["Gagan"],
+            "ignored_apps": [],
+            "enable_browser_tab_details": True,
+            "browser_tab_detail_min_depth": 2,
+            "browser_tab_detail_apps": ["Safari"],
+            "enable_accessibility_surface_details": True,
+            "accessibility_surface_min_depth": 3,
+            "accessibility_surface_detail_apps": ["Ibo Pro Player"],
+            "enable_ocr_surface_details": True,
+            "ocr_surface_min_depth": 4,
+            "ocr_surface_detail_apps": ["Ibo Pro Player"],
+            "sensitive_title_keywords": [],
+            "domain_rules": [
+                {
+                    "domain": "education",
+                    "apps": ["Ibo Pro Player"],
+                    "keywords": ["trading psychology", "module"],
+                }
+            ],
+        }
+
+        with patch(
+            "digital_twin_sensor.collectors.macos_active_window.active_window",
+            return_value=("Ibo Pro Player", "Ibo Pro Player"),
+        ), patch(
+            "digital_twin_sensor.collectors.macos_active_window.active_browser_tab_detail",
+            return_value=None,
+        ), patch(
+            "digital_twin_sensor.collectors.macos_active_window.active_accessibility_surface_detail",
+            return_value=None,
+        ), patch(
+            "digital_twin_sensor.collectors.macos_active_window.active_ocr_surface_detail",
+            return_value={
+                "kind": "ocr_summary",
+                "status": "captured",
+                "source": "VNRecognizeTextRequest",
+                "provider": "apple_vision",
+                "app": "Ibo Pro Player",
+                "text_hints": ["Trading psychology module"],
+                "summary": "Trading psychology module",
+                "confidence": 0.82,
+                "redaction_findings": {},
+                "privacy": "temporary window image processed locally; pixels are not stored",
+            },
+        ):
+            event = build_event(config, 15.0)
+
+        self.assertIsNotNone(event)
+        assert event is not None
+        self.assertEqual(event["domain"], "education")
+        self.assertEqual(event["metadata"]["surface_detail"]["kind"], "ocr_summary")
+        self.assertIn("Trading psychology module", event["metadata"]["surface_detail"]["text_hints"])
+
 
 if __name__ == "__main__":
     unittest.main()

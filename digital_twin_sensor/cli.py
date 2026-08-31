@@ -201,6 +201,21 @@ def cmd_configure(args: argparse.Namespace) -> int:
                 existing.append(name)
                 seen.add(name.lower())
         config["accessibility_surface_detail_apps"] = existing
+    if args.ocr_surface_details is not None:
+        config["enable_ocr_surface_details"] = args.ocr_surface_details
+    if args.ocr_app:
+        existing = [str(item) for item in config.get("ocr_surface_detail_apps", [])]
+        seen = {item.lower() for item in existing}
+        for app in args.ocr_app:
+            name = app.strip()
+            if name and name.lower() not in seen:
+                existing.append(name)
+                seen.add(name.lower())
+        config["ocr_surface_detail_apps"] = existing
+    if args.ocr_max_lines is not None:
+        config["ocr_surface_max_lines"] = max(1, min(40, int(args.ocr_max_lines)))
+    if args.ocr_min_confidence is not None:
+        config["ocr_surface_min_confidence"] = max(0.0, min(1.0, float(args.ocr_min_confidence)))
     if args.fleet_device_name is not None:
         config["fleet_device_name"] = args.fleet_device_name.strip() or config.get("fleet_device_name")
     if args.fleet_control_plane_url is not None:
@@ -224,6 +239,12 @@ def cmd_configure(args: argparse.Namespace) -> int:
         "enable_accessibility_surface_details",
         "accessibility_surface_min_depth",
         "accessibility_surface_detail_apps",
+        "enable_ocr_surface_details",
+        "ocr_surface_min_depth",
+        "ocr_surface_detail_apps",
+        "ocr_surface_provider",
+        "ocr_surface_max_lines",
+        "ocr_surface_min_confidence",
         "fleet_device_id",
         "fleet_device_name",
         "fleet_control_plane_url",
@@ -680,6 +701,10 @@ def build_parser() -> argparse.ArgumentParser:
     configure.add_argument("--browser-url-query", type=_toggle, default=None, metavar="on|off")
     configure.add_argument("--accessibility-surface-details", type=_toggle, default=None, metavar="on|off")
     configure.add_argument("--accessibility-app", action="append", default=[], metavar="APP")
+    configure.add_argument("--ocr-surface-details", type=_toggle, default=None, metavar="on|off")
+    configure.add_argument("--ocr-app", action="append", default=[], metavar="APP")
+    configure.add_argument("--ocr-max-lines", type=int, default=None)
+    configure.add_argument("--ocr-min-confidence", type=float, default=None)
     configure.add_argument("--fleet-device-name", default=None)
     configure.add_argument("--fleet-control-plane-url", default=None)
     configure.add_argument("--fleet-sync", type=_toggle, default=None, metavar="on|off")

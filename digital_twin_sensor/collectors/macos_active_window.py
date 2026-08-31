@@ -8,6 +8,7 @@ from typing import Any
 
 from .accessibility_surface import active_accessibility_surface_detail
 from .browser_tab import active_browser_tab_detail
+from .local_ocr import active_ocr_surface_detail
 from ..redaction import redact_text
 from ..store import utc_now
 
@@ -130,6 +131,8 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
         surface_detail = active_browser_tab_detail(app, config)
         if surface_detail is None:
             surface_detail = active_accessibility_surface_detail(app, config)
+        if surface_detail is None:
+            surface_detail = active_ocr_surface_detail(app, config)
     if surface_detail and surface_detail.get("title"):
         raw_title = str(surface_detail["title"])
 

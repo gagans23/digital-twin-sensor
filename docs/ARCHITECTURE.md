@@ -59,7 +59,7 @@ flowchart LR
 | 1 | Attention metadata | Implemented | App, redacted title, dwell, domain, switch sequence |
 | 2 | Work surface metadata | Implemented for Safari/Chrome tab metadata | URL paths, query strings, fragments, usernames, and passwords are redacted by default |
 | 3 | Allowlisted UI metadata | Implemented for macOS Accessibility-compatible apps | UI labels and roles only; no screenshots, keystrokes, clipboard, microphone, or camera |
-| 4 | Semantic summaries/OCR gate | Planned | Store local redacted summary only, discard temporary images |
+| 4 | Semantic summaries/OCR gate | Implemented for macOS Apple Vision helper | Store local redacted summary only, discard temporary images |
 | 5 | Full content | Not enabled | Requires explicit connector opt-in, encryption, retention, and export controls |
 
 ## Storage Model

@@ -34,7 +34,7 @@ Working sphere status: implemented for Depth 1. The detector clusters redacted e
 
 Privacy rule: store metadata first, not full contents. Full contents should require a separate per-connector toggle.
 
-Status: Safari and Google Chrome active-tab metadata are implemented at Depth 2+. Opaque app detail is not enabled yet; use manual labels first, then per-app Accessibility metadata, then local OCR summaries only with explicit opt-in.
+Status: Safari and Google Chrome active-tab metadata are implemented at Depth 2+. Opaque app detail now follows a gated ladder: manual labels, per-app Accessibility metadata at Depth 3, then local OCR summaries at Depth 4 for explicitly allowlisted apps.
 
 ## Layer 3: Semantic Context
 
@@ -86,14 +86,12 @@ User control status: implemented locally. `digital-twin-sensor pause`, `digital-
 
 1. Add encrypted storage.
 2. Add a menubar status indicator.
-3. Add feedback labels for context packs and evidence results.
-4. Add evolving context cards with memory-maintenance diagnostics.
-5. Add optional browser-history connector storing only domain and title.
-6. Add optional git-repo connector for branch, diff stats, and changed files.
-7. Add task-model induction on top of working spheres.
-8. Add graph-backed project/task community summaries.
-9. Add remote context-pack registry with explicit approval and audit trail.
-10. Add remote enrollment and summary-only fleet sync after encryption and signed installers.
+3. Add optional browser-history connector storing only domain and title.
+4. Add optional git-repo connector for branch, diff stats, and changed files.
+5. Add task-model induction on top of working spheres.
+6. Add graph-backed project/task community summaries.
+7. Add remote context-pack registry with explicit approval and audit trail.
+8. Add remote enrollment and summary-only fleet sync after encryption and signed installers.
 
 See `COLLECTION_DEPTH_AND_REDACTION.md` for the collection-depth model and masking policy.
 See `CONTEXT_RESEARCH_SYNTHESIS_2024_2026.md` for the last-three-year paper synthesis behind the next build ideas.

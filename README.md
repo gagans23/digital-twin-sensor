@@ -70,7 +70,11 @@ flowchart TB
     C1["redacted UI labels + roles"] --- C2["named applications only"]
     C3["no screenshots · no keystrokes · no video"]
   end
-  D1 --> D2 --> D3
+  subgraph D4["DEPTH 4 · OCR fallback"]
+    O1["Apple Vision OCR"] --- O2["opaque app allowlist"]
+    O3["transient screenshot"] --- O4["redacted text hints only"]
+  end
+  D1 --> D2 --> D3 --> D4
 ```
 
 The domain tells you the workstream. The query string tells you far more than anyone consented to. That is why they are separate flags.
@@ -86,6 +90,10 @@ digital-twin-sensor configure --depth 2 --browser-tab-details on \
 # add redacted interface labels, for one named app
 digital-twin-sensor configure --depth 3 --accessibility-surface-details on \
   --accessibility-app "Ibo Pro Player"
+
+# add local OCR summaries only after structured metadata is exhausted
+digital-twin-sensor configure --depth 4 --ocr-surface-details on \
+  --ocr-app "Ibo Pro Player" --ocr-max-lines 12 --ocr-min-confidence 0.35
 ```
 
 Full policy: [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.md)
@@ -102,10 +110,13 @@ Full policy: [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.
 | derived work domain | raw screenshots or video |
 | app-switching sequence | browser cookies |
 | graph / sphere / pack metadata | passwords or tokens |
+| Depth 4 redacted OCR text hints, if explicitly enabled | persisted screenshots |
 | | raw URL paths, queries, fragments |
 | | any raw cloud upload |
 
 PII masking runs before events are written to SQLite. The redactor masks emails, Luhn-validated card numbers, US SSNs, phone numbers, IP addresses, common secret and token shapes, URL paths, and configured names.
+
+Depth 4 OCR uses a local provider only. On macOS the installer builds a small Apple Vision `VNRecognizeTextRequest` helper; Tesseract is treated as the open-source offline fallback for future cross-platform adapters. The active product stores redacted hints and confidence, not image pixels.
 
 A worker who believes they are being logged changes what they do — and then you have captured the performance instead of the practice. The boundary is not a setting. It is the product.
 
@@ -313,6 +324,7 @@ Honest accounting. The endpoint half is built; the control plane is specified, n
 | Deep-agent judgement harness (optional extra) | ✅ built |
 | Rolling-window enforcement in all builders | ✅ built |
 | Field-level encryption at rest (optional extra) | ✅ built |
+| Local OCR summary gate for opaque apps | ✅ built |
 | Trust-calibration surfacing (confidence, evidence age) | 🟡 partial |
 | Memory maintenance diagnostics | 🟡 partial |
 | Evolving context cards | ✅ built |

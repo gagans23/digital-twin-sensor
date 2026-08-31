@@ -48,7 +48,9 @@ Data is stored locally by default:
 
 The dashboard launched by `digital-twin-sensor ui` binds to `127.0.0.1` by default, so it is intended for local inspection on your machine. Do not expose it on a public network unless you first add authentication, transport security, retention controls, and explicit consent workflows.
 
-The Product Doctor and watchdog check operational metadata only: service state, process id, last exit code, sample freshness, configured privacy flags, database presence, and macOS permission posture. They do not inspect screenshots, keystrokes, clipboard content, microphone input, camera input, cookies, credentials, or raw document bodies.
+The Product Doctor and watchdog check operational metadata only: service state, process id, last exit code, sample freshness, configured privacy flags, database presence, OCR provider posture, and macOS permission posture. They do not inspect persisted screenshots, keystrokes, clipboard content, microphone input, camera input, cookies, credentials, or raw document bodies.
+
+Depth 4 OCR is local-only and allowlist-gated. The macOS helper may create a temporary screenshot file long enough for Apple Vision OCR to read it, deletes that file immediately, and persists only redacted text hints, confidence, provider metadata, and redaction findings.
 
 Collection can be paused without uninstalling the background service:
 
