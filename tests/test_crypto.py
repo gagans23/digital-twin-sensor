@@ -8,6 +8,7 @@ from pathlib import Path
 from digital_twin_sensor.store import EventStore, utc_now
 
 try:
+    import cryptography
     from digital_twin_sensor.crypto import (
         ENCRYPTED_FIELDS,
         FieldCipher,

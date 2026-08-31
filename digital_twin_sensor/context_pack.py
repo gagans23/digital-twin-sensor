@@ -5,6 +5,7 @@ import json
 from collections.abc import Callable
 from collections import Counter
 from typing import Any
+from pathlib import Path
 
 from .redaction import redact_text
 from .store import filter_window, utc_now
@@ -212,7 +213,7 @@ def _privacy_summary(config: dict[str, Any]) -> dict[str, Any]:
 def _base_decisions(target: str, target_ok: bool, target_reason: str) -> list[dict[str, str]]:
     return [
         _decision("target", "allow" if target_ok else "deny", target_reason),
-        _decision("purpose", "allow", "purpose label guides formatting only"),
+        _decision("purpose", "allow", "recognized purpose declared; recipient policy and feedback restrictions still apply"),
         _decision("events.source_count", "summarize", "event counts are admitted without raw rows"),
         _decision("system_events", "deny", "system/locked-session events are excluded from working spheres"),
         _decision("raw_event_payloads", "deny", "context packs are summary-only"),
@@ -266,9 +267,13 @@ def build_context_pack(
     sphere_id: str | None = None,
     max_events: int = 8,
     activities: dict[str, Any] | None = None,
+    db_path: Path | None = None,
+    feedback: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    if purpose not in PURPOSES:
+        raise ValueError("A recognized context-pack purpose is required")
     events = filter_window(events, days)
-    purpose_key = purpose if purpose in PURPOSES else "agent_prompt"
+    purpose_key = purpose
     target_key = target if target in TARGETS else target
     target_ok, target_reason = _target_allowed(target_key, config)
     decisions = _base_decisions(target_key, target_ok, target_reason)
@@ -334,7 +339,8 @@ def build_context_pack(
     export_findings: Counter[str] = Counter()
 
     def safe_text(value: Any, limit: int = 120) -> str:
-        result = redact_text(str(value or ""), config)
+        export_config = {**config, "mask_pii": True, "redact_url_paths": True, "mask_configured_names": True}
+        result = redact_text(str(value or ""), export_config)
         export_findings.update(result.findings)
         return _shorten(result.text, limit)
 
@@ -425,6 +431,36 @@ def build_context_pack(
         "pipeline": _pack_pipeline(int(activities.get("stats", {}).get("events", 0)), status),
     }
     _assign_pack_id(pack)
+    if db_path is not None:
+        from .learning import LearningStore
+
+        learning = LearningStore(db_path, config=config)
+        try:
+            feedback = learning.feedback_for_subject(subject_id=config["subject_id"])
+        finally:
+            learning.close()
+    known_spheres = {item.get("id") for item in activities.get("spheres", [])}
+    evidence_keys = {item.get("evidence_key") for item in top_artifacts}
+    restrictions = []
+    for item in feedback or []:
+        if item.get("resolved_at") or item.get("label") not in {"too_private", "wrong", "stale"}:
+            continue
+        matched = (item.get("sphere_id") == selected.get("id") or item.get("pack_id") == pack["pack_id"]
+                   or item.get("evidence_key") in evidence_keys)
+        # Old feedback may refer to an identity from before the stable-ID fix.
+        # An unresolved privacy objection must survive that loss of linkage.
+        legacy_private = item.get("label") == "too_private" and item.get("sphere_id") not in known_spheres
+        if matched or legacy_private:
+            restrictions.append(item)
+    if restrictions or selected.get("sensitivity") == "high":
+        pack["status"] = "blocked"
+        pack["summary"] = {}
+        pack["context"] = {}
+        pack["selection_reason"] = "Context requires explicit review before export"
+        pack["admission"]["decisions"].append(_decision("context", "deny", "unresolved feedback restriction or high sensitivity"))
+        pack["admission"]["counts"] = _counts(pack["admission"]["decisions"])
+        pack["admission"]["restriction_ids"] = [item["id"] for item in restrictions if "id" in item]
+        pack["pipeline"] = _pack_pipeline(len(events), "blocked")
     pack["export"] = {"format": "markdown", "markdown": format_context_pack_markdown(pack)}
     return pack
 
@@ -447,7 +483,7 @@ def format_context_pack_markdown(pack: dict[str, Any]) -> str:
             _bullet("Purpose", purpose.get("label", "unknown")),
             _bullet("Target", target.get("label", target.get("key", "unknown"))),
             _bullet("Generated", pack.get("generated_at", "unknown")),
-            _bullet("Decision", admission.get("target_reason") or pack.get("selection_reason") or "not exportable"),
+            _bullet("Decision", pack.get("selection_reason") or admission.get("target_reason") or "not exportable"),
             "",
             "## Memory Admission Gate",
             f"- Policy: {admission.get('policy', 'memory-admission-gate-v1')}",

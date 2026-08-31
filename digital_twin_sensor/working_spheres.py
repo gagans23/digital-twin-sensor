@@ -174,6 +174,8 @@ def _event_findings(event: dict[str, Any]) -> dict[str, int]:
 
 def _gate_mode_for_event(event: dict[str, Any]) -> tuple[str, str, str]:
     label = f"{event.get('title', '')} {event.get('artifact', '')}".lower()
+    if "[redacted sensitive title]" in label:
+        return "masked", "high", "sensitive window title was replaced"
     findings = _event_findings(event)
     if findings:
         keys = ", ".join(sorted(findings))
@@ -250,6 +252,7 @@ class WorkingSphere:
     tasks: Counter[str] = field(default_factory=Counter)
     findings: Counter[str] = field(default_factory=Counter)
     gate_modes: Counter[str] = field(default_factory=Counter)
+    sensitivities: Counter[str] = field(default_factory=Counter)
     event_ids: list[int] = field(default_factory=list)
     recent_events: list[dict[str, Any]] = field(default_factory=list)
     dwell_seconds: float = 0.0
@@ -269,6 +272,7 @@ class WorkingSphere:
         self.tokens.update(features["tokens"])
         self.tasks[features["task"]] += 1
         self.gate_modes[features["gate_mode"]] += 1
+        self.sensitivities[features["sensitivity"]] += 1
         self.findings.update(features["findings"])
         if event.get("id") is not None:
             self.event_ids.append(int(event["id"]))
@@ -305,6 +309,9 @@ def _score_sphere(
     score = 0.0
     event_tokens = set(features["tokens"])
     sphere_tokens = sphere.token_set()
+    same_artifact = bool(features["normalized_artifact"] and features["normalized_artifact"] in sphere.normalized_artifacts)
+    if not same_artifact and len(event_tokens & sphere_tokens) < 2:
+        return 0.0
 
     if features["domain"] in sphere.domains:
         score += 0.18
@@ -330,7 +337,6 @@ def _score_sphere(
 
 def _new_sphere(features: dict[str, Any], event: dict[str, Any]) -> WorkingSphere:
     token_part = "-".join(sorted(features["tokens"])[:5])
-    anchor = event.get("id") or event.get("ts_start") or event.get("ts_end") or "unknown"
     seed = "|".join(
         [
             features["domain"],
@@ -338,7 +344,7 @@ def _new_sphere(features: dict[str, Any], event: dict[str, Any]) -> WorkingSpher
             features["task"],
             features["normalized_artifact"][:80],
             token_part,
-            str(anchor),
+            str(event.get("subject_id", "local")),
         ]
     )
     return WorkingSphere(id=_stable_id("sphere", seed), seed_key=seed)
@@ -686,6 +692,8 @@ def build_working_spheres(
         session_count = len(sphere_segments)
         gate_mode = "masked" if sphere.findings or sphere.gate_modes.get("masked") else "allowed"
         sensitivity = "medium" if gate_mode == "masked" else "low"
+        if sphere.sensitivities.get("high"):
+            sensitivity = "high"
         top_artifacts = [
             {
                 "name": name,

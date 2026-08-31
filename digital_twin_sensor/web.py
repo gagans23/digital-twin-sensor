@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import socket
+import secrets
 import urllib.parse
 import webbrowser
 from collections import Counter, defaultdict
@@ -23,7 +24,7 @@ from .fleet import DASHBOARD_SERVICE, SENSOR_SERVICE, build_fleet_status, servic
 from .health import build_health_report, run_watchdog
 from .learning import LearningStore, build_learning_state
 from .query import retrieve
-from .store import EventStore, parse_dt, utc_now
+from .store import open_event_store, parse_dt, utc_now
 from .twin import build_digital_twin_signature
 from .working_spheres import build_working_spheres
 
@@ -783,7 +784,7 @@ def build_overview(
 ) -> dict[str, Any]:
     config = load_config(config_path)
     subject_id = config["subject_id"]
-    store = EventStore(db_path)
+    store = open_event_store(db_path, config)
     events = store.fetch_window(subject_id=subject_id, days=days)
     total_count = store.count_events(subject_id=subject_id)
     retention_days = int(config.get("retention_days", 30))
@@ -830,6 +831,7 @@ def build_overview(
         target="kiro",
         max_events=8,
         activities=working_spheres,
+        db_path=db_path,
     )
     learning = build_learning_state(
         events,
@@ -917,7 +919,7 @@ def _purge_retention(db_path: Path, config_path: Path) -> dict[str, Any]:
     subject_id = config["subject_id"]
     retention_days = int(config.get("retention_days", 30))
     cutoff = utc_now() - timedelta(days=retention_days)
-    store = EventStore(db_path)
+    store = open_event_store(db_path, config)
     try:
         deleted = store.delete_before(subject_id=subject_id, cutoff=cutoff)
         remaining = store.count_events(subject_id=subject_id)
@@ -934,19 +936,34 @@ def _purge_retention(db_path: Path, config_path: Path) -> dict[str, Any]:
 class TwinDashboardHandler(BaseHTTPRequestHandler):
     server_version = "DigitalTwinDashboard/0.1"
 
+    def _trusted_request(self, *, api: bool = False) -> bool:
+        allowed = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
+        host = self.headers.get("Host", "").lower()
+        origin = self.headers.get("Origin")
+        if host not in allowed or (origin and origin not in {f"http://{item}" for item in allowed}):
+            self._send_json({"error": "Untrusted dashboard origin or host"}, HTTPStatus.FORBIDDEN)
+            return False
+        if api:
+            token = self.headers.get("X-DTS-Token", "")
+            if self.headers.get("Sec-Fetch-Site") == "cross-site" or not secrets.compare_digest(token, self.server.session_token):
+                self._send_json({"error": "Dashboard session expired. Reload the page."}, HTTPStatus.FORBIDDEN)
+                return False
+        return True
+
     def log_message(self, format: str, *args: Any) -> None:
         if getattr(self.server, "verbose", False):
             super().log_message(format, *args)
 
     def _query(self) -> dict[str, list[str]]:
         parsed = urllib.parse.urlparse(self.path)
-        return urllib.parse.parse_qs(parsed.query)
+        return urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
 
     def _send_json(self, value: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
         body = json.dumps(value, indent=2).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -964,7 +981,11 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
         return value
 
     def _send_static(self, route: str) -> None:
-        name = "index.html" if route in {"", "/"} else route.removeprefix("/").removeprefix("assets/")
+        names = {"/": "index.html", "/assets/app.js": "app.js", "/assets/app.css": "app.css"}
+        name = names.get(route)
+        if name is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
         try:
             files = resources.files("digital_twin_sensor.ui_static")
             content = (files / name).read_bytes()
@@ -972,10 +993,16 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
+        if name == "index.html":
+            content = content.replace(b"__DTS_SESSION_TOKEN__", self.server.session_token.encode("ascii"))
+
         mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", mime)
-        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
         self.wfile.write(content)
@@ -983,6 +1010,8 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         route = parsed.path
+        if not self._trusted_request(api=route.startswith("/api/")):
+            return
         query = self._query()
 
         try:
@@ -1003,7 +1032,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 config = load_config(self.server.config_path)
                 days = _safe_int(query.get("days", [None])[0], 14)
                 limit = _safe_int(query.get("limit", [None])[0], 250, 1, 1000)
-                store = EventStore(self.server.db_path)
+                store = open_event_store(self.server.db_path, config)
                 events = store.fetch_window(subject_id=config["subject_id"], days=days)
                 store.close()
                 events = sorted(events, key=lambda item: item["ts_start"], reverse=True)[:limit]
@@ -1014,7 +1043,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 config = load_config(self.server.config_path)
                 short_days = _safe_int(query.get("short_days", [None])[0], 5)
                 long_days = _safe_int(query.get("long_days", [None])[0], 14)
-                store = EventStore(self.server.db_path)
+                store = open_event_store(self.server.db_path, config)
                 events = store.fetch_window(subject_id=config["subject_id"], days=long_days)
                 store.close()
                 self._send_json(build_digital_twin_signature(events, short_days=short_days, long_days=long_days))
@@ -1035,7 +1064,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                     10,
                     500,
                 )
-                store = EventStore(self.server.db_path)
+                store = open_event_store(self.server.db_path, config)
                 events = store.fetch_window(subject_id=config["subject_id"], days=days)
                 store.close()
                 self._send_json(
@@ -1058,7 +1087,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                     1,
                     100,
                 )
-                store = EventStore(self.server.db_path)
+                store = open_event_store(self.server.db_path, config)
                 events = store.fetch_window(subject_id=config["subject_id"], days=days)
                 store.close()
                 self._send_json(
@@ -1075,12 +1104,12 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 config = load_config(self.server.config_path)
                 days = _safe_int(query.get("days", [None])[0], 14)
                 max_events = _safe_int(query.get("max_events", [None])[0], 8, 1, 12)
-                purpose = query.get("purpose", ["coding"])[0].strip() or "coding"
+                purpose = query.get("purpose", ["coding"])[0].strip()
                 target = query.get("target", ["kiro"])[0].strip() or "kiro"
                 sphere_id = query.get("sphere_id", [None])[0]
                 if sphere_id is not None:
                     sphere_id = sphere_id.strip() or None
-                store = EventStore(self.server.db_path)
+                store = open_event_store(self.server.db_path, config)
                 events = store.fetch_window(subject_id=config["subject_id"], days=days)
                 store.close()
                 self._send_json(
@@ -1092,6 +1121,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                         target=target,
                         sphere_id=sphere_id,
                         max_events=max_events,
+                        db_path=self.server.db_path,
                     )
                 )
                 return
@@ -1099,7 +1129,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
             if route == "/api/learning":
                 config = load_config(self.server.config_path)
                 days = _safe_int(query.get("days", [None])[0], 14)
-                store = EventStore(self.server.db_path)
+                store = open_event_store(self.server.db_path, config)
                 events = store.fetch_window(subject_id=config["subject_id"], days=days)
                 store.close()
                 self._send_json(
@@ -1116,7 +1146,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
             if route == "/api/fleet":
                 config = load_config(self.server.config_path)
                 days = _safe_int(query.get("days", [None])[0], 14)
-                store = EventStore(self.server.db_path)
+                store = open_event_store(self.server.db_path, config)
                 events = store.fetch_window(subject_id=config["subject_id"], days=days)
                 total_count = store.count_events(subject_id=config["subject_id"])
                 store.close()
@@ -1147,7 +1177,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 text = query.get("q", [""])[0].strip()
                 days = _safe_int(query.get("days", [None])[0], 14)
                 top_k = _safe_int(query.get("top_k", [None])[0], 8, 1, 50)
-                store = EventStore(self.server.db_path)
+                store = open_event_store(self.server.db_path, config)
                 events = store.fetch_window(subject_id=config["subject_id"], days=days)
                 store.close()
                 profile = build_digital_twin_signature(events, short_days=min(5, days), long_days=days)
@@ -1159,14 +1189,19 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
                 return
 
             self.send_error(HTTPStatus.NOT_FOUND)
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         except Exception as exc:
             self._send_json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def do_POST(self) -> None:
+        if not self._trusted_request(api=True):
+            return
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path not in {
             "/api/collect-once",
             "/api/feedback",
+            "/api/feedback/resolve",
             "/api/admin/watchdog",
             "/api/admin/pause",
             "/api/admin/resume",
@@ -1177,9 +1212,18 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
 
         try:
             config = load_config(self.server.config_path)
+            if parsed.path == "/api/feedback/resolve":
+                payload = self._read_json_body()
+                store = LearningStore(self.server.db_path, config=config)
+                try:
+                    resolved = store.resolve_feedback(subject_id=config["subject_id"], feedback_id=int(payload.get("feedback_id", 0)))
+                finally:
+                    store.close()
+                self._send_json({"resolved": resolved}, HTTPStatus.OK if resolved else HTTPStatus.NOT_FOUND)
+                return
             if parsed.path == "/api/feedback":
                 payload = self._read_json_body()
-                store = LearningStore(self.server.db_path)
+                store = LearningStore(self.server.db_path, config=config)
                 try:
                     try:
                         feedback = store.add_feedback(
@@ -1241,7 +1285,7 @@ class TwinDashboardHandler(BaseHTTPRequestHandler):
             if event is None:
                 self._send_json({"stored": False, "reason": "ignored_app"})
                 return
-            store = EventStore(self.server.db_path)
+            store = open_event_store(self.server.db_path, config)
             event_id = store.insert_event(event)
             store.close()
             event["id"] = event_id
@@ -1254,6 +1298,12 @@ class TwinDashboardServer(ThreadingHTTPServer):
     db_path: Path
     config_path: Path
     verbose: bool
+
+    def __init__(self, server_address, handler):
+        if server_address[0] not in {"127.0.0.1", "localhost"}:
+            raise ValueError("Dashboard must bind to loopback; remote administration is not supported")
+        self.session_token = secrets.token_urlsafe(32)
+        super().__init__(server_address, handler)
 
 
 def choose_port(preferred: int) -> int:
@@ -1276,8 +1326,10 @@ def run_dashboard(
     open_browser: bool = True,
     verbose: bool = False,
 ) -> None:
+    if host not in {"127.0.0.1", "localhost"}:
+        raise ValueError("Dashboard must bind to loopback")
     ensure_config(config_path)
-    EventStore(db_path).close()
+    open_event_store(db_path, load_config(config_path)).close()
     actual_port = choose_port(port)
     server = TwinDashboardServer((host, actual_port), TwinDashboardHandler)
     server.db_path = Path(db_path).expanduser()

@@ -142,7 +142,8 @@ def build_event(config: dict[str, Any], dwell_seconds: float) -> dict[str, Any] 
             if surface_detail is not None:
                 surfaces["ocr"] = surface_detail
         # Depth 1 is always available: the app already put this on screen.
-        surfaces.setdefault("window_title", {"title": raw_title})
+        if config.get("capture_window_title", True):
+            surfaces.setdefault("window_title", {"title": scrub_title(raw_title, config)})
     if surface_detail and surface_detail.get("title"):
         raw_title = str(surface_detail["title"])
 

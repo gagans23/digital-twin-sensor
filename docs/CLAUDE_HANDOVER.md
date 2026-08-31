@@ -1,176 +1,75 @@
 # Claude Handover
 
-This repository is the Digital Twin Sensor product prototype:
+Updated 2026-08-31 following the review of `53f4e94`.
 
-```text
-https://github.com/gagans23/digital-twin-sensor
-```
+Repository: https://github.com/gagans23/digital-twin-sensor
 
-The goal is to turn personal digital-attention traces into a privacy-gated context graph and context packs that help coding agents resume work. It is inspired by X-SYNTH and adjacent context engineering / agent memory research, but it should not be described as a faithful copy of a person.
+Read this file, `HARDENING_2026_08_31.md`, `../SECURITY_PRIVACY.md`, and `VALIDATION.md` before continuing. This is a local context-sensor prototype, not an enterprise-ready digital twin or a demonstrated productivity intervention.
 
-## Current Product State
+## What Changed And Why
 
-Built and pushed:
+The review found integration failures: mechanisms existed but runtime paths bypassed them. This release connects the boundaries rather than adding capture depth.
 
-- macOS active-window collector
-- local SQLite event store
-- pre-storage PII/secret redaction
-- Digital Twin Signature vectors
-- attention-weighted retrieval
-- living context graph
-- working spheres and resume packs
-- Memory Admission Gate
-- summary-only context packs for Kiro, Codex, GitLab, or local file
-- local dashboard at `127.0.0.1:8765`
-- Signal Depth, Privacy, Fleet, Product Ops, Context Pack, and Learning Mode UI
-- Product Doctor and watchdog LaunchAgent
-- scheduled learning-maintenance LaunchAgent
-- local feedback labels for packs, spheres, and evidence
-- evolving context cards
-- Depth 2 browser tab metadata for Safari/Chrome
-- Depth 3 allowlisted Accessibility metadata
-- Depth 4 local OCR summary gate for allowlisted opaque apps
-- macOS Apple Vision OCR helper with Tesseract CLI fallback
+| Change | Why |
+| --- | --- |
+| Loopback-only dashboard, Host/Origin checks, API session token, asset allowlist | Prevent file traversal and untrusted requests from reaching local data or controls |
+| `open_event_store(db, config)` and encrypted learning text | Make encryption govern normal collection, reads, updates, and feedback |
+| Fixed encryption migration; missing keys fail closed | A setting is not protection if the next sample is plaintext |
+| Title source gated before extraction | Disabled collection must not leave a hidden derived-title path |
+| Full purge clears cards/feedback; retention invalidates cards | Derived memory must not survive full deletion |
+| Exports enforce unresolved privacy/wrong/stale feedback | A label must change behavior, not just a badge |
+| Explicit restriction resolution in UI/API/CLI | Restoring use is deliberate; a positive rating does not override privacy |
+| Suppressed aggregates omit topic labels and small support counts | A topic printed under 'withheld' was still disclosed |
+| Artifact/token evidence required for sphere merges | App/category agreement incorrectly joined unrelated projects |
+| Sphere seeds no longer contain the first event ID | Repeated artifact identity survives oldest-sample expiry |
+| Resume reports are descriptive, with exposure unknown | Calendar parity did not prove delivery or withholding |
+| Connector manifests included in wheels | Installed packages had zero connectors despite source tests passing |
+| Separate fleet/privacy connector renderers; immediate pack rebuild after restrictive feedback | A duplicate function stopped dashboard rendering, and stale UI could still display a previously ready pack |
+| Coverage labelled as a heuristic, not fidelity | The score is not calibrated twin accuracy |
 
-Important prior commits:
+## Runtime Contracts
 
-```text
-216dcca Deduplicate OCR permission diagnostics
-b46be96 Add local OCR summary gate
-8932bfc Add scheduled learning maintenance
-542c9d0 Add local learning mode
-```
+- Use `open_event_store` for runtime event access. Direct `EventStore(..., cipher=...)` is for migration/tests; health may read timing-only summaries without decryption.
+- Pass `config=config` to runtime `LearningStore` calls.
+- Stored-context exports must call `build_context_pack(..., db_path=db)`. Pure synthetic callers can supply explicit `feedback`. Every production export path supplies its database.
+- Unresolved legacy privacy labels with broken identity links block conservatively until reviewed. Do not remove this fallback just to make a pack ready.
+- Resolve a reviewed restriction with `digital-twin-sensor feedback resolve --feedback-id ID` or Learning > Resolve restriction. Resolution is timestamped.
+- The page supplies an ephemeral `X-DTS-Token` through the JS API helper. A dashboard restart requires a page reload. Remote binding is unsupported.
+- Full purge deletes events, cards, and feedback for the subject. Retention removes old events and cached cards but keeps feedback restrictions so expiry cannot weaken consent. Exported copies cannot be recalled.
+- Encryption remains optional and partial: timing, app/domain/subject, linkage, and feedback labels remain readable. Key-file fallback is weaker than the OS keychain.
+- The graph, DTS, spheres, and query ranker are separate derivations. Packs currently use spheres; graph benefit needs an ablation.
 
-## Privacy Rules That Must Not Be Broken
-
-Do not store:
-
-- keystrokes
-- clipboard contents
-- microphone input
-- camera frames
-- persisted screenshots
-- browser cookies
-- passwords, tokens, secrets
-- raw browser URL paths, queries, or fragments by default
-- raw event uploads by default
-
-OCR is allowed only as a local, explicit, allowlisted fallback at Depth 4. The helper may create a temporary screenshot file, runs local OCR, deletes the file immediately, and stores only redacted text hints, summary, confidence, provider name, and redaction findings.
-
-## Architecture Map
-
-Core files:
-
-- `digital_twin_sensor/collectors/macos_active_window.py`: main collection path
-- `digital_twin_sensor/collectors/browser_tab.py`: Safari/Chrome metadata
-- `digital_twin_sensor/collectors/accessibility_surface.py`: Depth 3 UI labels
-- `digital_twin_sensor/collectors/local_ocr.py`: Depth 4 OCR summary gate
-- `helpers/macos-window-probe.swift`: active app/window helper
-- `helpers/macos-ocr-probe.swift`: Apple Vision/Tesseract OCR helper
-- `digital_twin_sensor/redaction.py`: PII/secret masking
-- `digital_twin_sensor/store.py`: SQLite ledger
-- `digital_twin_sensor/twin.py`: Digital Twin Signature
-- `digital_twin_sensor/context_graph.py`: graph builder
-- `digital_twin_sensor/working_spheres.py`: interrupted-work clustering
-- `digital_twin_sensor/context_pack.py`: Memory Admission Gate and exports
-- `digital_twin_sensor/learning.py`: feedback labels and context cards
-- `digital_twin_sensor/health.py`: Product Doctor and research/product gaps
-- `digital_twin_sensor/web.py`: local API and dashboard payloads
-- `digital_twin_sensor/ui_static/`: dashboard HTML/CSS/JS
-
-Pipeline:
-
-```text
-Collect -> Redact -> Store -> Signature -> Context Graph -> Working Spheres -> Admission Gate -> Context Pack -> Feedback Labels -> Context Cards
-```
-
-## Run And Validate
-
-Local developer run:
+## Verify
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[encrypted]"
-digital-twin-sensor init
-digital-twin-sensor configure --depth 4 --ocr-surface-details on --ocr-app "Ibo Pro Player"
-digital-twin-sensor ui
-```
-
-Background services:
-
-```bash
-scripts/install_launch_agent.sh
-scripts/install_dashboard_agent.sh
-scripts/install_watchdog_agent.sh
-scripts/install_learning_agent.sh
-digital-twin-sensor doctor
-```
-
-Tests:
-
-```bash
 python -m unittest discover -s tests
-python -m compileall digital_twin_sensor
+python -m digital_twin_sensor harness --baseline harness/baseline.json --format markdown
 node --check digital_twin_sensor/ui_static/app.js
-swiftc helpers/macos-ocr-probe.swift -o /tmp/macos-ocr-probe-test
+node --test tests/dashboard_ui.test.cjs
+python -m compileall -q digital_twin_sensor
 git diff --check
 ```
 
-Current expected suite size: 65 tests.
+Build a wheel, install it outside the checkout, and run `scripts/check_installed_package.py`. Source imports do not verify distribution contents. Final results are recorded in the release note.
 
-## Best Next Build
+The collector/dashboard/watchdog/learning LaunchAgents share `~/.digital-twin-sensor/venv`. Reinstall once and restart services; avoid concurrent installers. Preserve depth and privacy settings. Never broaden capture to pass a test.
 
-Build **Structured App Connectors v1** so OCR is used less often.
+## Next Build: Reliable Task Resumption
 
-Priority adapters:
+1. Introduce observation, inference, and confirmed-outcome types with evidence, validity dates, and correction history. Foreground presence does not prove attention or progress.
+2. Add coarse coverage states: permitted, unavailable, paused, failed, expired. Missing observation does not prove neglected work.
+3. Persist task membership and split/merge corrections. Current deterministic identity stabilizes repeated artifact seeds, not arbitrary regrouping or renames.
+4. Show last confirmed state, changes since the last visit, unresolved question, and supporting evidence. Current generic next-action templates are guesses.
+5. Build prospective assignment and actual pack-delivery/exposure logging with a separately validated progress endpoint. Historical resume reports must remain non-comparative.
+6. Compare against no context, recent activity, and query-only retrieval at fixed model/context budgets. Tune routing only after suitable held-out outcome data exists.
 
-1. Ibo Pro Player connector
-   - Goal: exact media title, module/lesson, playback state, timestamp, channel/course if exposed.
-   - Preferred source order: native app API if any, Accessibility labels, OCR fallback.
-   - Store: title/module/timestamp/state summary only, redacted.
+X-SYNTH inspires attention-informed relevance and feedback attribution. This repo implements heuristics and feedback records, not the paper's trained router or reproduced results. A candidate extension is reasoning under permission-limited, incomplete, correctable observation. Novelty and benefit remain unproven.
 
-2. Git/Kiro/Codex work connector
-   - Goal: current repo, branch, changed-file count, active task/artifact.
-   - Store: repo name, branch, relative file names, diff stats, no source file bodies by default.
+## Privacy And Writing
 
-3. Browser page semantics connector
-   - Goal: page title, domain, canonical page type, top headings for allowlisted domains.
-   - Store: title/domain/headings only; URL path/query remains off by default unless explicitly enabled.
+No keystrokes, clipboard, camera, microphone, cookies, credentials, or raw cloud traces. Preserve explicit browser/Accessibility/OCR controls. OCR currently uses a transient image file; do not claim it never captures pixels or that crash cleanup is proven. Never publish local traces, settings, or keys.
 
-4. Evaluation harness
-   - Add task-resume experiments measuring useful evidence rate, stale evidence rate, privacy leak rate, and time to resume.
-   - Use labels from `context_feedback` as the first dataset.
-
-## Paper Framing
-
-Use this claim:
-
-```text
-Device-native attention traces can improve agent handoff when transformed into privacy-gated context graphs, working spheres, and summary-only context packs.
-```
-
-Do not claim:
-
-- the system is a complete human digital twin
-- attention proves causality
-- the router is learned like X-SYNTH
-- OCR sees everything inside apps
-- raw data is needed for useful context
-
-## Claude Prompt
-
-```text
-You are helping continue the Digital Twin Sensor repo at https://github.com/gagans23/digital-twin-sensor.
-
-Read README.md, SECURITY_PRIVACY.md, docs/UNDER_THE_HOOD.md, docs/RESEARCH_AND_EVALUATION.md, and docs/CLAUDE_HANDOVER.md first.
-
-Your job is to build Structured App Connectors v1 without weakening privacy. Start with Ibo Pro Player, then Git/Kiro/Codex context, then browser page semantics. Preserve the collection-depth model:
-
-Depth 1 = active app/title/dwell
-Depth 2 = browser tab title/domain
-Depth 3 = allowlisted Accessibility labels
-Depth 4 = local OCR summaries only when structured metadata is empty
-
-Never store keystrokes, clipboard, microphone, camera, persisted screenshots, cookies, credentials, or raw URL paths/queries by default. Add tests, update docs, run the full validation suite, and keep the dashboard clear about what was collected, masked, denied, and inferred.
-```
+The user prefers plain, specific, human prose. Explain what happened, why, and what remains unknown. Avoid polished launch slogans and unsupported claims. Keep this handover and the build log current.

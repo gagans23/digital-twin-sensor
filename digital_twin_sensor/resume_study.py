@@ -17,11 +17,9 @@ and derives, without any extra tooling or self-reporting:
                    at least `substantive_seconds`, so a glance at a window that
                    is immediately abandoned does not count as resuming work
 
-Condition assignment is deterministic and recorded per event: alternating
-day-length blocks, derived from the ordinal date, so which condition applied on
-a given day cannot be chosen after seeing the result. The operator still knows
-which block they are in — a tool you can see cannot be blinded — and that
-confound is reported in the output rather than buried.
+This is a descriptive instrument only. It has no prospective assignment or
+pack-exposure ledger. Historical dates cannot establish whether a pack was
+delivered, withheld, or used. Reports never infer a treatment comparison.
 
 Everything runs locally against the existing store. Nothing new is collected,
 nothing leaves the machine.
@@ -46,7 +44,7 @@ DEFAULT_SUBSTANTIVE_SECONDS = 60.0
 # Blocks alternate every N days so both conditions see the same weekday mix
 # over a fortnight.
 DEFAULT_BLOCK_DAYS = 1
-# Below this, report the distribution but refuse to compare conditions.
+# Retained for callers planning a future prospective protocol, not an effect gate.
 MIN_EVENTS_PER_CONDITION = 10
 
 
@@ -128,7 +126,7 @@ def assign_condition(moment: datetime, block_days: int = DEFAULT_BLOCK_DAYS) -> 
     """Deterministic from the date alone, so a block cannot be reassigned after
     the fact to flatter a result."""
     block = moment.toordinal() // max(1, block_days)
-    return "pack_available" if block % 2 == 0 else "pack_withheld"
+    return "calendar_even" if block % 2 == 0 else "calendar_odd"
 
 
 def _cluster_key(event: dict[str, Any]) -> str:
@@ -229,6 +227,21 @@ def find_resume_events(
         current = runs[index]
 
         if current.start - previous.end < gap:
+            if previous.dwell >= substantive_seconds and current.cluster != previous.cluster:
+                returned = next((offset for offset in range(index + 1, len(runs))
+                                 if runs[offset].cluster == previous.cluster and runs[offset].dwell >= substantive_seconds), None)
+                if returned is not None and runs[returned].start - current.start >= gap:
+                    interruptions += 1
+                    anchored += 1
+                    resumes.append(ResumeEvent(
+                        interrupted_at=previous.end.isoformat(), resumed_at=runs[returned].start.isoformat(),
+                        resume_seconds=(runs[returned].start - current.start).total_seconds(),
+                        gap_seconds=(runs[returned].start - previous.end).total_seconds(),
+                        artifact=previous.artifact, app=previous.app,
+                        condition="exposure_unknown", day=current.start.date().isoformat(),
+                    ))
+                    index = returned + 1
+                    continue
             index += 1
             continue
 
@@ -268,7 +281,7 @@ def find_resume_events(
                 gap_seconds=(current.start - previous.end).total_seconds(),
                 artifact=anchor.artifact,
                 app=anchor.app,
-                condition=assign_condition(current.start, block_days),
+                condition="exposure_unknown",
                 day=current.start.date().isoformat(),
             )
         )
@@ -301,7 +314,7 @@ def run_resume_study(
         diagnostics=diagnostics,
     )
 
-    by_condition: dict[str, list[float]] = {"pack_available": [], "pack_withheld": []}
+    by_condition: dict[str, list[float]] = {"exposure_unknown": []}
     for resume in resumes:
         by_condition[resume.condition].append(resume.resume_seconds)
 
@@ -309,6 +322,8 @@ def run_resume_study(
     conditions = {name: describe(values) for name, values in by_condition.items()}
 
     caveats = [
+        "No prospective assignment or pack exposure was recorded. This report is descriptive; no treatment comparison is valid.",
+        "Return delay measures observable activity, not productive resumption or a confirmed outcome.",
         "Single subject, single machine: this is a case study, not a trial.",
         "The operator can see which condition they are in. A tool you can look at "
         "cannot be blinded, and this confound does not shrink with sample size.",
@@ -316,28 +331,8 @@ def run_resume_study(
         "is a proxy for an interruption and will miscount an unattended machine.",
     ]
 
-    comparable = all(
-        conditions[name].n >= MIN_EVENTS_PER_CONDITION for name in ("pack_available", "pack_withheld")
-    )
-    if not comparable:
-        caveats.insert(
-            0,
-            f"Fewer than {MIN_EVENTS_PER_CONDITION} resume events in at least one "
-            "condition. The distributions are reported; the comparison is not, "
-            "because it would not mean anything yet.",
-        )
-
+    comparable = False
     difference = None
-    if comparable:
-        available = conditions["pack_available"].median
-        withheld = conditions["pack_withheld"].median
-        if available is not None and withheld is not None:
-            difference = {
-                "median_delta_seconds": round(available - withheld, 1),
-                "direction": "faster with pack" if available < withheld else "slower with pack",
-                "note": "A median difference on one subject is a signal to investigate, "
-                "never a result to publish as an effect.",
-            }
 
     # A zero has to say why it is a zero. The first real run of this study
     # found nothing across 11,783 events and reported it as an empty table,
@@ -385,6 +380,8 @@ def run_resume_study(
         "conditions": {name: dist.to_dict() for name, dist in conditions.items()},
         "comparison": difference,
         "comparable": comparable,
+        "study_mode": "descriptive_only",
+        "exposure_verified": False,
         "caveats": caveats,
         "events": [r.to_dict() for r in resumes],
     }
@@ -436,7 +433,7 @@ def format_resume_study_markdown(report: dict[str, Any]) -> str:
             report["comparison"]["note"],
         ]
     elif not report["comparable"]:
-        lines += ["", "**No comparison reported** — not enough resume events yet."]
+        lines += ["", "**No comparison reported**: pack exposure was not recorded. More historical events cannot establish it."]
 
     lines += ["", "## What this cannot tell you", ""]
     lines += [f"- {item}" for item in report["caveats"]]

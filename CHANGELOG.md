@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### August 31 Hardening
+
+- Fixed dashboard traversal and added session/Host/Origin checks; remote binding is refused.
+- Connected encryption to runtime event and learning paths and repaired migration.
+- Enforced title-source permissions, derived-memory purge, feedback export restrictions, and explicit resolution.
+- Removed suppressed topic disclosure and corrected broad sphere merging and repeated-artifact identity.
+- Included connector manifests in wheels and added installed-package verification.
+- Historical resume analysis is now descriptive only: calendar parity is not observed treatment exposure. This supersedes the alternating-condition claim below.
+- Added 17 integrated regression tests and refreshed the Claude handover.
+
 ### Added
 
 - architecture decision records (`docs/adr/`) — ten decisions with what drove

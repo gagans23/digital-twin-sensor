@@ -18,7 +18,7 @@ from .health import build_health_report, format_health_report, run_watchdog
 from .learning import FEEDBACK_LABELS, LearningStore, build_learning_state
 from .query import format_retrieval, retrieve
 from .redaction import redact_text
-from .store import EventStore, utc_now
+from .store import EventStore, open_event_store, utc_now
 from .twin import build_digital_twin_signature
 from .web import run_dashboard
 from .working_spheres import build_working_spheres
@@ -39,7 +39,8 @@ def _toggle(value: str) -> bool:
 
 def cmd_init(args: argparse.Namespace) -> int:
     config_path = ensure_config(args.config)
-    store = EventStore(args.db)
+    config = load_config(config_path)
+    store = open_event_store(args.db, config)
     store.close()
     print(f"Config: {config_path}")
     print(f"Database: {args.db}")
@@ -53,7 +54,7 @@ def cmd_collect_once(args: argparse.Namespace) -> int:
     if event is None:
         print("Ignored current app according to config.")
         return 0
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     event_id = store.insert_event(event)
     store.close()
     print(f"Stored event {event_id}: {event['app']} | {event['artifact']} | {event['domain']}")
@@ -63,13 +64,16 @@ def cmd_collect_once(args: argparse.Namespace) -> int:
 def cmd_run(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     interval = args.interval or int(config.get("sample_interval_seconds", 15))
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     print(f"Collecting active-window attention every {interval}s. Press Ctrl-C to stop.")
     paused_logged = False
     try:
         while True:
             try:
                 config = load_config(args.config)
+                if bool(store.cipher) != bool(config.get("encrypt_at_rest", False)):
+                    store.close()
+                    store = open_event_store(args.db, config)
                 interval = args.interval or int(config.get("sample_interval_seconds", 15))
                 if config.get("collection_paused", False):
                     if args.verbose and not paused_logged:
@@ -117,7 +121,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
 def cmd_profile(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.long_days)
     store.close()
     profile = build_digital_twin_signature(
@@ -132,7 +136,7 @@ def cmd_profile(args: argparse.Namespace) -> int:
 def cmd_query(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.days)
     store.close()
 
@@ -148,7 +152,7 @@ def cmd_query(args: argparse.Namespace) -> int:
 def cmd_graph(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.days)
     store.close()
     graph = build_context_graph(
@@ -165,7 +169,7 @@ def cmd_graph(args: argparse.Namespace) -> int:
 def cmd_activities(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.days)
     store.close()
     activities = build_working_spheres(
@@ -264,7 +268,7 @@ def cmd_configure(args: argparse.Namespace) -> int:
 def cmd_fleet(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.days)
     total_count = store.count_events(subject_id=subject_id)
     store.close()
@@ -315,7 +319,7 @@ def cmd_watchdog(args: argparse.Namespace) -> int:
 def cmd_export(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.days)
     store.close()
     print(json.dumps(events, indent=2))
@@ -325,7 +329,8 @@ def cmd_export(args: argparse.Namespace) -> int:
 def cmd_context_pack(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    config = {**config, "subject_id": subject_id}
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.days)
     store.close()
     pack = build_context_pack(
@@ -336,6 +341,7 @@ def cmd_context_pack(args: argparse.Namespace) -> int:
         target=args.target,
         sphere_id=args.sphere_id,
         max_events=args.max_events,
+        db_path=args.db,
     )
     payload = (
         pack.get("export", {}).get("markdown", "")
@@ -355,8 +361,12 @@ def cmd_context_pack(args: argparse.Namespace) -> int:
 def cmd_feedback(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = LearningStore(args.db)
+    store = LearningStore(args.db, config=config)
     try:
+        if args.feedback_command == "resolve":
+            resolved = store.resolve_feedback(subject_id=subject_id, feedback_id=args.feedback_id)
+            print(json.dumps({"resolved": resolved}))
+            return 0 if resolved else 1
         if args.feedback_command == "add":
             feedback = store.add_feedback(
                 subject_id=subject_id,
@@ -384,7 +394,7 @@ def cmd_feedback(args: argparse.Namespace) -> int:
 def cmd_learning(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.days)
     store.close()
     state = build_learning_state(
@@ -421,7 +431,8 @@ def cmd_learning(args: argparse.Namespace) -> int:
 def cmd_maintain_learning(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
+    store.delete_before(subject_id=subject_id, cutoff=utc_now() - timedelta(days=max(1, int(config.get("retention_days", 30)))))
     events = store.fetch_window(subject_id=subject_id, days=args.days)
     store.close()
     state = build_learning_state(
@@ -448,7 +459,7 @@ def cmd_maintain_learning(args: argparse.Namespace) -> int:
 def cmd_redact_existing(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     events = store.fetch_window(subject_id=subject_id, days=args.days)
 
     changed = 0
@@ -488,7 +499,7 @@ def cmd_purge(args: argparse.Namespace) -> int:
 
     config = load_config(args.config)
     subject_id = args.subject_id or config["subject_id"]
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     try:
         if args.all:
             deleted = store.delete_all(subject_id=subject_id)
@@ -563,7 +574,7 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
         bundles = payload if isinstance(payload, list) else payload.get("bundles", [])
     else:
         config = load_config(args.config)
-        store = EventStore(args.db)
+        store = open_event_store(args.db, config)
         try:
             events = store.fetch_window(
                 subject_id=args.subject_id or config["subject_id"], days=args.days
@@ -597,7 +608,7 @@ def cmd_resume_study(args: argparse.Namespace) -> int:
     from .resume_study import format_resume_study_markdown, run_resume_study  # noqa: PLC0415
 
     config = load_config(args.config)
-    store = EventStore(args.db)
+    store = open_event_store(args.db, config)
     try:
         events = store.fetch_window(
             subject_id=args.subject_id or config["subject_id"], days=args.days
@@ -647,30 +658,30 @@ def cmd_encrypt_store(args: argparse.Namespace) -> int:
         encrypt_event,
         key_file_path,
         load_or_create_key,
+        load_existing_key,
     )
 
     config = load_config(args.config)
+    if args.status:
+        store = open_event_store(args.db, config)
+        try:
+            print(json.dumps({"encrypt_at_rest": bool(config.get("encrypt_at_rest", False)),
+                              "events": store.count_events(), "key_created": False,
+                              "encrypted_fields": ["title", "artifact", "metadata", "learning text"],
+                              "not_encrypted": ["timestamps", "app", "domain", "subject_id", "feedback labels"]}, indent=2))
+        finally:
+            store.close()
+        return 0
     try:
-        key, origin = load_or_create_key(args.db)
+        key, origin = (load_existing_key(args.db) if config.get("encrypt_at_rest") else load_or_create_key(args.db))
+        cipher = FieldCipher(key)
     except CryptoUnavailable as exc:
         print(str(exc), file=sys.stderr)
         return 2
 
-    cipher = FieldCipher(key)
     store = EventStore(args.db, cipher=cipher)
     try:
         total = store.count_events()
-        if args.status:
-            print(json.dumps({
-                "encrypt_at_rest": bool(config.get("encrypt_at_rest", False)),
-                "key_source": origin,
-                "key_file": str(key_file_path(args.db)),
-                "events": total,
-                "encrypted_fields": ["title", "artifact", "metadata"],
-                "not_encrypted": ["ts_start", "ts_end", "dwell_seconds", "domain", "app", "subject_id"],
-            }, indent=2))
-            return 0
-
         if origin.endswith("key file") or origin.endswith("key file (created)"):
             print(
                 f"WARNING: the key is in {key_file_path(args.db)}, not the OS keychain. "
@@ -678,16 +689,26 @@ def cmd_encrypt_store(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
 
+        # Enable first: concurrent collectors must encrypt new rows throughout
+        # migration. A partial migration remains readable and can be resumed.
+        config["encrypt_at_rest"] = True
+        write_config(config, args.config)
+        store.conn.execute("UPDATE storage_policy SET encryption_required = 1 WHERE id = 1")
+        store.conn.commit()
         migrated = 0
         for event in store.fetch_events():
             enc = encrypt_event(event, cipher)
             if enc.get("title") != event.get("title"):
                 store.update_event_text(
-                    event["id"], title=enc["title"], artifact=enc["artifact"]
+                    event["id"], title=enc["title"], artifact=enc["artifact"], metadata=enc["metadata"]
                 )
                 migrated += 1
-        config["encrypt_at_rest"] = True
-        write_config(config, args.config)
+        learning = LearningStore(args.db, cipher=cipher)
+        try:
+            learning.migrate_encryption()
+        finally:
+            learning.close()
+        store.conn.execute("VACUUM")
         print(f"encryption enabled · key from {origin} · {migrated}/{total} rows migrated")
         print("Reads stay correct during a partial migration: rows written before "
               "encryption decrypt to themselves.")
@@ -834,6 +855,10 @@ def build_parser() -> argparse.ArgumentParser:
     feedback_list.add_argument("--subject-id", default=None)
     feedback_list.add_argument("--limit", type=int, default=50)
     feedback_list.set_defaults(func=cmd_feedback)
+    feedback_resolve = feedback_sub.add_parser("resolve", help="Explicitly resolve a reviewed feedback restriction.")
+    feedback_resolve.add_argument("--subject-id", default=None)
+    feedback_resolve.add_argument("--feedback-id", type=int, required=True)
+    feedback_resolve.set_defaults(func=cmd_feedback)
 
     learning = sub.add_parser("learning", help="Show evolving context cards and feedback-learning state.")
     learning.add_argument("--subject-id", default=None)

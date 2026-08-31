@@ -24,8 +24,8 @@ nothing, so trust is a security control here, not a nice-to-have.
 ## Adversaries, and what each one gets
 
 **1. Thief with the disk.** Reads `work.sqlite` directly. Without the `encrypted`
-extra they get redacted titles and full timing metadata. With it, titles,
-artefacts and metadata are AES-256-GCM ciphertext, and they still get `ts_start`,
+extra and explicit encryption enablement they get redacted titles and full timing metadata. When enabled, event titles,
+artefacts, metadata, learning-card text and feedback notes are AES-256-GCM ciphertext, and they still get `ts_start`,
 `ts_end`, `dwell_seconds`, `domain`, `app` and `subject_id` — enough to
 reconstruct *when* someone worked, in which application, and for how long.
 That is a real disclosure and ADR 0010 explains why the boundary sits there.
@@ -50,14 +50,14 @@ operator can be turned into a productivity surveillance system by whoever
 controls its configuration. The mitigations are structural rather than
 cryptographic: collection depth is visible in the dashboard to the person being
 observed, the gate's decisions and exclusions are inspectable by them, pause and
-purge are local and immediate, and the aggregation floor means team summaries
-cannot resolve to an individual. None of this survives a determined employer with
+purge are local controls, and the aggregation floor suppresses small themes but does not
+guarantee anonymity. None of this survives a determined employer with
 root on the machine, and the documentation should not pretend otherwise.
 
 **5. The re-identifier.** Receives aggregated themes and tries to attribute them
 to a person. Countered by the count-based k-anonymity floor (ADR 0007): themes
-below `min_subjects` are withheld and counted, and `subject_key` is an opaque
-`sha256[:12]` that does not resolve through the export. A determined adversary
+below `min_subjects` have their label and support count withheld. `subject_key` is an unsalted
+`sha256[:12]` pseudonym, vulnerable to guessing when subject identifiers are known. A determined adversary
 with side knowledge of team composition can still narrow a theme; k-anonymity is
 a floor, not a guarantee, and a differential-privacy layer would be the upgrade.
 
@@ -69,8 +69,8 @@ should be treated as such.
 
 ## What is out of scope, deliberately
 
-- Keystrokes, screenshots and clipboard are never collected, so no threat here
-  concerns them (ADR 0002).
+- Keystrokes and clipboard are not collected. Opt-in OCR uses transient screenshots;
+  cleanup after crashes needs further testing, so screen capture is not out of scope.
 - Network exfiltration by other software on the machine.
 - An attacker with root, or with the user's login session.
 - Anything the OS itself already logs.
@@ -78,7 +78,7 @@ should be treated as such.
 ## Assumptions redaction makes
 
 Redaction is pattern matching, and pattern matching has a recall below one. It
-runs before storage (ADR 0003) so failures destroy signal rather than leak it,
+runs before storage (ADR 0003); false positives destroy signal and false negatives can leak it,
 and the patterns cover emails, phone numbers, national IDs, Luhn-valid card
 numbers, IPs, URLs beyond host, and prefixed secrets. It does **not** understand
 semantics: a client name that is not in `name_terms_to_mask` and looks like an

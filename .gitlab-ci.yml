@@ -6,12 +6,19 @@ unit_tests:
   stage: test
   script:
     - python -m pip install --upgrade pip
-    - python -m pip install -e .
+    - python -m pip install -e ".[encrypted]"
     - python -m unittest discover -s tests
     - python -m compileall digital_twin_sensor
     # Longer soak than the in-suite default, so CI explores inputs the
     # committed seed does not reach.
     - FUZZ_ITERATIONS=5000 python -m unittest tests.test_fuzz_leak_gate
+
+dashboard_ui:
+  image: node:22-slim
+  stage: test
+  script:
+    - node --check digital_twin_sensor/ui_static/app.js
+    - node --test tests/dashboard_ui.test.cjs
 
 package_smoke:
   image: python:3.11-slim
@@ -19,6 +26,9 @@ package_smoke:
   script:
     - python -m pip install --upgrade pip build
     - python -m build
+    - python -m pip install dist/*.whl
+    - cd /tmp
+    - python "$CI_PROJECT_DIR/scripts/check_installed_package.py"
   artifacts:
     when: always
     paths:

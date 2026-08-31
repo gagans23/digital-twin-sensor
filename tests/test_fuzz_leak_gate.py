@@ -210,7 +210,7 @@ class ExportPropertyTests(unittest.TestCase):
                 events,
                 CONFIG,
                 days=14,
-                purpose="operations",
+                purpose="agent_prompt",
                 target="kiro",
                 activities=activities,
             )
@@ -233,7 +233,7 @@ class ExportPropertyTests(unittest.TestCase):
 
         activities = build_working_spheres(events, CONFIG, days=14)
         pack = build_context_pack(
-            events, CONFIG, days=14, purpose="operations", target="kiro", activities=activities
+            events, CONFIG, days=14, purpose="agent_prompt", target="kiro", activities=activities
         )
         denied = {
             d["field"]

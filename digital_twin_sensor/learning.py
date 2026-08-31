@@ -9,7 +9,7 @@ from typing import Any
 
 from .context_pack import _stable_key
 from .redaction import redact_text
-from .store import DEFAULT_DB_PATH, filter_window, parse_dt, utc_now
+from .store import DEFAULT_DB_PATH, assert_encrypted_write, filter_window, parse_dt, utc_now
 from .working_spheres import build_working_spheres
 
 
@@ -92,19 +92,62 @@ def normalize_scope(scope: str) -> str:
 
 
 class LearningStore:
-    def __init__(self, db_path: Path = DEFAULT_DB_PATH):
+    def __init__(self, db_path: Path = DEFAULT_DB_PATH, *, config: dict[str, Any] | None = None, cipher: Any = None):
+        from .crypto import cipher_for_config
+
+        self.cipher = cipher if cipher is not None else cipher_for_config(db_path, config or {})
         self.db_path = Path(db_path).expanduser()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path)
+        self.conn.execute("PRAGMA secure_delete = ON")
         self.conn.row_factory = sqlite3.Row
         self.init_db()
 
     def init_db(self) -> None:
         self.conn.executescript(LEARNING_SCHEMA)
+        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(context_feedback)")}
+        if "resolved_at" not in columns:
+            self.conn.execute("ALTER TABLE context_feedback ADD COLUMN resolved_at TEXT")
         self.conn.commit()
+
+    def resolve_feedback(self, *, subject_id: str, feedback_id: int) -> bool:
+        cur = self.conn.execute(
+            "UPDATE context_feedback SET resolved_at = ? WHERE subject_id = ? AND id = ? AND resolved_at IS NULL",
+            (utc_now().isoformat(), subject_id, feedback_id),
+        )
+        self.conn.commit()
+        return bool(cur.rowcount)
 
     def close(self) -> None:
         self.conn.close()
+
+    def _seal(self, value: str) -> str:
+        return self.cipher.encrypt(value) if self.cipher else value
+
+    def _open_fields(self, item: dict[str, Any]) -> dict[str, Any]:
+        if self.cipher:
+            for key, value in item.items():
+                if isinstance(value, str):
+                    item[key] = self.cipher.decrypt(value)
+        return item
+
+    def migrate_encryption(self) -> int:
+        if self.cipher is None:
+            raise ValueError("Migration requires an encryption key")
+        tables = {
+            "context_feedback": ["note", "metadata_json"],
+            "context_cards": ["title", "summary", "labels_json", "evidence_json", "open_questions_json", "next_actions_json"],
+        }
+        changed = 0
+        with self.conn:
+            for table, fields in tables.items():
+                for row in self.conn.execute(f"SELECT * FROM {table}").fetchall():
+                    values = [self._seal(row[field]) for field in fields]
+                    if values != [row[field] for field in fields]:
+                        assignments = ", ".join(f"{field} = ?" for field in fields)
+                        self.conn.execute(f"UPDATE {table} SET {assignments} WHERE id = ?", [*values, row["id"]])
+                        changed += 1
+        return changed
 
     def add_feedback(
         self,
@@ -121,6 +164,7 @@ class LearningStore:
         note: str = "",
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        assert_encrypted_write(self.conn, self.cipher)
         if not pack_id:
             raise ValueError("pack_id is required")
         label_key = normalize_label(label)
@@ -147,9 +191,9 @@ class LearningStore:
                 label_key,
                 purpose,
                 target,
-                redacted_note,
+                self._seal(redacted_note),
                 created_at,
-                json.dumps(metadata or {}, sort_keys=True),
+                self._seal(json.dumps(metadata or {}, sort_keys=True)),
             ),
         )
         self.conn.commit()
@@ -192,7 +236,7 @@ class LearningStore:
         return [self._feedback_row(row) for row in rows]
 
     def _feedback_row(self, row: sqlite3.Row) -> dict[str, Any]:
-        item = dict(row)
+        item = self._open_fields(dict(row))
         try:
             item["metadata"] = json.loads(item.pop("metadata_json") or "{}")
         except json.JSONDecodeError:
@@ -201,6 +245,7 @@ class LearningStore:
         return item
 
     def upsert_cards(self, cards: list[dict[str, Any]]) -> None:
+        assert_encrypted_write(self.conn, self.cipher)
         for card in cards:
             self.conn.execute(
                 """
@@ -234,8 +279,8 @@ class LearningStore:
                     card["id"],
                     card["subject_id"],
                     card["sphere_id"],
-                    card["title"],
-                    card["summary"],
+                    self._seal(card["title"]),
+                    self._seal(card["summary"]),
                     card["status"],
                     card["sensitivity"],
                     float(card["confidence"]),
@@ -244,10 +289,10 @@ class LearningStore:
                     int(card["issue_count"]),
                     int(card["stale_count"]),
                     int(card["privacy_count"]),
-                    json.dumps(card["labels"], sort_keys=True),
-                    json.dumps(card["evidence"], sort_keys=True),
-                    json.dumps(card["open_questions"], sort_keys=True),
-                    json.dumps(card["next_actions"], sort_keys=True),
+                    self._seal(json.dumps(card["labels"], sort_keys=True)),
+                    self._seal(json.dumps(card["evidence"], sort_keys=True)),
+                    self._seal(json.dumps(card["open_questions"], sort_keys=True)),
+                    self._seal(json.dumps(card["next_actions"], sort_keys=True)),
                     card.get("first_seen"),
                     card.get("last_seen"),
                     card["updated_at"],
@@ -268,7 +313,7 @@ class LearningStore:
         return [self._card_row(row) for row in rows]
 
     def _card_row(self, row: sqlite3.Row) -> dict[str, Any]:
-        item = dict(row)
+        item = self._open_fields(dict(row))
         for key, default in [
             ("labels_json", {}),
             ("evidence_json", []),
@@ -286,6 +331,8 @@ class LearningStore:
 def _feedback_by_sphere(feedback: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for item in feedback:
+        if item.get("resolved_at"):
+            continue
         sphere_id = item.get("sphere_id")
         if sphere_id:
             grouped[sphere_id].append(item)
@@ -416,7 +463,7 @@ def build_learning_state(
     max_cards: int = 12,
 ) -> dict[str, Any]:
     events = filter_window(events, days)
-    store = LearningStore(db_path)
+    store = LearningStore(db_path, config=config)
     try:
         feedback = store.feedback_for_subject(subject_id=subject_id)
         cards = build_context_cards(
@@ -427,6 +474,7 @@ def build_learning_state(
             days=days,
             max_cards=max_cards,
         )
+        store.conn.execute("DELETE FROM context_cards WHERE subject_id = ?", (subject_id,))
         store.upsert_cards(cards)
         cards = store.list_cards(subject_id=subject_id, limit=max_cards)
         recent_feedback = store.list_feedback(subject_id=subject_id, limit=20)
@@ -465,7 +513,7 @@ def build_learning_state(
             {
                 "name": "Apply feedback labels",
                 "status": "complete" if total else "ready",
-                "detail": f"{total} local labels available for routing and memory-quality decisions.",
+                "detail": f"{total} local labels recorded; privacy, wrong, and stale restrictions are enforced on stored-context exports.",
             },
             {
                 "name": "Tune retrieval policy",

@@ -1,6 +1,14 @@
 # API Reference
 
-The local dashboard server binds to `127.0.0.1` by default.
+The local dashboard server accepts loopback bindings only. Every API request requires the per-process `X-DTS-Token` header; the local HTML page bootstraps it for the dashboard. Host and Origin checks reject cross-origin requests. This is a local browser boundary, not multi-user authentication or protection from processes running as you.
+
+For scripted calls, load the token without printing or committing it:
+
+```bash
+export DTS_TOKEN="$(curl -fsS http://127.0.0.1:8765/ | sed -n 's/.*name="dts-session-token" content="\([^"]*\)".*/\1/p')"
+```
+
+The token changes when the server restarts. Reload the dashboard after upgrades.
 
 ```bash
 digital-twin-sensor ui --no-open --port 8765
@@ -26,7 +34,7 @@ Query parameters:
 Example:
 
 ```bash
-curl 'http://127.0.0.1:8765/api/overview?days=14&limit=20'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" 'http://127.0.0.1:8765/api/overview?days=14&limit=20'
 ```
 
 ## GET /api/health
@@ -36,7 +44,7 @@ Returns product doctor output: service state, sample freshness, permission postu
 Example:
 
 ```bash
-curl 'http://127.0.0.1:8765/api/health'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" 'http://127.0.0.1:8765/api/health'
 ```
 
 ## GET /api/context-pack
@@ -48,7 +56,7 @@ Query parameters:
 | Name | Default | Description |
 | --- | --- | --- |
 | `days` | `14` | Event window |
-| `purpose` | `coding` | Purpose for the Memory Admission Gate |
+| `purpose` | `coding` | Recognized purpose for the Memory Admission Gate; empty or unknown values return HTTP 400 |
 | `target` | `kiro` | Export target, such as `kiro`, `codex`, `gitlab`, or `local_file` |
 | `sphere_id` | empty | Optional working-sphere id |
 | `max_events` | `8` | Maximum admitted evidence events |
@@ -56,7 +64,7 @@ Query parameters:
 Example:
 
 ```bash
-curl 'http://127.0.0.1:8765/api/context-pack?target=gitlab&purpose=gitlab'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" 'http://127.0.0.1:8765/api/context-pack?target=gitlab&purpose=coding'
 ```
 
 ## GET /api/learning
@@ -73,7 +81,7 @@ Query parameters:
 Example:
 
 ```bash
-curl 'http://127.0.0.1:8765/api/learning?days=14'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" 'http://127.0.0.1:8765/api/learning?days=14'
 ```
 
 ## POST /api/feedback
@@ -83,10 +91,14 @@ Stores a redacted local feedback label for a pack, sphere, or evidence item.
 Example:
 
 ```bash
-curl -X POST 'http://127.0.0.1:8765/api/feedback' \
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" -X POST 'http://127.0.0.1:8765/api/feedback' \
   -H 'Content-Type: application/json' \
   -d '{"pack_id":"pack_xxx","sphere_id":"sphere_xxx","scope":"pack","label":"useful"}'
 ```
+
+## POST /api/feedback/resolve
+
+Resolves one restriction for the configured subject. Send JSON `{"feedback_id":123}`. Unresolved `too_private`, `wrong`, and `stale` feedback blocks matching packs across targets. Resolution is explicit and does not delete the feedback history. Successful resolution permits rebuilding a pack; other restrictions may still block it.
 
 ## GET /api/query
 
@@ -103,7 +115,7 @@ Query parameters:
 Example:
 
 ```bash
-curl 'http://127.0.0.1:8765/api/query?q=what%20did%20I%20return%20to'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" 'http://127.0.0.1:8765/api/query?q=what%20did%20I%20return%20to'
 ```
 
 ## GET /api/fleet
@@ -111,7 +123,7 @@ curl 'http://127.0.0.1:8765/api/query?q=what%20did%20I%20return%20to'
 Returns local endpoint posture, active policy, connector inventory, and summary-sync readiness.
 
 ```bash
-curl 'http://127.0.0.1:8765/api/fleet'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" 'http://127.0.0.1:8765/api/fleet'
 ```
 
 ## POST /api/collect-once
@@ -119,7 +131,7 @@ curl 'http://127.0.0.1:8765/api/fleet'
 Collects one foreground sample unless collection is paused or the current app is ignored.
 
 ```bash
-curl -X POST 'http://127.0.0.1:8765/api/collect-once'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" -X POST 'http://127.0.0.1:8765/api/collect-once'
 ```
 
 ## POST /api/admin/watchdog
@@ -127,7 +139,7 @@ curl -X POST 'http://127.0.0.1:8765/api/collect-once'
 Runs a local self-heal check and restarts stale services when needed.
 
 ```bash
-curl -X POST 'http://127.0.0.1:8765/api/admin/watchdog'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" -X POST 'http://127.0.0.1:8765/api/admin/watchdog'
 ```
 
 ## POST /api/admin/pause
@@ -135,7 +147,7 @@ curl -X POST 'http://127.0.0.1:8765/api/admin/watchdog'
 Pauses collection without uninstalling services.
 
 ```bash
-curl -X POST 'http://127.0.0.1:8765/api/admin/pause'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" -X POST 'http://127.0.0.1:8765/api/admin/pause'
 ```
 
 ## POST /api/admin/resume
@@ -143,7 +155,7 @@ curl -X POST 'http://127.0.0.1:8765/api/admin/pause'
 Resumes collection.
 
 ```bash
-curl -X POST 'http://127.0.0.1:8765/api/admin/resume'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" -X POST 'http://127.0.0.1:8765/api/admin/resume'
 ```
 
 ## POST /api/admin/purge-retention
@@ -151,11 +163,11 @@ curl -X POST 'http://127.0.0.1:8765/api/admin/resume'
 Deletes events older than the configured retention window. This endpoint requires a confirmation query parameter.
 
 ```bash
-curl -X POST 'http://127.0.0.1:8765/api/admin/purge-retention?confirm=purge-retention'
+curl -H 'X-DTS-Token: '"$DTS_TOKEN" -X POST 'http://127.0.0.1:8765/api/admin/purge-retention?confirm=purge-retention'
 ```
 
 ## Security Notes
 
 - The API is intended for local use only.
-- It has no authentication layer yet.
-- Do not bind it to a public interface without TLS, authentication, audit logs, consent workflows, and retention controls.
+- All API reads and writes require the local session header.
+- Remote bindings are rejected. A future remote service needs separate identity, authorization, TLS, audit, and consent design.

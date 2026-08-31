@@ -66,7 +66,11 @@ function showToast(message) {
 }
 
 async function getJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const token = document.querySelector('meta[name="dts-session-token"]')?.content || "";
+  const response = await fetch(url, {
+    ...options,
+    headers: { ...options.headers, "X-DTS-Token": token },
+  });
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.error || `Request failed: ${response.status}`);
@@ -148,7 +152,7 @@ function renderTwinExperience(overview) {
   $("twinNarrative").textContent = sphere
     ? `${sphere.label} is the strongest live sphere, grounded by ${fmtCompact(overview.totals.events_in_window)} recent samples and ${fmtCompact(graphStats.node_count || 0)} context nodes.`
     : `The twin is waiting for enough non-system focus signal in the selected ${overview.days}-day window.`;
-  $("twinFidelityBadge").textContent = `${fidelity}%`;
+  $("twinFidelityBadge").textContent = `${fidelity}/100`;
   $("twinActiveSphereBadge").textContent = sphere ? sphere.state : "none";
   $("twinPrivacyBadge").textContent = pack.status === "ready" ? `${pack.admission?.counts?.deny || 0} denied` : pack.status || "empty";
   $("focusGate").textContent = pack.status === "ready" ? "summary-only" : pack.status || "gate";
@@ -242,7 +246,7 @@ function renderFabricLanes(overview, fidelity) {
     },
     {
       name: "Simulate",
-      value: `${fidelity}% fidelity`,
+      value: `${fidelity}/100 coverage`,
       detail: `${pack.status || "empty"} pack, ${fmtCompact(pack.admission?.counts?.deny || 0)} denied fields`,
       score: fidelity / 100,
     },
@@ -264,7 +268,7 @@ function renderTwinVitals(overview, extras) {
   const pack = overview.context_pack || {};
   const graphStats = overview.context_graph?.stats || {};
   const vitals = [
-    ["Fidelity", `${extras.fidelity}%`, "fit between recent signals, graph, recency, and governance"],
+    ["Coverage", `${extras.fidelity}/100`, "heuristic score; not measured twin accuracy"],
     ["Graph load", `${fmtCompact(graphStats.node_count || 0)} / ${fmtCompact(graphStats.edge_count || 0)}`, "nodes and relationships in the work graph"],
     ["Private signals", fmtCompact(extras.privateSignals || 0), "masked, generalized, or withheld graph elements"],
     ["Pack gate", pack.status || "empty", `${fmtCompact(pack.admission?.counts?.deny || 0)} denied, ${fmtCompact(pack.admission?.counts?.summarize || 0)} summarized`],
@@ -686,7 +690,7 @@ function drawTwinMap(overview) {
   ctx.textBaseline = "middle";
   ctx.fillText("YOU", cx, cy - 6);
   ctx.font = "700 10px Inter, system-ui, sans-serif";
-  ctx.fillText(`${twinFidelityScore(overview)}% twin`, cx, cy + 13);
+  ctx.fillText(`${twinFidelityScore(overview)}/100 coverage`, cx, cy + 13);
 
   const legendX = compact ? 14 : width - 185;
   const legendY = compact ? 22 : 28;
@@ -865,7 +869,7 @@ function renderFleet(fleet) {
     renderFleetStats(null);
     renderDevices([]);
     renderPolicy(null);
-    renderConnectors([]);
+    renderFleetConnectors([]);
     renderReadiness([]);
     renderPortability([]);
     renderAdminActions([]);
@@ -877,7 +881,7 @@ function renderFleet(fleet) {
   renderFleetStats(fleet);
   renderDevices(fleet.devices || []);
   renderPolicy(fleet.active_policy || {});
-  renderConnectors(fleet.connectors || []);
+  renderFleetConnectors(fleet.connectors || []);
   renderReadiness(fleet.sync_readiness || []);
   renderPortability(fleet.portability || []);
   renderAdminActions(fleet.admin_actions || []);
@@ -963,7 +967,7 @@ function renderPolicy(policy) {
   `;
 }
 
-function renderConnectors(items) {
+function renderFleetConnectors(items) {
   renderStatusList("connectorList", items, "connector-item");
 }
 
@@ -1121,7 +1125,7 @@ function renderPackSummary(pack) {
   const root = $("packSummary");
   if (!root) return;
   if (!pack || pack.status !== "ready") {
-    const reason = pack?.admission?.target_reason || pack?.selection_reason || "No exportable sphere in this window.";
+    const reason = pack?.selection_reason || pack?.admission?.target_reason || "No exportable sphere in this window.";
     root.innerHTML = `<div class="empty">${escapeHtml(reason)}</div>`;
     return;
   }
@@ -1214,7 +1218,7 @@ function renderPackFeedback(pack) {
       <button type="button" data-label="too_private">Too private</button>
       <button type="button" data-label="missing_context">Missing</button>
     </div>
-    <p class="learning-note">Labels stay local and train the memory gate separately from raw event capture.</p>
+    <p class="learning-note">Feedback stays local. Privacy, wrong, and stale flags restrict future packs; automatic model training is not enabled.</p>
   `;
 }
 
@@ -1269,9 +1273,10 @@ function renderLearning(learning) {
               <span>${escapeHtml(item.scope)} · ${escapeHtml(item.target)} · ${fmtTime(item.created_at)}</span>
             </div>
             <p>${escapeHtml(item.note || item.pack_id)}</p>
+            ${item.resolved_at ? `<span class="status-badge">Resolved</span>` : ["too_private", "wrong", "stale"].includes(item.label) ? `<button type="button" data-request-resolution>Resolve restriction</button><span hidden>Allow matching context again? <button type="button" data-resolve-feedback="${Number(item.id)}">Confirm resolution</button> <button type="button" data-cancel-resolution>Cancel</button></span>` : ""}
           </article>
         `).join("")
-      : `<div class="empty">No labels yet. Use the Context Packs tab to teach the gate.</div>`;
+      : `<div class="empty">No feedback recorded.</div>`;
   }
 
   const cardsRoot = $("contextCards");
@@ -1299,7 +1304,7 @@ function renderLearning(learning) {
                 <span class="status-badge ${learningTone(card.status)}">${escapeHtml(card.status)}</span>
               </div>
               <div class="context-card-metrics">
-                <div><b>${Math.round((card.confidence || 0) * 100)}%</b><span>confidence</span></div>
+                <div><b>${Math.round((card.confidence || 0) * 100)}</b><span>heuristic score / 100</span></div>
                 <div><b>${fmtCompact(card.evidence_count || 0)}</b><span>events</span></div>
                 <div><b>${fmtCompact(card.useful_count || 0)}</b><span>useful</span></div>
                 <div><b>${fmtCompact(card.issue_count || 0)}</b><span>issues</span></div>
@@ -1333,6 +1338,9 @@ async function submitLearningFeedback(label, scope = "pack", evidenceKey = null)
   });
   state.learning = await getJson(`/api/learning?days=${state.days}`);
   renderLearning(state.learning);
+  if (["too_private", "wrong", "stale"].includes(label)) {
+    await buildContextPack();
+  }
   showToast(`Learning label stored: ${label.replaceAll("_", " ")}`);
 }
 
@@ -2380,6 +2388,31 @@ function bindUi() {
   });
 
   $("copyPackBtn").addEventListener("click", copyContextPack);
+  $("recentFeedback")?.addEventListener("click", async (event) => {
+    const request = event.target.closest("button[data-request-resolution]");
+    if (request) {
+      request.hidden = true;
+      request.nextElementSibling.hidden = false;
+      return;
+    }
+    const cancel = event.target.closest("button[data-cancel-resolution]");
+    if (cancel) {
+      cancel.parentElement.hidden = true;
+      cancel.parentElement.previousElementSibling.hidden = false;
+      return;
+    }
+    const button = event.target.closest("button[data-resolve-feedback]");
+    if (!button) return;
+    button.disabled = true;
+    try {
+      await postJson("/api/feedback/resolve", { feedback_id: Number(button.dataset.resolveFeedback) });
+      await refresh();
+      showToast("Restriction resolved");
+    } catch (error) {
+      showToast(error.message);
+      button.disabled = false;
+    }
+  });
 
   const packFeedback = $("packFeedback");
   if (packFeedback) {

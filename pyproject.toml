@@ -34,4 +34,4 @@ where = ["."]
 include = ["digital_twin_sensor*"]
 
 [tool.setuptools.package-data]
-digital_twin_sensor = ["ui_static/*"]
+digital_twin_sensor = ["ui_static/*", "connectors/manifests/*.json"]

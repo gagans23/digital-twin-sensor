@@ -1,5 +1,20 @@
 # Product Build Log
 
+## 2026-08-31: Hardening After Critical Review
+
+1. Reproduced privacy, lifecycle, packaging, grouping, and study failures using synthetic fixtures at `53f4e94`.
+2. Connected encryption to runtime paths; fixed migration; encrypted learning text and made missing keys fail closed.
+3. Restricted dashboard hosts, origins, API sessions, and static assets; kept remote binding disabled.
+4. Enforced title-source permissions, full deletion of derived memory, and feedback restrictions at export.
+5. Removed suppressed topic disclosure, required artifact evidence for grouping, and stabilized repeated artifact seeds.
+6. Removed unsupported treatment comparisons from the resume report and added sustained task-detour detection.
+7. Added 18 integrated regression tests, bringing the Python suite to 152, plus four dependency-free JavaScript regressions. Existing harness cases pass without baseline drift. Browser testing found and fixed a duplicate connector renderer that interrupted dashboard refresh.
+8. Replaced the stale Claude handover and added root `CLAUDE.md`; documented reasons, runtime contracts, and the next task-resume milestone.
+
+Packaging, UI, and live verification are recorded in `docs/HARDENING_2026_08_31.md`.
+
+The next build is evidence-backed task resumption, not broader collection. No productivity effect or complete enterprise readiness is claimed.
+
 Build date: 2026-08-29
 
 This log records the step-by-step product hardening pass that moved the prototype from a local research demo toward an always-on personal context product.

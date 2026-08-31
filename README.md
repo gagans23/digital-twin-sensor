@@ -1,5 +1,7 @@
 # Digital Twin Sensor
 
+**31 August hardening update:** [What changed and what remains unproven](docs/HARDENING_2026_08_31.md) | [Claude handover](docs/CLAUDE_HANDOVER.md).
+
 **A local-first, privacy-gated context sensor for personal and enterprise context engineering.**
 
 ![MIT licence](https://img.shields.io/badge/licence-MIT-B98A2F)
@@ -24,7 +26,7 @@ It is inspired by X-SYNTH, context-engineering and agent-memory research, but it
 
 ![Digital Twin Sensor architecture](docs/assets/architecture.svg)
 
-Every box runs locally. The only thing that crosses a boundary is a context pack a gate has already approved. The sensor stays useful with the network off — that is a design constraint, not a limitation. An endpoint that degrades when disconnected gets uninstalled by exactly the people whose knowledge you most need.
+Every box runs locally. Agent handoff packs pass through the admission gate. The explicit local `export` command is a separate audit export of stored event records and should not be shared as an agent pack. The sensor remains useful with the network off.
 
 ---
 
@@ -105,9 +107,9 @@ Full policy: [COLLECTION_DEPTH_AND_REDACTION.md](COLLECTION_DEPTH_AND_REDACTION.
 | Collected by default | Never collected |
 | --- | --- |
 | active application | keystrokes |
-| redacted window title | clipboard contents |
+| redacted window title, if enabled | clipboard contents |
 | timestamp and dwell time | microphone / camera |
-| derived work domain | raw screenshots or video |
+| derived work domain | continuous screen recording or video |
 | app-switching sequence | browser cookies |
 | graph / sphere / pack metadata | passwords or tokens |
 | Depth 4 redacted OCR text hints, if explicitly enabled | persisted screenshots |
@@ -209,7 +211,7 @@ digital-twin-sensor synthesize --min-subjects 5
 | coding — gateway logic payments   |        7 |     70 |   7.0 |      0.805 |
 
 ## Withheld
-- finance — filing personal return — below aggregation floor (2/5 subjects)
+- Topic withheld: below aggregation floor (minimum 5 subjects).
 ```
 
 This is what makes anything above a single team defensible, and it has to exist *before*

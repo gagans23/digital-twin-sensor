@@ -14,11 +14,11 @@ It collects:
 It does not collect:
 
 - keystrokes
-- screenshots
+- continuous screen recording or retained screenshot archives (opt-in OCR uses transient screenshots)
 - clipboard contents
 - microphone or camera input
 - browser cookies
-- passwords or tokens
+- intentional credential or token collection; pattern redaction is not a guarantee that every secret is caught
 
 Sensitive titles are redacted by keyword before storage when `redact_sensitive_titles` is enabled.
 
@@ -46,7 +46,9 @@ Data is stored locally by default:
 ~/.digital-twin-sensor/config.json
 ```
 
-The dashboard launched by `digital-twin-sensor ui` binds to `127.0.0.1` by default, so it is intended for local inspection on your machine. Do not expose it on a public network unless you first add authentication, transport security, retention controls, and explicit consent workflows.
+The dashboard launched by `digital-twin-sensor ui` only accepts loopback bindings. APIs require a per-process session header and check Host/Origin. This is not enterprise authentication and does not protect against another process running as your user.
+
+Optional encryption must be explicitly enabled with the encryption extra installed and `encrypt-store`; installing the extra alone does not enable it. Event text/metadata and learning-card text/feedback notes are encrypted. Timing, app, domain, subject/linkage identifiers, and feedback labels remain readable. Missing keys fail closed. Full purge removes local subject events, cached cards, and feedback; retention invalidates cached cards while preserving feedback restrictions. Exports and backups are not erased by database purge.
 
 The Product Doctor and watchdog check operational metadata only: service state, process id, last exit code, sample freshness, configured privacy flags, database presence, OCR provider posture, and macOS permission posture. They do not inspect persisted screenshots, keystrokes, clipboard content, microphone input, camera input, cookies, credentials, or raw document bodies.
 

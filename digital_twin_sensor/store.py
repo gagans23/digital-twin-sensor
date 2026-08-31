@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -10,6 +11,11 @@ from .config import DEFAULT_DB_PATH
 
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS storage_policy (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  encryption_required INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO storage_policy(id, encryption_required) VALUES(1, 0);
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   subject_id TEXT NOT NULL,
@@ -65,6 +71,18 @@ def filter_window(events: list[dict[str, Any]], days: int) -> list[dict[str, Any
     return kept
 
 
+def assert_encrypted_write(conn, cipher) -> None:
+    exists = conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'storage_policy'").fetchone()
+    if exists and conn.execute("SELECT encryption_required FROM storage_policy WHERE id = 1").fetchone()[0] and cipher is None:
+        raise RuntimeError("This database requires encryption; reload its policy and key before writing")
+
+
+def open_event_store(db_path: Path, config: dict[str, Any]):
+    from .crypto import cipher_for_config
+
+    return EventStore(db_path, cipher=cipher_for_config(db_path, config))
+
+
 class EventStore:
     def __init__(self, db_path: Path = DEFAULT_DB_PATH, *, cipher: Any = None):
         """`cipher` is a crypto.FieldCipher, or None for a plaintext store.
@@ -75,6 +93,8 @@ class EventStore:
         self.db_path = Path(db_path).expanduser()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path)
+        os.chmod(self.db_path, 0o600)
+        self.conn.execute("PRAGMA secure_delete = ON")
         self.conn.row_factory = sqlite3.Row
         self.cipher = cipher
         self.init_db()
@@ -87,6 +107,7 @@ class EventStore:
         self.conn.close()
 
     def insert_event(self, event: dict[str, Any]) -> int:
+        assert_encrypted_write(self.conn, self.cipher)
         if self.cipher is not None:
             from .crypto import encrypt_event  # noqa: PLC0415
 
@@ -214,16 +235,33 @@ class EventStore:
             )
         else:
             cur = self.conn.execute("DELETE FROM events WHERE ts_start < ?", (cutoff.isoformat(),))
+        deleted = int(cur.rowcount)
+        if deleted:
+            self._clear_derived_memory(subject_id)
         self.conn.commit()
-        return int(cur.rowcount)
+        return deleted
 
     def delete_all(self, *, subject_id: str | None = None) -> int:
         if subject_id:
             cur = self.conn.execute("DELETE FROM events WHERE subject_id = ?", (subject_id,))
         else:
             cur = self.conn.execute("DELETE FROM events")
+        deleted = int(cur.rowcount)
+        self._clear_derived_memory(subject_id, clear_feedback=True)
         self.conn.commit()
-        return int(cur.rowcount)
+        return deleted
+
+    def _clear_derived_memory(self, subject_id: str | None, *, clear_feedback: bool = False) -> None:
+        # Until every derived field has source lineage, discard cached cards on
+        # retention. Keep active restrictions so retention cannot weaken consent.
+        tables = {row[0] for row in self.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        names = ["context_cards"] + (["context_feedback"] if clear_feedback else [])
+        for name in names:
+            if name in tables:
+                if subject_id:
+                    self.conn.execute(f"DELETE FROM {name} WHERE subject_id = ?", (subject_id,))
+                else:
+                    self.conn.execute(f"DELETE FROM {name}")
 
     def update_event_text(
         self,
@@ -233,12 +271,18 @@ class EventStore:
         artifact: str,
         metadata: dict[str, Any],
     ) -> None:
+        assert_encrypted_write(self.conn, self.cipher)
+        if self.cipher is not None:
+            from .crypto import encrypt_event
+
+            encrypted = encrypt_event({"title": title, "artifact": artifact, "metadata": metadata}, self.cipher)
+            title, artifact, metadata = encrypted["title"], encrypted["artifact"], encrypted["metadata"]
         self.conn.execute(
             """
             UPDATE events
             SET title = ?, artifact = ?, metadata_json = ?
             WHERE id = ?
             """,
-            (title, artifact, json.dumps(metadata, sort_keys=True), event_id),
+            (title, artifact, metadata if isinstance(metadata, str) else json.dumps(metadata, sort_keys=True), event_id),
         )
         self.conn.commit()

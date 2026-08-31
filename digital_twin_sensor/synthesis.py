@@ -37,7 +37,7 @@ TOKEN_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9-]{2,}")
 
 
 def subject_key(value: str) -> str:
-    """Opaque, stable, non-reversible. Synthesis never needs the real identity."""
+    """Stable pseudonym, not anonymization: low-entropy inputs are guessable."""
     return "subj_" + hashlib.sha256(str(value).encode("utf-8")).hexdigest()[:12]
 
 
@@ -113,6 +113,8 @@ def synthesize_collective(
         seen_subjects.add(key)
         activities = bundle.get("activities") or {}
         for sphere in activities.get("spheres", []) or []:
+            if sphere.get("sensitivity") == "high" or sphere.get("gate_mode", "allowed") != "allowed":
+                continue
             theme = _theme_key(sphere)
             bucket = grouped[theme]
             bucket["subjects"].add(key)
@@ -131,9 +133,7 @@ def synthesize_collective(
         if support < min_subjects:
             withheld.append(
                 {
-                    "theme": _readable(theme_key_value),
                     "reason": "below aggregation floor",
-                    "subjects": support,
                     "required": min_subjects,
                 }
             )
@@ -216,7 +216,6 @@ def format_synthesis_markdown(result: dict[str, Any]) -> str:
         lines += ["", "## Withheld", ""]
         for item in result["withheld"]:
             lines.append(
-                f"- **{item['theme']}** — {item['reason']} "
-                f"({item['subjects']}/{item['required']} subjects)"
+                f"- Topic withheld: {item['reason']} (minimum {item['required']} subjects)."
             )
     return "\n".join(lines) + "\n"

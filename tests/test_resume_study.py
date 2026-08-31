@@ -132,7 +132,7 @@ class StudyReportTests(unittest.TestCase):
         )
         self.assertFalse(report["comparable"])
         self.assertIsNone(report["comparison"])
-        self.assertIn("would not mean anything yet", " ".join(report["caveats"]))
+        self.assertIn("no treatment comparison is valid", " ".join(report["caveats"]))
 
     def test_reports_distributions_even_when_it_will_not_compare(self):
         report = run_resume_study(
@@ -150,7 +150,7 @@ class StudyReportTests(unittest.TestCase):
         self.assertIn("Task-resume study", rendered)
         self.assertIn("No comparison reported", rendered)
 
-    def test_comparison_appears_once_both_conditions_are_populated(self):
+    def test_large_trace_without_exposure_never_produces_comparison(self):
         events = []
         for day in range(24):  # 24 days, alternating blocks
             for block in range(3):
@@ -159,11 +159,10 @@ class StudyReportTests(unittest.TestCase):
                 events.append(event(offset + 60, "slack"))
                 events.append(event(offset + 75, f"m{day}.py"))
         report = run_resume_study(events, days=3650)
-        self.assertGreaterEqual(report["conditions"]["pack_available"]["n"], MIN_EVENTS_PER_CONDITION)
-        self.assertGreaterEqual(report["conditions"]["pack_withheld"]["n"], MIN_EVENTS_PER_CONDITION)
-        self.assertTrue(report["comparable"])
-        self.assertIsNotNone(report["comparison"])
-        self.assertIn("never a result to publish", report["comparison"]["note"])
+        self.assertGreaterEqual(report["conditions"]["exposure_unknown"]["n"], MIN_EVENTS_PER_CONDITION)
+        self.assertFalse(report["comparable"])
+        self.assertFalse(report["exposure_verified"])
+        self.assertIsNone(report["comparison"])
 
 
 if __name__ == "__main__":

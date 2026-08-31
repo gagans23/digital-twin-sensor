@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta name="dts-session-token" content="__DTS_SESSION_TOKEN__">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Digital Twin Console</title>
     <link rel="stylesheet" href="/assets/app.css">
@@ -63,7 +64,7 @@
                 <h2 id="twinHeroTitle"><span id="twinName">User Twin</span></h2>
                 <p id="twinNarrative" class="twin-narrative">Building the local context model from redacted activity signals.</p>
                 <div class="twin-badges" aria-label="Twin health indicators">
-                  <div><span>Fidelity</span><b id="twinFidelityBadge">0%</b></div>
+                  <div title="Heuristic signal coverage, not measured twin accuracy"><span>Coverage</span><b id="twinFidelityBadge">0/100</b></div>
                   <div><span>Active sphere</span><b id="twinActiveSphereBadge">none</b></div>
                   <div><span>Privacy gate</span><b id="twinPrivacyBadge">checking</b></div>
                 </div>

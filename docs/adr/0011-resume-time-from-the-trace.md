@@ -1,6 +1,8 @@
 # 0011 — Measure resume time from the trace, and refuse to compare a thin sample
 
-**Status:** Accepted
+**Status:** Partially superseded on 31 August 2026.
+
+The calendar-parity treatment assignment and comparison described below were not backed by recorded pack exposure. They have been removed. Current reports describe trace-derived returns only, including continuous detours, with `exposure_verified=false` and no treatment comparison regardless of sample size. See `../HARDENING_2026_08_31.md`. The original rationale remains below as history, not the current experimental contract.
 
 ## Context
 

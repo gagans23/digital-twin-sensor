@@ -104,8 +104,34 @@ def _store_in_keyring(key: bytes) -> bool:
         return False
 
 
+def load_existing_key(db_path: Path) -> tuple[bytes, str]:
+    """An enabled store must never silently create a replacement key."""
+    path = key_file_path(db_path)
+    if path.exists():
+        try:
+            key = base64.b64decode(path.read_text(encoding="utf-8").strip(), validate=True)
+        except (ValueError, OSError) as exc:
+            raise KeyUnavailable(f"key file {path} cannot be read") from exc
+        if len(key) != KEY_BYTES:
+            raise KeyUnavailable(f"key file {path} is malformed")
+        return key, "key file"
+    existing = _load_from_keyring()
+    if existing and len(existing) == KEY_BYTES:
+        return existing, "keychain"
+    raise KeyUnavailable("Encryption is enabled but its key is unavailable; storage is closed.")
+
+
+def cipher_for_config(db_path: Path, config: dict[str, Any]):
+    if not config.get("encrypt_at_rest", False):
+        return None
+    key, _ = load_existing_key(db_path)
+    return FieldCipher(key)
+
+
 def load_or_create_key(db_path: Path) -> tuple[bytes, str]:
     """Return (key, where_it_came_from). Creates one on first use."""
+    if key_file_path(db_path).exists():
+        return load_existing_key(db_path)
     existing = _load_from_keyring()
     if existing and len(existing) == KEY_BYTES:
         return existing, "keychain"
@@ -122,8 +148,9 @@ def load_or_create_key(db_path: Path) -> tuple[bytes, str]:
         return key, "keychain (created)"
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(base64.b64encode(key).decode(), encoding="utf-8")
-    os.chmod(path, 0o600)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        stream.write(base64.b64encode(key).decode())
     return key, "key file (created)"
 
 
