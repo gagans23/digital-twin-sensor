@@ -8,7 +8,15 @@
 - Added session request/display acknowledgement and separate self-reported outcomes, without treatment comparison or a productivity claim.
 - Integrated new records with optional encryption migration and conservative purge/retention cleanup.
 - Added conflicting-edit protection, in-page draft preservation, privacy-block clearing, and responsive layouts.
-- Added 17 Python regressions and three JavaScript regressions; updated Claude handover and workflow documentation.
+- Added explicit saved task identities over inferred activity groups, with versioned rename/link/unlink operations and no automatic merges.
+- Scope-stamped checkpoints and sessions are withheld after a split when they depended on a wider linked context; restrictions propagate across a linked identity.
+- Added 21 Python regressions and five JavaScript regressions; updated Claude handover and workflow documentation.
+
+### Operational Observability
+
+- Added fixed-schema operational logging and optional Opik export through a separate pinned SDK environment.
+- Added a loopback-only Opik Compose overlay, persistent local service manager, synthetic write/read verification, and cross-origin denial.
+- Verified continuous live export without inputs, outputs, captured content, old-local-history replay, or published data-service ports.
 
 ### August 31 Hardening
 

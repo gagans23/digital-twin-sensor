@@ -145,6 +145,27 @@
                 <h3 id="resumeHistoryTitle">Checkpoint history</h3>
                 <div id="resumeHistory"></div>
               </section>
+              <section class="resume-section" aria-labelledby="taskIdentityTitle">
+                <div class="resume-heading"><h3 id="taskIdentityTitle">Task identity</h3><span id="taskIdentityState" class="resume-type">Inferred group</span></div>
+                <p id="taskIdentityNote" class="resume-muted"></p>
+                <label for="taskIdentityName">Saved task name</label>
+                <input id="taskIdentityName" maxlength="160" autocomplete="off">
+                <div class="resume-form-actions">
+                  <button id="taskIdentitySave" class="tool-button" type="button">Save identity</button>
+                  <button id="taskIdentityDiscard" class="tool-button" type="button" hidden>Discard name</button>
+                </div>
+                <div id="taskIdentityLinker">
+                  <label for="taskIdentityTarget">Link this activity group to</label>
+                  <select id="taskIdentityTarget" aria-label="Saved task identity"></select>
+                  <button id="taskIdentityLink" class="tool-button" type="button">Link group</button>
+                </div>
+                <button id="taskIdentityUnlink" class="tool-button" type="button" hidden>Unlink activity group</button>
+                <div id="taskIdentityConfirm" class="obs-clear-confirm" hidden>
+                  <p>Unlink this group? Checkpoints created from a wider linked scope will be withheld after the split.</p>
+                  <button id="taskIdentityUnlinkYes" class="tool-button" type="button">Unlink group</button>
+                  <button id="taskIdentityUnlinkNo" class="tool-button" type="button">Cancel</button>
+                </div>
+              </section>
             </aside>
           </div>
         </section>

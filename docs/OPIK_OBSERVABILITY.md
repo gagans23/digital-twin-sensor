@@ -115,6 +115,38 @@ For self-hosting, follow the [official deployment guide](https://www.comet.com/d
 The documented local UI/API defaults are `http://localhost:5173` and
 `http://localhost:5173/api`; verify the address of your deployment.
 
+For a single-user local evaluation, this repository includes a hardened overlay
+for the official Compose stack:
+
+```bash
+python3 scripts/manage_local_opik.py start
+python3 scripts/manage_local_opik.py status
+```
+
+The manager checks out the tested upstream commit into
+`~/.digital-twin-sensor/services/opik`, copies private runtime configuration to
+`~/.digital-twin-sensor/services/opik-local`, and starts only the frontend plus
+its required services. Only `127.0.0.1:5173` is published. Backend, MySQL,
+ClickHouse, Redis, ZooKeeper, and MinIO remain on an internal Docker network.
+The overlay denies foreign Host/Origin and cross-site browser requests, disables
+Opik usage reporting, remote model registry, Opik AI, Ollie, and the Python
+evaluation backend, and gives services restart policies. Docker Desktop still
+needs to start after login. This is a local development deployment, not a
+multi-user production service or a substitute for authentication, backup,
+encryption-at-rest, or recovery testing.
+
+Verify persistence using synthetic data before connecting the live ledger:
+
+```bash
+~/.digital-twin-sensor/opik-venv/bin/python scripts/verify_local_opik.py
+```
+
+The verifier writes only `observability.test` and a blocked `context.pack` child,
+reads the trace back by ID, checks that input/output are absent, and applies the
+server's shortest supported project retention (`short_14d`). Repeated runs can
+create another retention rule; inspect the Opik project configuration if you
+change this policy.
+
 From this repository, create a separate worker environment:
 
 ```bash
@@ -166,7 +198,11 @@ diagnosis with a foreground run. This is not an enterprise service manager.
 digital-twin-sensor observability configure --mode off
 digital-twin-sensor observability purge
 python3 scripts/install_opik_agent.py --uninstall
+python3 scripts/manage_local_opik.py stop
 ```
+
+Stopping the local stack retains its named volumes. Removing remote traces or
+volumes is deliberately not bundled with routine shutdown.
 
 `authentication`: check the worker's key file and workspace. `transport`: check
 the API URL, DNS, server, and certificate chain. `server`/`rate_limited`: the
@@ -200,23 +236,30 @@ References: [SDK configuration](https://www.comet.com/docs/opik/tracing/advanced
 [Python client reference](https://www.comet.com/docs/opik/python-sdk-reference/Opik.html),
 [pinned package](https://pypi.org/project/opik/2.2.45/).
 
-## Release Verification, 31 August 2026
+## Release Verification, 1 September 2026
 
 - Rebased on main `1884cd4`; retained the concurrent aggregation work unchanged.
-- Python 3.9 regression suite: 209 tests, 205 passed, four SDK tests skipped.
+- Python regression suite: 213 tests passed, 19 optional tests skipped in the
+  base environment. The focused resume/hardening suite passed 40 tests with two
+  encryption-dependent skips.
 - Python 3.12 Opik suite: all 16 passed, including those four SDK tests. Repeated
   from outside the checkout against the installed wheel and dedicated worker.
-- JavaScript: all ten tests passed. Syntax, compilation, and diff checks passed.
+- JavaScript: all 12 tests passed. Syntax, compilation, and diff checks passed.
 - Context harness: all five scenarios passed, zero leakage canaries, no baseline
   regression. This is a small regression set, not a production privacy guarantee.
 - Installed wheel: connector and UI asset smoke passed. Desktop 1440px and mobile
   390px layouts checked; no document/text overflow. Recording, filtering, logging
   pause, and purge confirmation/cancellation exercised with synthetic data.
 - GitHub CI passed for implementation commit `6e33b00`, including the new SDK job.
-- Live sensor wheel updated, all four prior LaunchAgents restored, capture config
-  hash unchanged. Local-only logging enabled. Collection and learning operations
-  appeared in the operational log. No endpoint or external exporter service was
-  enabled, and no live workstation traces were sent to the test receiver.
-- Opik server persistence remains unverified: a destination/workspace still needs
-  approval. Docker was installed on this host but its daemon was not running;
-  no local Opik deployment was started.
+- Official Opik commit `c0e842537db5d57ef8ed890af38c6180445d667f`
+  runs locally with the repository overlay. Health, same-origin UI, and project
+  listing passed; an untrusted Origin received HTTP 403. Only frontend port
+  `127.0.0.1:5173` is published.
+- Synthetic export was accepted and read back by trace ID. The project uses
+  `short_14d` server retention. The live exporter LaunchAgent is running and
+  accepted continuous collection/learning traces without errors.
+- Server inspection found only fixed operation names, absent trace inputs and
+  outputs, and allowlisted metadata keys. More than 1,600 pre-existing local
+  records remained local and were not retroactively queued. This verifies the
+  tested host path, not production security, durable backup, or exactly-once
+  delivery.

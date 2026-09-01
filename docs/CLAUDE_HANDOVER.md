@@ -29,7 +29,7 @@ The review found integration failures: mechanisms existed but runtime paths bypa
 
 ## Runtime Contracts
 
-- Optional Opik instrumentation now exists. Read `OPIK_OBSERVABILITY.md` before extending it. The sensor only writes bounded, fixed-schema operational metadata; a separate Python 3.10+ worker uses the official pinned SDK. Do not add auto-captured arguments, outputs, raw errors, screen text, or entity IDs. No destination is inferred from ambient Opik settings. Local-only logs do not later become an export backlog. API acceptance is not verified persistence. Keep telemetry changes separate from changes to inference quality.
+- Optional Opik instrumentation now exists. Read `OPIK_OBSERVABILITY.md` before extending it. The sensor only writes bounded, fixed-schema operational metadata; a separate Python 3.10+ worker uses the official pinned SDK. Do not add auto-captured arguments, outputs, raw errors, screen text, or entity IDs. No destination is inferred from ambient Opik settings. Local-only logs do not later become an export backlog. Local persistence has been verified through the read API, but that does not prove backup, recovery, or production readiness. Keep telemetry changes separate from changes to inference quality.
 
 - Use `open_event_store` for runtime event access. Direct `EventStore(..., cipher=...)` is for migration/tests; health may read timing-only summaries without decryption.
 - Pass `config=config` to runtime `LearningStore` calls.
@@ -63,11 +63,11 @@ The collector/dashboard/watchdog/learning LaunchAgents share `~/.digital-twin-se
 
 The first vertical slice is now implemented. Read `RESUME_WORKFLOW.md` before extending it. `/api/resume` and the Resume my work view provide gated observations, separate inferred suggestions, redacted/versioned user checkpoints, and explicit request/display/self-reported-outcome records. No new capture permissions, model training, or causal comparison were added. The resume tables participate in encryption migration and purge/retention; session metadata is plaintext. Browser checks covered desktop/mobile and the main flow with synthetic data.
 
-The remaining work below is still open: durable task identity, complete source lineage, measured progress, and prospective experimental design. Do not mistake the new client display acknowledgement for proof of reading or the user outcome for independent productivity measurement.
+Durable task identity is now implemented as a user-confirmed alias layer over inferred spheres. Save/rename/link/unlink operations are explicit and revisioned; no automatic merge changes membership. Checkpoints and sessions are scope-stamped, and a split withholds records that depended on a wider linked scope. Privacy restrictions on any linked group restrict the entire saved identity. Retention expires bindings from observed `last_seen`, and full purge clears the identity tables. The remaining work is complete source lineage, measured progress, and prospective experimental design. Do not mistake display acknowledgement for proof of reading or a user outcome for independent productivity measurement.
 
 1. Introduce observation, inference, and confirmed-outcome types with evidence, validity dates, and correction history. Foreground presence does not prove attention or progress.
 2. Add coarse coverage states: permitted, unavailable, paused, failed, expired. Missing observation does not prove neglected work.
-3. Persist task membership and split/merge corrections. Current deterministic identity stabilizes repeated artifact seeds, not arbitrary regrouping or renames.
+3. Validate the explicit task identity model with real corrections. Measure mistaken-link rate, split recovery, and whether saved aliases remain understandable over retention windows.
 4. Show last confirmed state, changes since the last visit, unresolved question, and supporting evidence. Current generic next-action templates are guesses.
 5. Build prospective assignment and actual pack-delivery/exposure logging with a separately validated progress endpoint. Historical resume reports must remain non-comparative.
 6. Compare against no context, recent activity, and query-only retrieval at fixed model/context budgets. Tune routing only after suitable held-out outcome data exists.

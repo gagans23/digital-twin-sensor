@@ -3422,7 +3422,10 @@ tbody tr:last-child td {
 .resume-evidence span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
 #resumeFields { min-width: 0; padding: 0; margin: 0; border: 0; }
 #resume label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 8px; }
-#resume textarea { display: block; width: 100%; max-width: 100%; min-height: 70px; resize: vertical; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fafcfc; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.6; letter-spacing: 0; }
+#resume textarea, #taskIdentityName, #taskIdentityTarget { display: block; width: 100%; max-width: 100%; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fafcfc; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.6; letter-spacing: 0; }
+#resume textarea { min-height: 70px; resize: vertical; }
+#taskIdentityLinker, #taskIdentityUnlink { margin-top: 16px; }
+#taskIdentityConfirm { margin-top: 12px; }
 #resume :focus-visible { outline: 2px solid #087c85; outline-offset: 3px; }
 #resume .tool-button { white-space: normal; min-height: 40px; font-size: 13px; }
 .resume-form-actions { margin-top: 16px; }

@@ -99,6 +99,21 @@ CREATE TABLE IF NOT EXISTS resume_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_resume_session_subject_sphere
 ON resume_sessions(subject_id, sphere_id, created_at);
+
+CREATE TABLE IF NOT EXISTS task_identities (
+  id TEXT PRIMARY KEY, subject_id TEXT NOT NULL, name_json TEXT NOT NULL,
+  revision INTEGER NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS task_bindings (
+  subject_id TEXT NOT NULL, sphere_id TEXT NOT NULL, task_id TEXT NOT NULL,
+  last_seen TEXT NOT NULL, PRIMARY KEY(subject_id, sphere_id)
+);
+CREATE INDEX IF NOT EXISTS idx_task_binding_task ON task_bindings(subject_id, task_id);
+CREATE TABLE IF NOT EXISTS task_identity_edits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, subject_id TEXT NOT NULL,
+  task_id TEXT NOT NULL, sphere_id TEXT NOT NULL, action TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 """
 
 
@@ -133,6 +148,9 @@ class LearningStore:
         columns = {row[1] for row in self.conn.execute("PRAGMA table_info(context_feedback)")}
         if "resolved_at" not in columns:
             self.conn.execute("ALTER TABLE context_feedback ADD COLUMN resolved_at TEXT")
+        session_columns = {row[1] for row in self.conn.execute("PRAGMA table_info(resume_sessions)")}
+        if "scope_json" not in session_columns:
+            self.conn.execute("ALTER TABLE resume_sessions ADD COLUMN scope_json TEXT NOT NULL DEFAULT '[]'")
         self.conn.commit()
 
     def resolve_feedback(self, *, subject_id: str, feedback_id: int) -> bool:
@@ -163,6 +181,7 @@ class LearningStore:
             "context_feedback": ["note", "metadata_json"],
             "context_cards": ["title", "summary", "labels_json", "evidence_json", "open_questions_json", "next_actions_json"],
             "resume_checkpoints": ["payload_json"],
+            "task_identities": ["name_json"],
         }
         changed = 0
         with self.conn:

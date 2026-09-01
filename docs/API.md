@@ -22,7 +22,7 @@ http://127.0.0.1:8765
 
 ## Resume Workflow
 
-`GET /api/resume` returns the local gated resume view. `POST /api/resume` accepts checkpoint, start, shown, and outcome actions. These use the same session header and do not add checkpoint notes to agent exports. See [Resume My Work](RESUME_WORKFLOW.md) for schemas, conflict handling, retention, and evidence limits.
+`GET /api/resume` returns the local gated resume view, saved task identities, and the evidence scope admitted for the selected activity group. `POST /api/resume` accepts checkpoint, start, shown, outcome, save-task, link-task, and unlink-task actions. Identity-dependent writes carry a revision token. These use the same session header and do not add checkpoint notes to agent exports. See [Resume My Work](RESUME_WORKFLOW.md) for schemas, conflict handling, retention, and evidence limits.
 
 ## GET /api/overview
 

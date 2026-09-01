@@ -34,6 +34,21 @@ class ResumeWorkflowTests(SyntheticFixture):
     def start(self, request_id=None):
         return resume_action(self.db, self.cfg, dict(action="start", sphere_id=self.sphere, request_id=request_id or str(uuid4())))
 
+    def add_second_task(self):
+        store = EventStore(self.db)
+        store.insert_event(event(3, "Juniper video renderer", utc_now() - timedelta(minutes=1)))
+        store.close()
+        view = build_resume_view(self.db, self.cfg)
+        return next(item["id"] for item in view["tasks"] if item["id"] != self.sphere)
+
+    def save_identity(self, sphere=None, name="Gateway release"):
+        sphere = sphere or self.sphere
+        view = build_resume_view(self.db, self.cfg, sphere_id=sphere)
+        return resume_action(self.db, self.cfg, dict(
+            action="save_task", sphere_id=sphere, name=name,
+            identity_revision=view["identity"]["revision"] if view["identity"] else None,
+        ))
+
     def test_observation_does_not_become_confirmed_progress(self):
         self.assertEqual(self.view["status"], "ready")
         self.assertIsNone(self.view["checkpoint"])
@@ -90,6 +105,88 @@ class ResumeWorkflowTests(SyntheticFixture):
         self.assertEqual(other["status"], "empty")
         self.assertIsNone(other["checkpoint"])
 
+    def test_saved_identity_is_explicit_masked_and_revisioned(self):
+        saved = self.save_identity(name="Ask fixture.person@example.com about gateway")
+        view = build_resume_view(self.db, self.cfg, sphere_id=self.sphere)
+        self.assertEqual(view["identity"]["id"], saved["task_id"])
+        self.assertNotIn("fixture.person@example.com", view["identity"]["name"])
+        self.assertIn(view["identity"]["name"], view["tasks"][0]["title"])
+        self.assertNotIn(b"fixture.person@example.com", self.db.read_bytes())
+        with self.assertRaises(ResumeConflict):
+            resume_action(self.db, self.cfg, dict(
+                action="save_task", sphere_id=self.sphere, name="Stale rename", identity_revision=None,
+            ))
+        resume_action(self.db, self.cfg, dict(
+            action="save_task", sphere_id=self.sphere, name="Gateway release",
+            identity_revision=view["identity"]["revision"],
+        ))
+        store = LearningStore(self.db)
+        actions = [row[0] for row in store.conn.execute("SELECT action FROM task_identity_edits ORDER BY id")]
+        store.close()
+        self.assertEqual(actions, ["create_task", "rename_task"])
+
+    def test_link_and_split_withholds_wider_scope_checkpoint(self):
+        task_id = self.save_identity()["task_id"]
+        other_sphere = self.add_second_task()
+        target = build_resume_view(self.db, self.cfg, sphere_id=other_sphere)["saved_tasks"][0]
+        resume_action(self.db, self.cfg, dict(
+            action="link_task", sphere_id=other_sphere, task_id=task_id,
+            target_revision=target["revision"], identity_revision=None,
+        ))
+        linked = build_resume_view(self.db, self.cfg, sphere_id=other_sphere)
+        self.assertEqual(set(linked["context_scope"]), {self.sphere, other_sphere})
+        self.assertEqual({item["artifact"] for item in linked["observations"]},
+                         {"Synthetic gateway implementation", "Juniper video renderer"})
+        self.assertTrue(linked["pack_id"].startswith("resume_"))
+        resume_action(self.db, self.cfg, dict(
+            action="checkpoint", sphere_id=other_sphere, base_checkpoint_id=None,
+            identity_revision=linked["identity"]["revision"], state="Combined scope checkpoint",
+        ))
+        resume_action(self.db, self.cfg, dict(
+            action="unlink_task", sphere_id=other_sphere,
+            identity_revision=linked["identity"]["revision"],
+        ))
+        self.assertIsNone(build_resume_view(self.db, self.cfg, sphere_id=self.sphere)["checkpoint"])
+        self.assertIsNone(build_resume_view(self.db, self.cfg, sphere_id=other_sphere)["checkpoint"])
+
+    def test_linked_privacy_restriction_blocks_the_whole_saved_task(self):
+        task_id = self.save_identity()["task_id"]
+        other_sphere = self.add_second_task()
+        target = build_resume_view(self.db, self.cfg, sphere_id=other_sphere)["saved_tasks"][0]
+        resume_action(self.db, self.cfg, dict(
+            action="link_task", sphere_id=other_sphere, task_id=task_id,
+            target_revision=target["revision"], identity_revision=None,
+        ))
+        other = build_resume_view(self.db, self.cfg, sphere_id=other_sphere)
+        store = LearningStore(self.db)
+        store.add_feedback(subject_id=self.cfg["subject_id"], pack_id=other["pack_id"],
+                           sphere_id=other_sphere, label="too_private", config=self.cfg)
+        store.close()
+        for sphere in (self.sphere, other_sphere):
+            restricted = build_resume_view(self.db, self.cfg, sphere_id=sphere)
+            self.assertEqual(restricted["status"], "blocked")
+            self.assertEqual(restricted["identity"]["name"], "Restricted task")
+            self.assertEqual(restricted["observations"], [])
+
+    def test_linked_evidence_change_invalidates_session_retry(self):
+        task_id = self.save_identity()["task_id"]
+        other_sphere = self.add_second_task()
+        target = build_resume_view(self.db, self.cfg, sphere_id=other_sphere)["saved_tasks"][0]
+        resume_action(self.db, self.cfg, dict(
+            action="link_task", sphere_id=other_sphere, task_id=task_id,
+            target_revision=target["revision"], identity_revision=None,
+        ))
+        linked = build_resume_view(self.db, self.cfg, sphere_id=self.sphere)
+        request_id = str(uuid4())
+        payload = dict(action="start", sphere_id=self.sphere, request_id=request_id,
+                       identity_revision=linked["identity"]["revision"])
+        resume_action(self.db, self.cfg, payload)
+        store = EventStore(self.db)
+        store.insert_event(event(4, "Juniper video renderer", utc_now(), seconds=30))
+        store.close()
+        with self.assertRaises(ResumeConflict):
+            resume_action(self.db, self.cfg, payload)
+
     def test_pause_and_missing_samples_do_not_imply_no_work(self):
         self.cfg["collection_paused"] = True
         self.assertEqual(build_resume_view(self.db, self.cfg)["coverage"]["state"], "paused")
@@ -138,21 +235,24 @@ class ResumeWorkflowTests(SyntheticFixture):
     def test_purge_removes_resume_data_even_if_events_already_deleted(self):
         self.save()
         self.start()
+        self.save_identity()
         store = EventStore(self.db)
         store.conn.execute("DELETE FROM events")
         store.conn.commit()
         store.delete_all(subject_id=self.cfg["subject_id"])
-        for table in ("resume_checkpoints", "resume_sessions"):
+        for table in ("resume_checkpoints", "resume_sessions", "task_bindings", "task_identities", "task_identity_edits"):
             self.assertEqual(store.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
         store.close()
 
     def test_retention_invalidates_resume_snapshots(self):
         self.save()
         self.start()
+        self.save_identity()
         store = EventStore(self.db)
         store.delete_before(subject_id=self.cfg["subject_id"], cutoff=utc_now())
         self.assertEqual(store.conn.execute("SELECT COUNT(*) FROM resume_checkpoints").fetchone()[0], 0)
         self.assertEqual(store.conn.execute("SELECT COUNT(*) FROM resume_sessions").fetchone()[0], 0)
+        self.assertEqual(store.conn.execute("SELECT COUNT(*) FROM task_identities").fetchone()[0], 0)
         store.close()
 
     @unittest.skipUnless(CRYPTO, "encryption extra not installed")

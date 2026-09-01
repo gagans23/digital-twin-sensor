@@ -129,7 +129,7 @@ function resumeView() {
     status: 'ready', selected_sphere_id: 'synthetic-sphere', title: 'Synthetic task',
     tasks: [{ id: 'synthetic-sphere', title: 'Synthetic task' }], coverage: {state:'recent'},
     checkpoint: {id:1,state:'Confirmed state',next_step:'Saved step',question:'Open question',confirmed_at:'2026-08-31T10:00:00Z'},
-    history: [], observations: [], sessions: [],
+    history: [], observations: [], sessions: [], identity: null, saved_tasks: [],
   };
 }
 
@@ -164,4 +164,44 @@ test('resume text is escaped and is not rendered as markup', async () => {
   context.renderResume(view);
   assert.match(element('resumeConfirmed').innerHTML, /&lt;img/);
   assert.doesNotMatch(element('resumeConfirmed').innerHTML, /<img/);
+});
+
+test('task identity names are escaped and drafts block navigation', async () => {
+  const { context, element } = await dashboard();
+  const view = resumeView();
+  view.identity = {id:'saved-1', name:'<img src=x>', revision:3, aliases:['synthetic-sphere'], restricted:false};
+  view.saved_tasks = [view.identity];
+  context.renderResume(view);
+  assert.equal(element('taskIdentityName').value, '<img src=x>');
+  assert.doesNotMatch(element('resumeTask').innerHTML, /<img/);
+  element('taskIdentityName').value = 'Human task name';
+  element('taskIdentityName').listeners.input();
+  assert.equal(element('resumeTask').disabled, true);
+  assert.equal(element('daysSelect').disabled, true);
+  assert.equal(element('taskIdentityDiscard').hidden, false);
+});
+
+test('link and unlink require explicit UI actions and revision tokens', async () => {
+  const { context, element } = await dashboard();
+  const calls = [];
+  const view = resumeView();
+  view.saved_tasks = [{id:'saved-1', name:'Saved task', revision:4, aliases:['other'], restricted:false}];
+  context.postJson = async (url, payload) => { calls.push({url, payload}); return {}; };
+  context.loadResume = async () => {};
+  context.renderResume(view);
+  element('taskIdentityTarget').value = 'saved-1';
+  element('taskIdentityTarget').listeners.change();
+  await element('taskIdentityLink').listeners.click();
+  assert.equal(calls[0].payload.action, 'link_task');
+  assert.equal(calls[0].payload.target_revision, 4);
+  assert.equal(calls[0].payload.identity_revision, null);
+
+  view.identity = {id:'saved-1', name:'Saved task', revision:5, aliases:['synthetic-sphere','other'], restricted:false};
+  context.renderResume(view);
+  element('taskIdentityUnlink').listeners.click();
+  assert.equal(element('taskIdentityConfirm').hidden, false);
+  assert.equal(calls.length, 1);
+  await element('taskIdentityUnlinkYes').listeners.click();
+  assert.equal(calls[1].payload.action, 'unlink_task');
+  assert.equal(calls[1].payload.identity_revision, 5);
 });

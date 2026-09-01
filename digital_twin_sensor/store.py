@@ -240,6 +240,9 @@ class EventStore:
         deleted = int(cur.rowcount)
         if deleted:
             self._clear_derived_memory(subject_id)
+        if self.conn.execute("SELECT 1 FROM sqlite_master WHERE name='task_identities'").fetchone():
+            from .task_identity import expire_identities
+            expire_identities(self.conn, cutoff.isoformat(), subject_id)
         self.conn.commit()
         return deleted
 
@@ -260,6 +263,8 @@ class EventStore:
         # retention. Keep active restrictions so retention cannot weaken consent.
         tables = {row[0] for row in self.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         names = ["context_cards", "resume_checkpoints", "resume_sessions"] + (["context_feedback"] if clear_feedback else [])
+        if clear_feedback:
+            names.extend(["task_bindings", "task_identities", "task_identity_edits"])
         for name in names:
             if name in tables:
                 if subject_id:

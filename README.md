@@ -2,9 +2,9 @@
 
 **31 August hardening update:** [What changed and what remains unproven](docs/HARDENING_2026_08_31.md) | [Claude handover](docs/CLAUDE_HANDOVER.md).
 
-**Resume my work:** the dashboard now separates observed activity, inferred suggestions, and checkpoints you confirm. [Workflow, API, and limitations](docs/RESUME_WORKFLOW.md).
+**Resume my work:** the dashboard separates observed activity, inferred suggestions, and checkpoints you confirm. Saved task identities let you explicitly link or split inferred activity groups without automatic merges. [Workflow, API, and limitations](docs/RESUME_WORKFLOW.md).
 
-**Opik observability:** optional operational logs and traces, with a local inspector, content-excluding schema, and isolated exporter. Off by default. [Setup, privacy boundaries, and troubleshooting](docs/OPIK_OBSERVABILITY.md).
+**Opik observability:** optional operational logs and traces, with a local inspector, content-excluding schema, isolated exporter, and loopback-only self-hosted deployment. Off by default. [Setup, privacy boundaries, and troubleshooting](docs/OPIK_OBSERVABILITY.md).
 
 **A local-first, privacy-gated context sensor for personal and enterprise context engineering.**
 
