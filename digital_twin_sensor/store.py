@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import DEFAULT_DB_PATH
+from .observability import observed
 
 
 SCHEMA = """
@@ -106,6 +107,7 @@ class EventStore:
     def close(self) -> None:
         self.conn.close()
 
+    @observed("collection.persist")
     def insert_event(self, event: dict[str, Any]) -> int:
         assert_encrypted_write(self.conn, self.cipher)
         if self.cipher is not None:
@@ -238,6 +240,9 @@ class EventStore:
         deleted = int(cur.rowcount)
         if deleted:
             self._clear_derived_memory(subject_id)
+        if self.conn.execute("SELECT 1 FROM sqlite_master WHERE name='task_identities'").fetchone():
+            from .task_identity import expire_identities
+            expire_identities(self.conn, cutoff.isoformat(), subject_id)
         self.conn.commit()
         return deleted
 
@@ -249,6 +254,8 @@ class EventStore:
         deleted = int(cur.rowcount)
         self._clear_derived_memory(subject_id, clear_feedback=True)
         self.conn.commit()
+        from .observability import purge
+        purge(self.db_path)
         return deleted
 
     def _clear_derived_memory(self, subject_id: str | None, *, clear_feedback: bool = False) -> None:
@@ -256,6 +263,8 @@ class EventStore:
         # retention. Keep active restrictions so retention cannot weaken consent.
         tables = {row[0] for row in self.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         names = ["context_cards", "resume_checkpoints", "resume_sessions"] + (["context_feedback"] if clear_feedback else [])
+        if clear_feedback:
+            names.extend(["task_bindings", "task_identities", "task_identity_edits"])
         for name in names:
             if name in tables:
                 if subject_id:

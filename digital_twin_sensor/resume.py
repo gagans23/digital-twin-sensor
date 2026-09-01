@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from datetime import timedelta
 from pathlib import Path
 from uuid import UUID
@@ -11,9 +12,11 @@ from .learning import LearningStore
 from .redaction import redact_text
 from .store import assert_encrypted_write, open_event_store, parse_dt, utc_now
 from .working_spheres import build_working_spheres
+from .observability import observed
+from .task_identity import IdentityConflict, registry, identity_for, scope_matches, edit_identity
 
 
-class ResumeConflict(ValueError):
+class ResumeConflict(IdentityConflict):
     pass
 
 
@@ -24,20 +27,22 @@ def _safe_text(value, config, limit=1200):
     return redact_text(value.strip(), policy).text
 
 
-def _history(store, subject, sphere, config):
+def _history(store, subject, aliases, config):
     cutoff = (utc_now() - timedelta(days=max(1, int(config.get("retention_days", 30))))).isoformat()
     rows = store.conn.execute(
-        "SELECT * FROM resume_checkpoints WHERE subject_id=? AND sphere_id=? AND created_at>=? ORDER BY id DESC LIMIT 10",
-        (subject, sphere, cutoff),
+        "SELECT * FROM resume_checkpoints WHERE subject_id=? AND sphere_id IN (" + ",".join("?" for _ in aliases) + ") AND created_at>=? ORDER BY id DESC LIMIT 100",
+        (subject, *aliases, cutoff),
     ).fetchall()
     history = []
     for row in rows:
         value = json.loads(store.cipher.decrypt(row["payload_json"]) if store.cipher else row["payload_json"])
+        if not scope_matches(value.get("context_scope"), aliases, row["sphere_id"]):
+            continue
         # Apply current masking policy again when old checkpoints are displayed.
         for field in ("state", "next_step", "question"):
             value[field] = _safe_text(value.get(field, ""), config)
         history.append({"id": row["id"], "confirmed_at": row["created_at"], **value})
-    return history
+    return history[:10]
 
 
 def _coverage(events, config):
@@ -65,14 +70,26 @@ def _build(events, config, store, sphere_id, days):
     packs = [build_context_pack(events, config, days=days, purpose="self_review", target="local_file",
                                 sphere_id=sphere["id"], activities=activities, feedback=feedback)
              for sphere in activities.get("spheres", [])]
+    identities = registry(store, config, activities, packs, feedback)
+    for pack in packs:
+        identity = identity_for(identities, pack["selected_sphere_id"])
+        if identity and identity["restricted"]:
+            pack.update(status="blocked", summary={}, context={}, selection_reason="A linked activity group requires review")
     selected = next((p for p in packs if p["selected_sphere_id"] == sphere_id), None) if sphere_id else next((p for p in packs if p["status"] == "ready"), packs[0] if packs else None)
+    tasks = []
+    for pack in packs:
+        identity = identity_for(identities, pack["selected_sphere_id"])
+        inferred = pack["summary"].get("title", "Restricted context")
+        title = f'{identity["name"]} / {inferred}' if identity and not identity["restricted"] else inferred
+        tasks.append({"id": pack["selected_sphere_id"], "title": title,
+                      "status": pack["status"], "last_seen": pack["summary"].get("last_seen")})
     result = {
         "status": "empty", "reason": "No available task in this window.", "generated_at": utc_now().isoformat(),
         "coverage": _coverage(events, config), "selected_sphere_id": sphere_id,
-        "tasks": [{"id": p["selected_sphere_id"], "title": p["summary"].get("title", "Restricted context"),
-                   "status": p["status"], "last_seen": p["summary"].get("last_seen")} for p in packs],
+        "tasks": tasks,
         "checkpoint": None, "history": [], "observations": [], "sessions": [],
         "inference": None, "change": None,
+        "identity": None, "saved_tasks": identities,
     }
     if selected is None:
         if sphere_id:
@@ -80,32 +97,49 @@ def _build(events, config, store, sphere_id, days):
         return result
     result.update(status=selected["status"], selected_sphere_id=selected["selected_sphere_id"],
                   reason=selected.get("selection_reason"), pack_id=selected["pack_id"])
+    identity = identity_for(identities, selected["selected_sphere_id"])
+    result["identity"] = identity
     if selected["status"] != "ready":
         return result
     sphere = selected["selected_sphere_id"]
-    history = _history(store, config["subject_id"], sphere, config)
+    aliases = identity["aliases"] if identity else [sphere]
+    scoped_packs = [pack for pack in packs if pack["selected_sphere_id"] in aliases and pack["status"] == "ready"]
+    if len(scoped_packs) > 1:
+        context_id = sha256("|".join(sorted(pack["pack_id"] for pack in scoped_packs)).encode()).hexdigest()[:24]
+        result["pack_id"] = "resume_" + context_id
+    history = _history(store, config["subject_id"], aliases, config)
     checkpoint = history[0] if history else None
-    observations = selected["context"].get("recent_path", [])
+    observations, seen_observations = [], set()
+    for pack in scoped_packs:
+        for item in pack["context"].get("recent_path", []):
+            key = (item.get("time"), item.get("artifact"), item.get("app"))
+            if key not in seen_observations:
+                seen_observations.add(key)
+                observations.append(item)
+    observations.sort(key=lambda item: item.get("time", ""), reverse=True)
+    observed_through = max((pack["summary"]["last_seen"] for pack in scoped_packs), default=selected["summary"]["last_seen"])
     new_samples = [item for item in observations if checkpoint and item.get("time") and
                    parse_dt(item["time"]) > parse_dt(checkpoint["observed_through"])]
     sessions = [dict(row) for row in store.conn.execute(
-        "SELECT id, pack_id, checkpoint_id, created_at, shown_at, outcome, completed_at FROM resume_sessions WHERE subject_id=? AND sphere_id=? ORDER BY created_at DESC LIMIT 10",
-        (config["subject_id"], sphere),
-    )]
+        "SELECT id, sphere_id, scope_json, pack_id, checkpoint_id, created_at, shown_at, outcome, completed_at FROM resume_sessions WHERE subject_id=? AND sphere_id IN (" + ",".join("?" for _ in aliases) + ") ORDER BY created_at DESC LIMIT 100",
+        (config["subject_id"], *aliases),
+    ) if scope_matches(json.loads(row["scope_json"]), aliases, row["sphere_id"])][:10]
     result.update(
-        title=selected["summary"]["title"], checkpoint=checkpoint, history=history,
+        title=identity["name"] if identity else selected["summary"]["title"], checkpoint=checkpoint, history=history,
         observations=observations, sessions=sessions,
         inference={"text": selected["summary"]["objective"], "basis": "Task-category template; not a confirmed next step."},
         change={"since": checkpoint["observed_through"] if checkpoint else None,
                 "recent_samples_since": len(new_samples) if checkpoint else None,
                 "scope": "Only the displayed recent samples; not a complete activity diff.",
                 "content_changes_verified": False},
-        observed_through=selected["summary"]["last_seen"],
-        validity="Task membership is inferred from artifact/title similarity. Foreground presence is observed, not attention.",
+        observed_through=observed_through,
+        validity="Activity groups are inferred; saved task links are user-confirmed. Foreground presence is observed, not attention.",
+        context_scope=aliases,
     )
     return result
 
 
+@observed("resume.view")
 def build_resume_view(db_path: Path, config: dict, *, sphere_id=None, days=14):
     events_store = open_event_store(db_path, config)
     try:
@@ -114,14 +148,17 @@ def build_resume_view(db_path: Path, config: dict, *, sphere_id=None, days=14):
         events_store.close()
     store = LearningStore(db_path, config=config)
     try:
-        return _build(events, config, store, sphere_id, days)
+        result = _build(events, config, store, sphere_id, days)
+        store.conn.commit()
+        return result
     finally:
         store.close()
 
 
+@observed("resume.action")
 def resume_action(db_path: Path, config: dict, payload: dict):
     action = payload.get("action")
-    if action not in {"checkpoint", "start", "shown", "outcome"}:
+    if action not in {"checkpoint", "start", "shown", "outcome", "save_task", "link_task", "unlink_task"}:
         raise ValueError("Unknown resume action")
     subject = config["subject_id"]
     events_store = open_event_store(db_path, config)
@@ -158,8 +195,25 @@ def resume_action(db_path: Path, config: dict, payload: dict):
             raise ValueError("days must be between 1 and 365")
         events = events_store.fetch_window(subject_id=subject, days=days)
         view = _build(events, config, store, sphere_id, days)
+        if action == "unlink_task" and view.get("identity"):
+            try:
+                result = edit_identity(store, config, view, payload)
+            except IdentityConflict as exc:
+                raise ResumeConflict(str(exc)) from None
+            store.conn.commit()
+            return result
         if view["status"] != "ready":
             raise ResumeConflict("Task context is restricted, missing, or expired. Refresh before continuing.")
+        revision = view["identity"]["revision"] if view["identity"] else None
+        if payload.get("identity_revision") != revision:
+            raise ResumeConflict("Task identity changed. Refresh before continuing.")
+        if action in {"save_task", "link_task"}:
+            try:
+                result = edit_identity(store, config, view, payload)
+            except IdentityConflict as exc:
+                raise ResumeConflict(str(exc)) from None
+            store.conn.commit()
+            return result
         checkpoint_id = view["checkpoint"]["id"] if view["checkpoint"] else None
         if action == "checkpoint":
             if payload.get("base_checkpoint_id") != checkpoint_id:
@@ -169,6 +223,7 @@ def resume_action(db_path: Path, config: dict, payload: dict):
                 raise ValueError("Describe the state you can confirm")
             values["observed_through"] = view["observed_through"]
             values["source"] = "user_report"
+            values["context_scope"] = view["context_scope"]
             result = store.conn.execute("INSERT INTO resume_checkpoints(subject_id,sphere_id,created_at,payload_json) VALUES(?,?,?,?)",
                                         (subject, sphere_id, utc_now().isoformat(), store._seal(json.dumps(values))))
             store.conn.commit()
@@ -182,9 +237,9 @@ def resume_action(db_path: Path, config: dict, payload: dict):
         if existing and (existing["subject_id"] != subject or existing["sphere_id"] != sphere_id):
             raise ResumeConflict("Request ID belongs to another resume session")
         if not existing:
-            store.conn.execute("INSERT INTO resume_sessions(id,subject_id,sphere_id,pack_id,checkpoint_id,created_at) VALUES(?,?,?,?,?,?)",
-                               (session_id, subject, sphere_id, view["pack_id"], checkpoint_id, utc_now().isoformat()))
-        elif existing["pack_id"] != view["pack_id"] or existing["checkpoint_id"] != checkpoint_id:
+            store.conn.execute("INSERT INTO resume_sessions(id,subject_id,sphere_id,pack_id,checkpoint_id,created_at,scope_json) VALUES(?,?,?,?,?,?,?)",
+                               (session_id, subject, sphere_id, view["pack_id"], checkpoint_id, utc_now().isoformat(), json.dumps(view["context_scope"])))
+        elif existing["pack_id"] != view["pack_id"] or existing["checkpoint_id"] != checkpoint_id or set(json.loads(existing["scope_json"]) or [sphere_id]) != set(view["context_scope"]):
             raise ResumeConflict("Context changed since this request. Start a new resume session.")
         store.conn.commit()
         return {"stored": True, "session_id": session_id, "view": view}

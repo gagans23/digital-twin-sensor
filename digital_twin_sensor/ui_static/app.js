@@ -12,6 +12,9 @@ const state = {
   resumeRequestId: null,
   resumeLoadVersion: 0,
   resumeStarting: false,
+  identityBusy: false,
+  identityDirty: false,
+  identitySphere: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -2336,6 +2339,77 @@ async function refresh() {
   renderEvents(state.events);
   renderPrivacy(overview.privacy);
   if (document.querySelector("#resume.active-view")) await loadResume();
+  if (document.querySelector("#observability.active-view")) await loadObservability();
+}
+
+let observabilityView = null;
+let observabilityBusy = false;
+
+async function loadObservability() {
+  try { renderObservability(await getJson("/api/observability")); }
+  catch (error) {
+    $("obsNotice").textContent = "Operational status unavailable. Refresh to try again.";
+    $("obsEnabled").disabled = true;
+    $("obsTest").disabled = true;
+    $("obsOpen").hidden = true;
+  }
+}
+
+function renderObservability(view) {
+  observabilityView = view;
+  const exporter = view.exporter || {};
+  const messages = {off: "Operational logging is off. No new logs or exports.",
+    local: "Local logs only. Nothing is being sent to Opik.",
+    opik: "Opik export enabled. API acceptance is not proof of server-side persistence.",
+    unavailable: "Operational log unavailable. Sensor collection is independent."};
+  $("obsNotice").textContent = messages[view.mode] || messages.unavailable;
+  if (view.mode === "opik" && !exporter.last_attempt) $("obsNotice").textContent = "Opik configured. The exporter has not attempted delivery yet.";
+  $("obsEnabled").checked = view.mode === "local" || view.mode === "opik";
+  $("obsEnabled").disabled = observabilityBusy || view.mode === "unavailable";
+  $("obsTest").disabled = observabilityBusy || !$("obsEnabled").checked;
+  $("obsDestination").textContent = view.mode === "opik" ? view.destination : view.mode === "local" ? "Local only" : "No export";
+  $("obsPending").textContent = String(view.pending || 0);
+  $("obsAccepted").textContent = exporter.last_success ? fmtTime(new Date(exporter.last_success * 1000).toISOString()) : "Never";
+  $("obsError").textContent = exporter.last_error || "None";
+  $("obsTotals").textContent = `${view.records || 0} retained / ${exporter.failures || 0} failed batches / ${exporter.dropped || 0} pending traces expired or evicted`;
+  const link = $("obsOpen");
+  link.hidden = view.mode !== "opik";
+  if (!link.hidden && /^https?:\/\//.test(view.destination)) link.href = view.destination.replace(/\/api\/?$/, "");
+  else link.hidden = true;
+  renderOperationalTraces();
+}
+
+function renderOperationalTraces() {
+  const filter = $("obsFilter").value || "all";
+  const traces = (observabilityView?.recent || []).filter(trace => filter === "all" || trace.outcome === filter || trace.spans.some(span => span.outcome === filter));
+  $("obsTraces").innerHTML = traces.length ? traces.map(trace => {
+    const detail = span => `<li><div><code>${escapeHtml(span.name)}</code><span>${escapeHtml(span.outcome)}${span.error !== "none" ? ` / ${escapeHtml(span.error)}` : ""}</span></div><span>${Number(span.duration_ms).toFixed(1)} ms</span></li>`;
+    return `<details class="obs-trace"><summary><time>${fmtTime(new Date(trace.start * 1000).toISOString())}</time><strong>${escapeHtml(trace.name)}</strong><span class="obs-outcome" data-outcome="${escapeHtml(trace.outcome)}">${escapeHtml(trace.outcome)}</span><span>${Number(trace.duration_ms).toFixed(1)} ms</span></summary>
+      <div class="obs-trace-detail"><div class="obs-trace-meta"><code>${escapeHtml(trace.id)}</code><span>Delivery: ${escapeHtml(trace.delivery)}</span></div>
+      <ul>${detail(trace)}${(trace.spans || []).map(detail).join("")}</ul>
+      <pre>${escapeHtml(JSON.stringify(trace.counts || {}, null, 2))}</pre></div></details>`;
+  }).join("") : `<p class="resume-muted">${filter === "all" ? "No operational traces recorded yet." : "No matching outcomes in the latest 30 traces."}</p>`;
+}
+
+function bindObservability() {
+  const act = async action => {
+    if (observabilityBusy) return;
+    observabilityBusy = true;
+    $("obsEnabled").disabled = true;
+    $("obsTest").disabled = true;
+    try { renderObservability(await postJson("/api/observability", {action})); }
+    catch (error) { showToast(error.message); await loadObservability(); }
+    finally {
+      observabilityBusy = false;
+      if (observabilityView) renderObservability(observabilityView);
+    }
+  };
+  $("obsEnabled").addEventListener("change", event => act(event.target.checked ? "local" : "off"));
+  $("obsTest").addEventListener("click", () => act("test"));
+  $("obsFilter").addEventListener("change", renderOperationalTraces);
+  $("obsClear").addEventListener("click", () => { $("obsClearConfirm").hidden = false; });
+  $("obsClearNo").addEventListener("click", () => { $("obsClearConfirm").hidden = true; });
+  $("obsClearYes").addEventListener("click", async () => { await act("purge"); $("obsClearConfirm").hidden = true; });
 }
 
 async function loadResume() {
@@ -2396,6 +2470,32 @@ function renderResume(view) {
   $("resumeSessions").innerHTML = ready && view.sessions?.length
     ? view.sessions.map(session => `<article class="resume-session"><div><strong>${fmtTime(session.created_at)}</strong><p class="resume-muted">${session.shown_at ? "Display acknowledged" : "Display not acknowledged"} / ${session.outcome ? outcomes[session.outcome] : "Outcome not reported"}</p></div>${!session.outcome && session.shown_at ? `<div class="resume-outcomes"><button type="button" class="tool-button" data-resume-session="${escapeHtml(session.id)}" data-resume-outcome="progress">Made progress</button><button type="button" class="tool-button" data-resume-session="${escapeHtml(session.id)}" data-resume-outcome="no_progress">No progress</button><button type="button" class="tool-button" data-resume-session="${escapeHtml(session.id)}" data-resume-outcome="not_used">Did not use context</button></div>` : ""}</article>`).join("") + `<p class="resume-muted">Outcomes are your reports, not independently verified progress. No treatment comparison.</p>`
     : `<p class="resume-muted">No resume sessions for this task.</p>`;
+
+  const identity = view.identity;
+  if (state.identitySphere !== view.selected_sphere_id) {
+    state.identitySphere = view.selected_sphere_id;
+    state.identityDirty = false;
+  }
+  if (!state.identityDirty) $("taskIdentityName").value = identity?.restricted ? "" : identity?.name || "";
+  $("taskIdentityState").textContent = identity ? (identity.restricted ? "Restricted" : "Saved task") : "Inferred group";
+  $("taskIdentityNote").textContent = identity
+    ? identity.restricted ? "A linked activity group requires privacy review before this identity can be used." : `${identity.aliases.length} activity group${identity.aliases.length === 1 ? "" : "s"} linked. Membership changes only when you confirm them.`
+    : "This grouping is inferred. Save it only when it represents a task you recognize.";
+  const targets = (view.saved_tasks || []).filter(task => !task.restricted && task.id !== identity?.id);
+  $("taskIdentityTarget").innerHTML = targets.length
+    ? `<option value="">Choose a saved task</option>${targets.map(task => `<option value="${escapeHtml(task.id)}">${escapeHtml(task.name)}</option>`).join("")}`
+    : `<option value="">No other saved tasks</option>`;
+  $("taskIdentityLinker").hidden = Boolean(identity) || !ready;
+  $("taskIdentityUnlink").hidden = !identity;
+  $("taskIdentityUnlink").disabled = state.identityBusy;
+  $("taskIdentityName").disabled = !ready || identity?.restricted || state.identityBusy;
+  $("taskIdentitySave").textContent = identity ? "Rename task" : "Save identity";
+  $("taskIdentitySave").disabled = !ready || identity?.restricted || state.identityBusy || !$("taskIdentityName").value.trim();
+  $("taskIdentityDiscard").hidden = !state.identityDirty;
+  $("taskIdentityLink").disabled = state.identityBusy || !targets.length || !$("taskIdentityTarget").value;
+  $("resumeTask").disabled ||= state.identityDirty;
+  $("resumeStart").disabled ||= state.identityDirty;
+  $("daysSelect").disabled ||= state.identityDirty;
 }
 
 function bindResume() {
@@ -2422,7 +2522,7 @@ function bindResume() {
     $("resumeFields").disabled = true;
     try {
       await postJson("/api/resume", { action: "checkpoint", sphere_id: state.resumeSelected, days: state.days,
-        base_checkpoint_id: state.resumeBaseCheckpointId, state: $("resumeState").value,
+        base_checkpoint_id: state.resumeBaseCheckpointId, identity_revision: state.resume.identity?.revision ?? null, state: $("resumeState").value,
         next_step: $("resumeNext").value, question: $("resumeQuestion").value });
       state.resumeDirty = false;
       state.resumeRequestId = null;
@@ -2440,7 +2540,7 @@ function bindResume() {
     $("resumeStart").disabled = true;
     state.resumeRequestId ||= crypto.randomUUID();
     try {
-      const result = await postJson("/api/resume", { action: "start", sphere_id: state.resumeSelected, days: state.days, request_id: state.resumeRequestId });
+      const result = await postJson("/api/resume", { action: "start", sphere_id: state.resumeSelected, days: state.days, request_id: state.resumeRequestId, identity_revision: state.resume.identity?.revision ?? null });
       renderResume(result.view);
       if (!document.hidden) await postJson("/api/resume", { action: "shown", session_id: result.session_id });
       state.resumeRequestId = null;
@@ -2465,6 +2565,45 @@ function bindResume() {
       showToast("Outcome recorded as your report");
     } catch (error) { button.disabled = false; showToast(error.message); }
   });
+
+  const identityAction = async payload => {
+    if (state.identityBusy || state.resume?.status !== "ready") return;
+    state.identityBusy = true;
+    renderResume(state.resume);
+    try {
+      await postJson("/api/resume", { ...payload, sphere_id: state.resumeSelected, days: state.days,
+        identity_revision: state.resume.identity?.revision ?? null });
+      state.identityDirty = false;
+      $("taskIdentityConfirm").hidden = true;
+      await loadResume();
+      showToast(payload.action === "unlink_task" ? "Activity group unlinked" : "Task identity saved");
+    } catch (error) {
+      showToast(error.message);
+      await loadResume();
+    } finally {
+      state.identityBusy = false;
+      if (state.resume) renderResume(state.resume);
+    }
+  };
+  $("taskIdentityName").addEventListener("input", () => {
+    state.identityDirty = true;
+    if (state.resume) renderResume(state.resume);
+  });
+  $("taskIdentityDiscard").addEventListener("click", () => {
+    state.identityDirty = false;
+    if (state.resume) renderResume(state.resume);
+  });
+  $("taskIdentitySave").addEventListener("click", () => identityAction({ action: "save_task", name: $("taskIdentityName").value }));
+  $("taskIdentityTarget").addEventListener("change", () => {
+    $("taskIdentityLink").disabled = state.identityBusy || !$("taskIdentityTarget").value;
+  });
+  $("taskIdentityLink").addEventListener("click", () => {
+    const target = (state.resume?.saved_tasks || []).find(item => item.id === $("taskIdentityTarget").value);
+    if (target) return identityAction({ action: "link_task", task_id: target.id, target_revision: target.revision });
+  });
+  $("taskIdentityUnlink").addEventListener("click", () => { $("taskIdentityConfirm").hidden = false; });
+  $("taskIdentityUnlinkNo").addEventListener("click", () => { $("taskIdentityConfirm").hidden = true; });
+  $("taskIdentityUnlinkYes").addEventListener("click", () => identityAction({ action: "unlink_task" }));
 }
 
 function escapeHtml(value) {
@@ -2485,6 +2624,7 @@ function activateView(viewName) {
   button.classList.add("active");
   view.classList.add("active-view");
   if (viewName === "resume") loadResume().catch(error => showToast(error.message));
+  if (viewName === "observability") loadObservability().catch(error => showToast(error.message));
   button.scrollIntoView({ block: "nearest", inline: "nearest" });
   if (viewName === "graph" && state.overview) {
     window.requestAnimationFrame(() => renderContextGraph(state.overview.context_graph));
@@ -2496,6 +2636,7 @@ function activateView(viewName) {
 
 function bindUi() {
   bindResume();
+  bindObservability();
   $("refreshBtn").addEventListener("click", async () => {
     try {
       await refresh();

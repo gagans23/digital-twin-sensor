@@ -1,0 +1,40 @@
+# Overlay for the official Opik Compose deployment. Start frontend and mc only.
+services:
+  backend:
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 3g
+    environment:
+      OPIK_USAGE_REPORT_ENABLED: "false"
+      OPIK_OTEL_SDK_ENABLED: "false"
+      TOGGLE_OPIK_AI_ENABLED: "false"
+      TOGGLE_OLLIE_ENABLED: "false"
+      TOGGLE_WELCOME_WIZARD_ENABLED: "false"
+      LLM_MODEL_REGISTRY_REMOTE_ENABLED: "false"
+      LLM_PROVIDER_TOKEN_AUTH_DESTINATION_GUARD: strict
+  frontend:
+    ports: !override
+      - "127.0.0.1:5173:5173"
+    restart: unless-stopped
+    networks:
+      - default
+      - loopback_ui
+    volumes: !override
+      - ${DTS_OPIK_NGINX_CONFIG:?Set an absolute path to nginx.local.conf}:/etc/nginx/templates/default.conf.template:ro
+  mysql:
+    restart: unless-stopped
+  clickhouse:
+    restart: unless-stopped
+  redis:
+    restart: unless-stopped
+  zookeeper:
+    restart: unless-stopped
+  minio:
+    restart: unless-stopped
+  python-backend:
+    privileged: false
+networks:
+  default:
+    internal: true
+  loopback_ui:
+    driver: bridge

@@ -1,6 +1,13 @@
 stages:
   - test
 
+opik_contract:
+  image: python:3.12-slim
+  stage: test
+  script:
+    - python -m pip install -e ".[observability]"
+    - python -m unittest tests.test_observability -v
+
 unit_tests:
   image: python:3.11-slim
   stage: test

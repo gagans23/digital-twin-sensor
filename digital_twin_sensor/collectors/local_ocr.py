@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..redaction import redact_text
+from ..observability import observed
 
 
 def _helper_path() -> Path:
@@ -151,6 +152,7 @@ def sanitize_ocr_surface_detail(detail: dict[str, Any], config: dict[str, Any]) 
     }
 
 
+@observed("collection.ocr")
 def active_ocr_surface_detail(app: str, config: dict[str, Any]) -> dict[str, Any] | None:
     if not ocr_detail_enabled(app, config):
         return None

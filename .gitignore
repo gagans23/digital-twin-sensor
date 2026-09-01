@@ -10,6 +10,11 @@ build/
 dist/
 *.egg-info/
 *.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+.venv-opik/
+*.opik-key
 *.sqlite3
 *.db
 *.log

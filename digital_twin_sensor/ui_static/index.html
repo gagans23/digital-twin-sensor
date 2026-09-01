@@ -42,6 +42,7 @@
         <button class="tab" type="button" data-view="resume">Resume my work</button>
         <button class="tab" type="button" data-view="depth">Signal Depth</button>
         <button class="tab" type="button" data-view="ops">Product Ops</button>
+        <button class="tab" type="button" data-view="observability">Observability</button>
         <button class="tab" type="button" data-view="fleet">Fleet</button>
         <button class="tab" type="button" data-view="activities">Activities</button>
         <button class="tab" type="button" data-view="packs">Context Packs</button>
@@ -54,6 +55,46 @@
       </nav>
 
       <main>
+        <section id="observability" class="view" aria-labelledby="observabilityTitle">
+          <header class="resume-header">
+            <div><p class="kicker">Pipeline health</p><h2 id="observabilityTitle">Logs &amp; traces</h2></div>
+            <div class="resume-controls">
+              <label class="obs-toggle"><input id="obsEnabled" type="checkbox">Operational logging</label>
+              <button id="obsTest" class="tool-button" type="button" disabled>Record test trace</button>
+            </div>
+          </header>
+          <div id="obsNotice" class="resume-coverage" role="status">Checking operational log.</div>
+          <dl class="obs-metrics">
+            <div><dt>Destination</dt><dd id="obsDestination">Not configured</dd></div>
+            <div><dt>Pending export</dt><dd id="obsPending">0</dd></div>
+            <div><dt>Last API acceptance</dt><dd id="obsAccepted">Never</dd></div>
+            <div><dt>Exporter error</dt><dd id="obsError">None</dd></div>
+          </dl>
+          <div class="obs-layout">
+            <section class="resume-section" aria-labelledby="obsRecentTitle">
+              <div class="resume-heading"><h3 id="obsRecentTitle">Recent operations</h3>
+                <select id="obsFilter" aria-label="Filter operations"><option value="all">All outcomes</option><option value="error">Errors</option><option value="blocked">Blocked</option></select>
+              </div>
+              <div id="obsTraces" class="obs-traces"></div>
+            </section>
+            <aside class="resume-section obs-boundary">
+              <h3>Data boundary</h3>
+              <dl><dt>Recorded</dt><dd>Operation, time, duration, outcome, counts, random trace IDs.</dd>
+                <dt>Excluded</dt><dd>Screen text, names, URLs, prompts, checkpoint notes, credentials, raw errors.</dd>
+                <dt>Local retention</dt><dd>Up to 2,000 traces, at most 7 days on the next log access. Timing can still reveal activity patterns.</dd>
+                <dt>Remote retention</dt><dd>Controlled in Opik. Clearing local logs does not delete exported copies.</dd>
+              </dl>
+              <a id="obsOpen" class="obs-link" target="_blank" rel="noopener noreferrer" hidden>Open Opik</a>
+              <p id="obsTotals" class="resume-muted"></p>
+              <button id="obsClear" class="tool-button" type="button">Clear local logs</button>
+              <div id="obsClearConfirm" class="obs-clear-confirm" hidden>
+                <p>Delete all local operational logs? Exported copies will remain in Opik.</p>
+                <button id="obsClearYes" class="tool-button" type="button">Delete local logs</button>
+                <button id="obsClearNo" class="tool-button" type="button">Cancel</button>
+              </div>
+            </aside>
+          </div>
+        </section>
         <section id="resume" class="view" aria-labelledby="resumeTitle">
           <header class="resume-header">
             <div><p class="kicker">Work continuity</p><h2 id="resumeTitle">Resume my work</h2></div>
@@ -103,6 +144,27 @@
               <section class="resume-section" aria-labelledby="resumeHistoryTitle">
                 <h3 id="resumeHistoryTitle">Checkpoint history</h3>
                 <div id="resumeHistory"></div>
+              </section>
+              <section class="resume-section" aria-labelledby="taskIdentityTitle">
+                <div class="resume-heading"><h3 id="taskIdentityTitle">Task identity</h3><span id="taskIdentityState" class="resume-type">Inferred group</span></div>
+                <p id="taskIdentityNote" class="resume-muted"></p>
+                <label for="taskIdentityName">Saved task name</label>
+                <input id="taskIdentityName" maxlength="160" autocomplete="off">
+                <div class="resume-form-actions">
+                  <button id="taskIdentitySave" class="tool-button" type="button">Save identity</button>
+                  <button id="taskIdentityDiscard" class="tool-button" type="button" hidden>Discard name</button>
+                </div>
+                <div id="taskIdentityLinker">
+                  <label for="taskIdentityTarget">Link this activity group to</label>
+                  <select id="taskIdentityTarget" aria-label="Saved task identity"></select>
+                  <button id="taskIdentityLink" class="tool-button" type="button">Link group</button>
+                </div>
+                <button id="taskIdentityUnlink" class="tool-button" type="button" hidden>Unlink activity group</button>
+                <div id="taskIdentityConfirm" class="obs-clear-confirm" hidden>
+                  <p>Unlink this group? Checkpoints created from a wider linked scope will be withheld after the split.</p>
+                  <button id="taskIdentityUnlinkYes" class="tool-button" type="button">Unlink group</button>
+                  <button id="taskIdentityUnlinkNo" class="tool-button" type="button">Cancel</button>
+                </div>
               </section>
             </aside>
           </div>

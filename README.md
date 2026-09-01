@@ -2,7 +2,9 @@
 
 **31 August hardening update:** [What changed and what remains unproven](docs/HARDENING_2026_08_31.md) | [Claude handover](docs/CLAUDE_HANDOVER.md).
 
-**Resume my work:** the dashboard now separates observed activity, inferred suggestions, and checkpoints you confirm. [Workflow, API, and limitations](docs/RESUME_WORKFLOW.md).
+**Resume my work:** the dashboard separates observed activity, inferred suggestions, and checkpoints you confirm. Saved task identities let you explicitly link or split inferred activity groups without automatic merges. [Workflow, API, and limitations](docs/RESUME_WORKFLOW.md).
+
+**Opik observability:** optional operational logs and traces, with a local inspector, content-excluding schema, isolated exporter, and loopback-only self-hosted deployment. Off by default. [Setup, privacy boundaries, and troubleshooting](docs/OPIK_OBSERVABILITY.md).
 
 **A local-first, privacy-gated context sensor for personal and enterprise context engineering.**
 
@@ -10,7 +12,7 @@
 ![Python 3](https://img.shields.io/badge/python-3.10%2B-2F7E6D)
 ![Platform macOS](https://img.shields.io/badge/platform-macOS-14263B)
 ![Storage local SQLite](https://img.shields.io/badge/storage-local%20SQLite-5C6672)
-![Cloud upload none](https://img.shields.io/badge/cloud%20upload-none-A2432F)
+![Cloud upload opt-in](https://img.shields.io/badge/operational%20export-opt--in-A2432F)
 ![Status prototype](https://img.shields.io/badge/status-working%20prototype-8F6A1C)
 ![Dependencies none](https://img.shields.io/badge/runtime%20dependencies-none-2F7E6D)
 
@@ -29,6 +31,8 @@ It is inspired by X-SYNTH, context-engineering and agent-memory research, but it
 ![Digital Twin Sensor architecture](docs/assets/architecture.svg)
 
 Every box runs locally. Agent handoff packs pass through the admission gate. The explicit local `export` command is a separate audit export of stored event records and should not be shared as an agent pack. The sensor remains useful with the network off.
+
+The optional Opik exporter is a separate outbound path for allowlisted operational metadata, not context packs or captured content. It runs only after explicit endpoint configuration, and does not upload prior local history.
 
 ---
 
